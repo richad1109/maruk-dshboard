@@ -370,14 +370,21 @@ if pos_list:
 else:
     st.info("Tidak ada posisi yang sedang aktif.")
 
-# Exchange Balances (Responsive Grid)
-st.markdown('<div style="font-size: 1.05rem; font-weight: 800; margin-bottom: 10px; color: #f8fafc;">🏦 Saldo Per Exchange</div>', unsafe_allow_html=True)
+# Total Combined TP (+8.2%) and SL (-2.3%) Projection across ALL exchanges
+total_potential_tp_usd = sum(p['margin'] * p['leverage'] * 0.082 for p in pos_list) if pos_list else 0.0
+total_potential_tp_idr = total_potential_tp_usd * 17000
+bal_if_tp = tot_bal + total_potential_tp_usd
+pct_gain_tp = (total_potential_tp_usd / tot_bal * 100) if tot_bal > 0 else 0.0
 
-bal_html = '<div class="bal-grid">'
-for name, d in ex_details.items():
-    bal_html += f'<div style="background: #0f172a; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px;"><div style="font-weight: 700; font-size: 0.85rem; color: #38bdf8; margin-bottom: 4px;">{name} Futures</div><div style="font-size: 1.35rem; font-weight: 800; color: #f8fafc;">${d.get("total", 0.0):.2f} <span style="font-size: 0.75rem; color: #94a3b8;">USDT</span></div><div style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">Tersedia: ${d.get("free", 0.0):.2f} USDT</div></div>'
-bal_html += '</div>'
-st.markdown(bal_html, unsafe_allow_html=True)
+total_potential_sl_usd = sum(p['margin'] * p['leverage'] * 0.023 for p in pos_list) if pos_list else 0.0
+total_potential_sl_idr = total_potential_sl_usd * 17000
+bal_if_sl = max(0.0, tot_bal - total_potential_sl_usd)
+pct_loss_sl = (total_potential_sl_usd / tot_bal * 100) if tot_bal > 0 else 0.0
+
+st.markdown('<div style="font-size: 1.05rem; font-weight: 800; margin-bottom: 12px; margin-top: 10px; color: #f8fafc;">🎯 Proyeksi Target Hasil (Total Seluruh Bursa)</div>', unsafe_allow_html=True)
+
+proj_html = f'<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-bottom: 24px;"><div style="background: linear-gradient(135deg, rgba(6, 78, 59, 0.45) 0%, rgba(15, 23, 42, 0.9) 100%); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 16px; padding: 18px; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.15);"><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;"><span style="font-size: 0.8rem; font-weight: 800; color: #34d399; text-transform: uppercase; letter-spacing: 0.05em;">✅ JIKA PROFIT SEMUA (TP +8.2%)</span><span style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-size: 0.75rem; font-weight: 800; padding: 2px 8px; border-radius: 6px;">+{pct_gain_tp:.1f}% EQUITY</span></div><div style="font-size: 1.85rem; font-weight: 900; color: #34d399; margin-bottom: 4px;">+${total_potential_tp_usd:.2f} <span style="font-size: 1rem; color: #a7f3d0;">USDT</span></div><div style="font-size: 0.85rem; color: #6ee7b7; font-weight: 700; margin-bottom: 12px;">+Rp {total_potential_tp_idr:,.0f}</div><div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; font-size: 0.8rem; color: #94a3b8; display: flex; justify-content: space-between;"><span>Saldo Menjadi:</span><b style="color: #ffffff;">${bal_if_tp:.2f} USDT (Rp {bal_if_tp * 17000:,.0f})</b></div></div><div style="background: linear-gradient(135deg, rgba(127, 29, 29, 0.45) 0%, rgba(15, 23, 42, 0.9) 100%); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 16px; padding: 18px; box-shadow: 0 4px 20px rgba(239, 68, 68, 0.15);"><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;"><span style="font-size: 0.8rem; font-weight: 800; color: #f87171; text-transform: uppercase; letter-spacing: 0.05em;">🛑 JIKA MINUS SEMUA (SL -2.3%)</span><span style="background: rgba(239, 68, 68, 0.2); color: #f87171; font-size: 0.75rem; font-weight: 800; padding: 2px 8px; border-radius: 6px;">-{pct_loss_sl:.1f}% EQUITY</span></div><div style="font-size: 1.85rem; font-weight: 900; color: #f87171; margin-bottom: 4px;">-${total_potential_sl_usd:.2f} <span style="font-size: 1rem; color: #fca5a5;">USDT</span></div><div style="font-size: 0.85rem; color: #fca5a5; font-weight: 700; margin-bottom: 12px;">-Rp {total_potential_sl_idr:,.0f}</div><div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 10px; font-size: 0.8rem; color: #94a3b8; display: flex; justify-content: space-between;"><span>Saldo Menjadi:</span><b style="color: #ffffff;">${bal_if_sl:.2f} USDT (Rp {bal_if_sl * 17000:,.0f})</b></div></div></div>'
+st.markdown(proj_html, unsafe_allow_html=True)
 
 # Auto Refresh loop
 if auto_refresh:
