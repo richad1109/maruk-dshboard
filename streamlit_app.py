@@ -25,9 +25,12 @@ st.markdown("""
     [data-testid="stDecoration"], 
     [data-testid="stStatusWidget"],
     .stDeployButton,
+    #stAppDeployButton,
     div[class*="viewerBadge"],
+    a[class*="viewerBadge"],
     .viewerBadge_container__1QSob,
-    [data-testid="manage-app-button"] {
+    [data-testid="manage-app-button"],
+    div[class*="manage-app"] {
         display: none !important;
         visibility: hidden !important;
         height: 0px !important;
@@ -359,32 +362,9 @@ if pos_list:
         is_p = p['pnl'] >= 0
         c_pnl = "#34d399" if is_p else "#f87171"
         badge_cls = "badge-long" if p['side'] == 'LONG' else "badge-short"
-        
-        cards_html += f"""
-        <div class="pos-box profit">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-weight: 800; font-size: 1.1rem; color: #ffffff;">{p['symbol']}</span>
-                <span class="{badge_cls}">{p['side']} {p['leverage']}x</span>
-            </div>
-            <div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 12px;">
-                <span>{p['exchange']}</span> • Margin: <b style="color: #f1f5f9;">${p['margin']:.2f}</b>
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
-                <div>
-                    <div style="font-size: 0.72rem; color: #64748b;">Entry: ${p['entry']:.4f}</div>
-                    <div style="font-size: 0.72rem; color: #64748b;">Mark: ${p['mark']:.4f}</div>
-                </div>
-                <div style="text-align: right;">
-                    <div style="font-size: 1.25rem; font-weight: 800; color: {c_pnl};">
-                        {'+$' if is_p else '-$'}{abs(p['pnl']):.2f}
-                    </div>
-                    <div style="font-size: 0.8rem; font-weight: 700; color: {c_pnl};">
-                        {'+' if is_p else ''}{p['roe']:.1f}% ROE
-                    </div>
-                </div>
-            </div>
-        </div>
-        """
+        sign = "+$" if is_p else "-$"
+        roe_sign = "+" if is_p else ""
+        cards_html += f'<div class="pos-box profit"><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;"><span style="font-weight: 800; font-size: 1.1rem; color: #ffffff;">{p["symbol"]}</span><span class="{badge_cls}">{p["side"]} {p["leverage"]}x</span></div><div style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 12px;"><span>{p["exchange"]}</span> • Margin: <b style="color: #f1f5f9;">${p["margin"]:.2f}</b></div><div style="display: flex; justify-content: space-between; align-items: flex-end; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;"><div><div style="font-size: 0.72rem; color: #64748b;">Entry: ${p["entry"]:.4f}</div><div style="font-size: 0.72rem; color: #64748b;">Mark: ${p["mark"]:.4f}</div></div><div style="text-align: right;"><div style="font-size: 1.25rem; font-weight: 800; color: {c_pnl};">{sign}{abs(p["pnl"]):.2f}</div><div style="font-size: 0.8rem; font-weight: 700; color: {c_pnl};">{roe_sign}{p["roe"]:.1f}% ROE</div></div></div></div>'
     cards_html += '</div>'
     st.markdown(cards_html, unsafe_allow_html=True)
 else:
@@ -395,13 +375,7 @@ st.markdown('<div style="font-size: 1.05rem; font-weight: 800; margin-bottom: 10
 
 bal_html = '<div class="bal-grid">'
 for name, d in ex_details.items():
-    bal_html += f"""
-    <div style="background: #0f172a; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px;">
-        <div style="font-weight: 700; font-size: 0.85rem; color: #38bdf8; margin-bottom: 4px;">{name} Futures</div>
-        <div style="font-size: 1.35rem; font-weight: 800; color: #f8fafc;">${d.get('total', 0.0):.2f} <span style="font-size: 0.75rem; color: #94a3b8;">USDT</span></div>
-        <div style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">Tersedia: ${d.get('free', 0.0):.2f} USDT</div>
-    </div>
-    """
+    bal_html += f'<div style="background: #0f172a; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px;"><div style="font-weight: 700; font-size: 0.85rem; color: #38bdf8; margin-bottom: 4px;">{name} Futures</div><div style="font-size: 1.35rem; font-weight: 800; color: #f8fafc;">${d.get("total", 0.0):.2f} <span style="font-size: 0.75rem; color: #94a3b8;">USDT</span></div><div style="font-size: 0.75rem; color: #64748b; margin-top: 4px;">Tersedia: ${d.get("free", 0.0):.2f} USDT</div></div>'
 bal_html += '</div>'
 st.markdown(bal_html, unsafe_allow_html=True)
 
