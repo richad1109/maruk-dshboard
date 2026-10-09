@@ -79,6 +79,31 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# JavaScript Cleaner to aggressively remove any floating badges / Manage App from DOM
+import streamlit.components.v1 as components
+components.html("""
+<script>
+    function cleanStreamlitUI() {
+        try {
+            const doc = window.parent.document;
+            const selectors = [
+                'footer', '[data-testid="stFooter"]', 
+                '[data-testid="stToolbar"]', '[data-testid="stHeader"]', 
+                '[data-testid="manage-app-button"]', 
+                'div[class*="viewerBadge"]', '.viewerBadge_container__1QSob',
+                '#MainMenu'
+            ];
+            selectors.forEach(sel => {
+                const nodes = doc.querySelectorAll(sel);
+                nodes.forEach(n => { n.style.display = 'none'; n.style.visibility = 'hidden'; });
+            });
+        } catch(e) {}
+    }
+    cleanStreamlitUI();
+    setInterval(cleanStreamlitUI, 500);
+</script>
+""", height=0)
+
 # DNS Over HTTPS (DoH) fallback for cloud bypass if needed
 _orig_getaddrinfo = socket.getaddrinfo
 _dns_cache = {}
