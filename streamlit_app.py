@@ -25,6 +25,22 @@ st.markdown("""
         color: #f1f5f9;
         font-family: 'Inter', sans-serif;
     }
+    /* Sembunyikan Header Atas & Toolbar (Stop, Share, GitHub, Menu) */
+    header, [data-testid="stHeader"], [data-testid="stToolbar"], #MainMenu, div[data-testid="stDecoration"] {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0px !important;
+    }
+    /* Sembunyikan Footer & Watermark Powered by Streamlit */
+    footer, [data-testid="stFooter"], div[class*="viewerBadge"], .viewerBadge_container__1QSob, [data-testid="manage-app-button"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    /* Rapikan padding konten paling atas */
+    .block-container {
+        padding-top: 1.5rem !important;
+        padding-bottom: 2rem !important;
+    }
     .metric-card {
         background: rgba(15, 23, 42, 0.75);
         border: 1px solid rgba(255, 255, 255, 0.08);
