@@ -79,7 +79,7 @@ def generate_live_state():
                     usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or (bal.get('total', {}) or {}).get('USDT', 0.0) or 0.0)
                     usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or usdt_total)
                 elif name == "MEXC":
-                    ex = ccxt.mexc({'apiKey': api_k, 'secret': sec_k, **cfg_base})
+                    ex = ccxt.mexc({'apiKey': api_k, 'secret': sec_k, 'options': {'defaultType': 'swap', 'recvWindow': 10000, 'adjustForTimeDifference': True}, 'enableRateLimit': True, 'timeout': 10000})
                     ex.has['fetchCurrencies'] = False
                     bal = ex.fetch_balance(params={'type': 'swap'})
                     usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or (bal.get('total', {}) or {}).get('USDT', 0.0) or 0.0)
@@ -181,6 +181,19 @@ def generate_live_state():
     print(f"State generated successfully at {out_file}!")
     for k, v in full_state.items():
         print(f"[{k}] Bal: ${v['total_bal']} | PnL: ${v['total_pnl']} | Pos: {len(v['pos_list'])} | Details: {v['ex_details']}")
+    return full_state
 
 if __name__ == "__main__":
-    generate_live_state()
+    if "--daemon" in sys.argv:
+        print("Starting continuous live state daemon (sync every 15s)...")
+        last_bal = 0.0
+        while True:
+            try:
+                st = generate_live_state()
+                cur_bal = st.get('akun_1', {}).get('total_bal', 0.0)
+                time.sleep(15)
+            except Exception as e:
+                print(f"Sync error: {e}")
+                time.sleep(10)
+    else:
+        generate_live_state()
