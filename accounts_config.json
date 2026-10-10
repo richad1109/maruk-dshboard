@@ -1,0 +1,42 @@
+{
+  "akun_1": {
+    "name": "Akun 1 (Utama - Saya)",
+    "Bitget": {
+      "apiKey": "bg_7acb820c501a147ef31fd30ebae0fd3c",
+      "secret": "b1745c9d60e4f521123ff313d3532994d706c161298add70e1f3e5e1284a9fee",
+      "password": "botmarukjosss"
+    },
+    "MEXC": {
+      "apiKey": "mx0vgluY6in6XqNKrs",
+      "secret": "cdd41089eba04fa3adb49b18b89918a0"
+    },
+    "BingX": {
+      "apiKey": "Qj7bWpsS6Z2QpHWe2RZSjeJHPVOK3fXikkAj96qKk1VglGfiJwiTJwRtqGPHlMBWCM7UeutRdnvVfM2UQFR1w",
+      "secret": "KMG9wbpdVtAoS7Hny9RssesIldiqav2PqqlQ9gdI5x2scLeoU2nXi770Uak0r2xL62IIzyr8gVaAEd0Zr9H8g"
+    },
+    "Bybit": {
+      "apiKey": "BF5pHcX0dmTMs57fRE",
+      "secret": "fHSrBq9hVRsZcpqC4zi958VE7052R7KkJUtW"
+    },
+    "Gate.io": {
+      "apiKey": "0c388c63d2a33f11cadd51a1c20e5bc3",
+      "secret": "1f5cb4d1be89d3cb246e95e413eaeebdace9bb27ecbe77664e6fb23817116ab0"
+    }
+  },
+  "akun_2": {
+    "name": "Akun 2 (Keluarga 2)",
+    "Bitget": {"apiKey": "", "secret": "", "password": ""},
+    "MEXC": {"apiKey": "", "secret": ""},
+    "BingX": {"apiKey": "", "secret": ""},
+    "Bybit": {"apiKey": "", "secret": ""},
+    "Gate.io": {"apiKey": "", "secret": ""}
+  },
+  "akun_3": {
+    "name": "Akun 3 (Keluarga 3)",
+    "Bitget": {"apiKey": "", "secret": "", "password": ""},
+    "MEXC": {"apiKey": "", "secret": ""},
+    "BingX": {"apiKey": "", "secret": ""},
+    "Bybit": {"apiKey": "", "secret": ""},
+    "Gate.io": {"apiKey": "", "secret": ""}
+  }
+}
