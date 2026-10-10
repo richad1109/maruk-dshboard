@@ -49,10 +49,26 @@
   },
   "akun_3": {
     "name": "Akun 3 (Keluarga 3)",
-    "Bitget": {"apiKey": "", "secret": "", "password": ""},
-    "MEXC": {"apiKey": "", "secret": ""},
-    "BingX": {"apiKey": "", "secret": ""},
-    "Bybit": {"apiKey": "", "secret": ""},
-    "Gate.io": {"apiKey": "", "secret": ""}
+    "Bitget": {
+      "apiKey": "bg_73608afab557072fb1bec7de9dd5cea6",
+      "secret": "061d71394f06d89a4be2ae2cdeaa4e91e975cf0fe9dc4db03c4d7de26be70736",
+      "password": "Pkbwiyung20"
+    },
+    "MEXC": {
+      "apiKey": "",
+      "secret": ""
+    },
+    "BingX": {
+      "apiKey": "Chwko9lscMzBW0NoHtwUkNM3czPZwc6jfxlW59ug6tn1auLRrx653uLCX5bpudQuanIRKbmq542kSFeqAA",
+      "secret": "axgJhbOKmrB7iaW2zm3SsY4vyMI9FKtC6GCa3AzxlFIntIOA0hBSD9dfuhYPNVrZr3Dc8TQbN4RRnlSQOg"
+    },
+    "Bybit": {
+      "apiKey": "",
+      "secret": ""
+    },
+    "Gate.io": {
+      "apiKey": "",
+      "secret": ""
+    }
   }
 }
