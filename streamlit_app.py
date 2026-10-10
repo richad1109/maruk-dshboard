@@ -224,7 +224,7 @@ accounts_cfg = load_accounts_config()
 # ========================================================
 # FETCH REAL FUTURES BALANCE & POSITIONS (PER PROFILE)
 # ========================================================
-@st.cache_data(ttl=5)
+@st.cache_data(ttl=2)
 def get_account_live_data(acc_key: str):
     profile = accounts_cfg.get(acc_key, {})
     tot_bal = 0.0
@@ -233,22 +233,36 @@ def get_account_live_data(acc_key: str):
     ex_details = {}
     cfg = {'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 15000}
 
-    # Cek apakah ada file live_bot_state.json sinkronisasi dari bot lokal
+    # 1. BACA STATE TERUPDATE DARI LOCAL / GITHUB RAW
+    state_data = None
     state_file = os.path.join(os.path.dirname(__file__), "live_bot_state.json")
     if os.path.exists(state_file):
         try:
             with open(state_file, "r") as sf:
                 state_data = json.load(sf)
-                if acc_key in state_data:
-                    acc_state = state_data[acc_key]
-                    return (
-                        float(acc_state.get('total_bal', 0.0)),
-                        float(acc_state.get('total_pnl', 0.0)),
-                        acc_state.get('pos_list', []),
-                        acc_state.get('ex_details', {})
-                    )
         except Exception:
             pass
+
+    if not state_data:
+        try:
+            r = requests.get(
+                "https://raw.githubusercontent.com/richad1109/maruk-dshboard/main/live_bot_state.json",
+                headers={"Cache-Control": "no-cache"},
+                timeout=3
+            )
+            if r.status_code == 200:
+                state_data = r.json()
+        except Exception:
+            pass
+
+    if state_data and acc_key in state_data:
+        acc_state = state_data[acc_key]
+        return (
+            float(acc_state.get('total_bal', 0.0)),
+            float(acc_state.get('total_pnl', 0.0)),
+            acc_state.get('pos_list', []),
+            acc_state.get('ex_details', {})
+        )
     
     ex_names = ["Bitget", "MEXC", "BingX", "Bybit", "Gate.io"]
     for name in ex_names:

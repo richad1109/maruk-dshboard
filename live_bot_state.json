@@ -1,0 +1,186 @@
+{
+  "akun_1": {
+    "total_bal": 38.73,
+    "total_pnl": 2.8,
+    "pos_list": [
+      {
+        "exchange": "Bitget",
+        "symbol": "ETH/USDT",
+        "side": "SHORT",
+        "entry": 2587.84,
+        "mark": 2508.23,
+        "margin": 0.895796428572,
+        "notional": 25.0823,
+        "pnl": 0.7961,
+        "roe": 88.87063786010765,
+        "leverage": 28
+      },
+      {
+        "exchange": "Bitget",
+        "symbol": "BTC/USDT",
+        "side": "SHORT",
+        "entry": 83325.0,
+        "mark": 82996.9,
+        "margin": 1.778505,
+        "notional": 49.79814,
+        "pnl": 0.19686,
+        "roe": 11.068847149712822,
+        "leverage": 28
+      },
+      {
+        "exchange": "MEXC",
+        "symbol": "BTC/USDT",
+        "side": "SHORT",
+        "entry": 83310.2,
+        "mark": 83310.2,
+        "margin": 3.0300686865164552,
+        "notional": 83.3102,
+        "pnl": 0.0,
+        "roe": 0.0,
+        "leverage": 28
+      },
+      {
+        "exchange": "MEXC",
+        "symbol": "ETH/USDT",
+        "side": "SHORT",
+        "entry": 2585.0,
+        "mark": 2585.0,
+        "margin": 0.9338200236552,
+        "notional": 25.85,
+        "pnl": 0.0,
+        "roe": 0.0,
+        "leverage": 28
+      },
+      {
+        "exchange": "BingX",
+        "symbol": "ETH/USDT",
+        "side": "SHORT",
+        "entry": 2585.24,
+        "mark": 2508.16,
+        "margin": 1.8466,
+        "notional": 50.16,
+        "pnl": 1.5417,
+        "roe": 83.48857359471461,
+        "leverage": 28
+      },
+      {
+        "exchange": "BingX",
+        "symbol": "BTC/USDT",
+        "side": "SHORT",
+        "entry": 83302.4,
+        "mark": 82991.6,
+        "margin": 1.7851,
+        "notional": 49.79,
+        "pnl": 0.1865,
+        "roe": 10.447593972326482,
+        "leverage": 28
+      },
+      {
+        "exchange": "BingX",
+        "symbol": "LIGHTER/USDT",
+        "side": "LONG",
+        "entry": 3.6705,
+        "mark": 3.7413,
+        "margin": 0.1977,
+        "notional": 4.02,
+        "pnl": 0.0762,
+        "roe": 38.543247344461314,
+        "leverage": 20
+      }
+    ],
+    "ex_details": {
+      "Bitget": {
+        "total": 18.18,
+        "free": 14.51,
+        "status": "ONLINE"
+      },
+      "MEXC": {
+        "total": 14.91,
+        "free": 14.91,
+        "status": "ONLINE"
+      },
+      "BingX": {
+        "total": 5.64,
+        "free": 1.38,
+        "status": "ONLINE"
+      },
+      "Bybit": {
+        "total": 0.0,
+        "free": 0.0,
+        "status": "ONLINE"
+      },
+      "Gate.io": {
+        "total": 0.0,
+        "free": 0.0,
+        "status": "ONLINE"
+      }
+    },
+    "updated_at": "2026-10-10 22:42:26"
+  },
+  "akun_2": {
+    "total_bal": 0.0,
+    "total_pnl": 0.0,
+    "pos_list": [],
+    "ex_details": {
+      "Bitget": {
+        "total": 0.0,
+        "free": 0.0,
+        "status": "ERR: bitget {\"code\":\"40012\",\"m"
+      },
+      "MEXC": {
+        "total": 0.0,
+        "free": 0.0,
+        "status": "ONLINE"
+      },
+      "BingX": {
+        "total": 0.0,
+        "free": 0.0,
+        "status": "ONLINE"
+      },
+      "Bybit": {
+        "total": 0.0,
+        "free": 0.0,
+        "status": "STANDBY"
+      },
+      "Gate.io": {
+        "total": 0.0,
+        "free": 0.0,
+        "status": "STANDBY"
+      }
+    },
+    "updated_at": "2026-10-10 22:42:33"
+  },
+  "akun_3": {
+    "total_bal": 0.0,
+    "total_pnl": 0.0,
+    "pos_list": [],
+    "ex_details": {
+      "Bitget": {
+        "total": 0.0,
+        "free": 0.0,
+        "status": "STANDBY"
+      },
+      "MEXC": {
+        "total": 0.0,
+        "free": 0.0,
+        "status": "STANDBY"
+      },
+      "BingX": {
+        "total": 0.0,
+        "free": 0.0,
+        "status": "STANDBY"
+      },
+      "Bybit": {
+        "total": 0.0,
+        "free": 0.0,
+        "status": "STANDBY"
+      },
+      "Gate.io": {
+        "total": 0.0,
+        "free": 0.0,
+        "status": "STANDBY"
+      }
+    },
+    "updated_at": "2026-10-10 22:42:33"
+  }
+}
