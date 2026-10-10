@@ -183,7 +183,6 @@ socket.getaddrinfo = custom_getaddrinfo
 # ========================================================
 KURS_IDR = 17000.0
 
-@st.cache_resource
 def load_accounts_config():
     cfg_path = os.path.join(os.path.dirname(__file__), "accounts_config.json")
     if os.path.exists(cfg_path):
@@ -193,7 +192,6 @@ def load_accounts_config():
         except Exception:
             pass
 
-    # Fallback default hardcoded jika file belum ada
     return {
         "akun_1": {
             "name": "Akun 1 (Utama - Saya)",
@@ -205,9 +203,9 @@ def load_accounts_config():
         },
         "akun_2": {
             "name": "Akun 2 (Keluarga 2)",
-            "Bitget": {"apiKey": "", "secret": "", "password": ""},
-            "MEXC": {"apiKey": "", "secret": ""},
-            "BingX": {"apiKey": "", "secret": ""},
+            "Bitget": {"apiKey": "bg_4af01becb7eeb96cd94c3115603ae581", "secret": "5da2f6f81515774f5f4848b1ff8af3c751a24a579b53a1d60d8808d73cc49ddd", "password": "botmarukjosss"},
+            "MEXC": {"apiKey": "mx0vglN1MRKhz7bB9F", "secret": "3c0659763b1846f09d463d5ef4ff6895"},
+            "BingX": {"apiKey": "mpIKCc6DLijGftR5LY22kKYt3AsuBx5boAN6isHUX5uv2gwCHnlEM4w69vOYmlwF3AB7GZ2vNZylyCYTA", "secret": "9VLohe1fRHPFtYnoFtaFfX2s4zTilKwYlDNidsI32558scuvwyfQD5cXw5UiQBZsO5ZWgUV7atdrl4USZA"},
             "Bybit": {"apiKey": "", "secret": ""},
             "Gate.io": {"apiKey": "", "secret": ""}
         },
