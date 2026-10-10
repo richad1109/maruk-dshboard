@@ -140,12 +140,18 @@ st.markdown("""
 _orig_getaddrinfo = socket.getaddrinfo
 _dns_cache = {}
 
-def doh_resolve(host):
+def doh_resolve(host: str):
     if host in _dns_cache:
         return _dns_cache[host]
     try:
-        r = requests.get('https://1.1.1.1/dns-query', params={'name': host, 'type': 'A'}, headers={'accept': 'application/dns-json'}, timeout=3)
-        ips = [ans.get('data') for ans in r.json().get('Answer', []) if ans.get('type') == 1]
+        r = requests.get(
+            'https://1.1.1.1/dns-query',
+            params={'name': host, 'type': 'A'},
+            headers={'accept': 'application/dns-json'},
+            timeout=4
+        )
+        data = r.json()
+        ips = [ans.get('data') for ans in data.get('Answer', []) if ans.get('type') == 1]
         if ips:
             _dns_cache[host] = ips
             return ips
@@ -154,21 +160,19 @@ def doh_resolve(host):
     return []
 
 def custom_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
-    try:
-        # Coba native DNS sistem dulu (Di Streamlit Cloud US selalu tembus resmi!)
-        return _orig_getaddrinfo(host, port, family, type, proto, flags)
-    except Exception:
-        # Jika diblokir ISP lokal Indonesia, baru gunakan Cloudflare DoH fallback
-        targets = ['bybit', 'bytick', 'gateio', 'gate.io', 'bingx', 'bitget', 'mexc']
-        if any(t in host.lower() for t in targets):
-            ips = doh_resolve(host)
-            if ips:
-                res = []
-                for ip in ips:
-                    try: res.extend(_orig_getaddrinfo(ip, port, family, type, proto, flags))
-                    except: pass
-                if res: return res
-        raise
+    targets = ['bybit', 'bytick', 'gateio', 'gate.io', 'bingx', 'bitget', 'mexc']
+    if any(t in host for t in targets):
+        ips = doh_resolve(host)
+        if ips:
+            res = []
+            for ip in ips:
+                try:
+                    res.extend(_orig_getaddrinfo(ip, port, family, type, proto, flags))
+                except Exception:
+                    pass
+            if res:
+                return res
+    return _orig_getaddrinfo(host, port, family, type, proto, flags)
 
 socket.getaddrinfo = custom_getaddrinfo
 
@@ -227,7 +231,24 @@ def get_account_live_data(acc_key: str):
     tot_pnl = 0.0
     pos_list = []
     ex_details = {}
-    cfg = {'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 5000}
+    cfg = {'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 15000}
+
+    # Cek apakah ada file live_bot_state.json sinkronisasi dari bot lokal
+    state_file = os.path.join(os.path.dirname(__file__), "live_bot_state.json")
+    if os.path.exists(state_file):
+        try:
+            with open(state_file, "r") as sf:
+                state_data = json.load(sf)
+                if acc_key in state_data:
+                    acc_state = state_data[acc_key]
+                    return (
+                        float(acc_state.get('total_bal', 0.0)),
+                        float(acc_state.get('total_pnl', 0.0)),
+                        acc_state.get('pos_list', []),
+                        acc_state.get('ex_details', {})
+                    )
+        except Exception:
+            pass
     
     ex_names = ["Bitget", "MEXC", "BingX", "Bybit", "Gate.io"]
     for name in ex_names:
@@ -237,88 +258,110 @@ def get_account_live_data(acc_key: str):
         pass_k = creds.get("password", "").strip()
 
         if not api_k or not sec_k:
-            ex_details[name] = {'total': 0.0, 'free': 0.0, 'status': 'STANDBY (KOSONG)'}
+            ex_details[name] = {'total': 0.0, 'free': 0.0, 'status': 'STANDBY'}
             continue
 
+        usdt_total = 0.0
+        usdt_free = 0.0
+        status_str = "ONLINE"
+        ex = None
+        raw_pos = []
+
+        # 1. FETCH BALANCE (ISOLATED - TIDAK BOLEH GAGAL KARENA POSISI)
         try:
-            ex = None
             if name == "Bitget":
                 ex = ccxt.bitget({'apiKey': api_k, 'secret': sec_k, 'password': pass_k, **cfg})
+                ex.has['fetchCurrencies'] = False
                 bal = ex.fetch_balance(params={'type': 'swap'})
-                usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or bal.get('total', {}).get('USDT', 0.0) or 0.0)
-                usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or usdt_total)
-                raw_pos = ex.fetch_positions(params={'productType': 'USDT-FUTURES'})
+                usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or (bal.get('total', {}) or {}).get('USDT', 0.0) or 0.0)
+                usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or (bal.get('free', {}) or {}).get('USDT', 0.0) or usdt_total)
             elif name == "MEXC":
                 ex = ccxt.mexc({'apiKey': api_k, 'secret': sec_k, **cfg})
+                ex.has['fetchCurrencies'] = False
                 bal = ex.fetch_balance(params={'type': 'swap'})
-                usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or bal.get('total', {}).get('USDT', 0.0) or 0.0)
-                usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or usdt_total)
-                raw_pos = ex.fetch_positions()
+                usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or (bal.get('total', {}) or {}).get('USDT', 0.0) or 0.0)
+                usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or (bal.get('free', {}) or {}).get('USDT', 0.0) or usdt_total)
             elif name == "BingX":
                 ex = ccxt.bingx({'apiKey': api_k, 'secret': sec_k, **cfg})
+                ex.has['fetchCurrencies'] = False
                 bal = ex.fetch_balance({'type': 'swap'})
                 usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or 0.0)
                 usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or usdt_total)
-                raw_pos = ex.fetch_positions()
             elif name == "Bybit":
                 ex = ccxt.bybit({'apiKey': api_k, 'secret': sec_k, **cfg})
+                ex.has['fetchCurrencies'] = False
                 bal = ex.fetch_balance({'type': 'linear'})
-                usdt_total = float(bal.get('total', {}).get('USDT', 0.0) or 0.0)
-                usdt_free = float(bal.get('free', {}).get('USDT', 0.0) or usdt_total)
-                raw_pos = ex.fetch_positions(params={'settle': 'USDT'})
+                usdt_total = float((bal.get('total', {}) or {}).get('USDT', 0.0) or (bal.get('USDT', {}) or {}).get('total', 0.0) or 0.0)
+                usdt_free = float((bal.get('free', {}) or {}).get('USDT', 0.0) or usdt_total)
             elif name == "Gate.io":
                 ex = ccxt.gate({'apiKey': api_k, 'secret': sec_k, **cfg})
+                ex.has['fetchCurrencies'] = False
                 bal = ex.fetch_balance(params={'type': 'swap', 'settle': 'usdt'})
-                usdt_total = float(bal.get('total', {}).get('USDT', 0.0) or 0.0)
-                usdt_free = float(bal.get('free', {}).get('USDT', 0.0) or usdt_total)
-                raw_pos = ex.fetch_positions(params={'settle': 'usdt'})
+                usdt_total = float((bal.get('total', {}) or {}).get('USDT', 0.0) or (bal.get('USDT', {}) or {}).get('total', 0.0) or 0.0)
+                usdt_free = float((bal.get('free', {}) or {}).get('USDT', 0.0) or usdt_total)
+        except Exception as e_bal:
+            status_str = f"ERR: {str(e_bal)[:25]}"
 
-            tot_bal += usdt_total
-            ex_details[name] = {'total': round(usdt_total, 2), 'free': round(usdt_free, 2), 'status': 'ONLINE'}
+        tot_bal += usdt_total
+        ex_details[name] = {'total': round(usdt_total, 2), 'free': round(usdt_free, 2), 'status': status_str}
 
-            for p in raw_pos:
-                contracts = abs(float(p.get('contracts') or p.get('amount') or (p.get('info', {}).get('holdVol') if isinstance(p.get('info'), dict) else 0) or 0.0))
-                if contracts > 0:
-                    sym = p.get('symbol', 'UNKNOWN')
-                    clean_sym = sym.replace(':USDT', '').replace('/USDT', '')
-                    side = str(p.get('side', '')).upper()
-                    entry = float(p.get('entryPrice') or p.get('info', {}).get('openAvgPrice') or 0.0)
-                    mark = float(p.get('markPrice') or p.get('info', {}).get('fairPrice') or entry or 0.0)
-                    lev = float(p.get('leverage') or 28)
+        # 2. FETCH POSITIONS (SAFE & ISOLATED)
+        if ex and not status_str.startswith("ERR"):
+            try:
+                if name == "Bitget":
+                    raw_pos = ex.fetch_positions(params={'productType': 'USDT-FUTURES'})
+                elif name == "MEXC":
+                    raw_pos = ex.fetch_positions()
+                elif name == "BingX":
+                    raw_pos = ex.fetch_positions()
+                elif name == "Bybit":
+                    raw_pos = ex.fetch_positions(params={'settle': 'USDT'})
+                elif name == "Gate.io":
+                    raw_pos = ex.fetch_positions(params={'settle': 'usdt'})
+            except Exception:
+                raw_pos = []
 
-                    c_size = float(p.get('contractSize') or (p.get('info', {}).get('contractSize') if isinstance(p.get('info'), dict) else 1.0) or 1.0)
-                    if name == 'MEXC':
-                        if 'BTC' in sym: c_size = 0.0001
-                        elif 'ETH' in sym: c_size = 0.01
+        for p in raw_pos:
+            contracts = abs(float(p.get('contracts') or p.get('amount') or (p.get('info', {}).get('holdVol') if isinstance(p.get('info'), dict) else 0) or 0.0))
+            if contracts > 0:
+                sym = p.get('symbol', 'UNKNOWN')
+                clean_sym = sym.replace(':USDT', '').replace('/USDT', '')
+                side = str(p.get('side', '')).upper()
+                entry = float(p.get('entryPrice') or p.get('info', {}).get('openAvgPrice') or 0.0)
+                mark = float(p.get('markPrice') or p.get('info', {}).get('fairPrice') or entry or 0.0)
+                lev = float(p.get('leverage') or 28)
 
-                    real_notional = contracts * c_size * entry if entry > 0 else 0.0
-                    margin = float(p.get('initialMargin') or p.get('collateral') or 0.0)
-                    if margin <= 0 and real_notional > 0 and lev > 0:
-                        margin = real_notional / lev
-                    if margin <= 0: margin = 1.0
+                c_size = float(p.get('contractSize') or (p.get('info', {}).get('contractSize') if isinstance(p.get('info'), dict) else 1.0) or 1.0)
+                if name == 'MEXC':
+                    if 'BTC' in sym: c_size = 0.0001
+                    elif 'ETH' in sym: c_size = 0.01
 
-                    pnl = float(p.get('unrealizedPnl') or p.get('info', {}).get('floatingPL') or p.get('info', {}).get('unrealisedPnl') or 0.0)
-                    if abs(pnl) <= 0.0001 and entry > 0 and mark > 0 and real_notional > 0:
-                        diff = (mark - entry)/entry if side == 'LONG' else (entry - mark)/entry
-                        pnl = real_notional * diff
+                real_notional = contracts * c_size * entry if entry > 0 else 0.0
+                margin = float(p.get('initialMargin') or p.get('collateral') or 0.0)
+                if margin <= 0 and real_notional > 0 and lev > 0:
+                    margin = real_notional / lev
+                if margin <= 0: margin = 1.0
 
-                    roe = (pnl / margin * 100.0) if margin > 0 else 0.0
-                    tot_pnl += pnl
+                pnl = float(p.get('unrealizedPnl') or p.get('info', {}).get('floatingPL') or p.get('info', {}).get('unrealisedPnl') or 0.0)
+                if abs(pnl) <= 0.0001 and entry > 0 and mark > 0 and real_notional > 0:
+                    diff = (mark - entry)/entry if side == 'LONG' else (entry - mark)/entry
+                    pnl = real_notional * diff
 
-                    pos_list.append({
-                        'exchange': name,
-                        'symbol': clean_sym + '/USDT',
-                        'side': side,
-                        'entry': entry,
-                        'mark': mark,
-                        'margin': margin,
-                        'notional': real_notional,
-                        'pnl': pnl,
-                        'roe': roe,
-                        'leverage': int(lev)
-                    })
-        except Exception as err:
-            ex_details[name] = {'total': 0.0, 'free': 0.0, 'status': f'ERROR: {str(err)[:30]}'}
+                roe = (pnl / margin * 100.0) if margin > 0 else 0.0
+                tot_pnl += pnl
+
+                pos_list.append({
+                    'exchange': name,
+                    'symbol': clean_sym + '/USDT',
+                    'side': side,
+                    'entry': entry,
+                    'mark': mark,
+                    'margin': margin,
+                    'notional': real_notional,
+                    'pnl': pnl,
+                    'roe': roe,
+                    'leverage': int(lev)
+                })
 
     return tot_bal, tot_pnl, pos_list, ex_details
 
@@ -525,10 +568,14 @@ for idx, (ex_name, icon) in enumerate(ex_icons.items()):
     info = ex_details.get(ex_name, {'total': 0.0, 'free': 0.0, 'status': 'ONLINE'})
     b_val = info['total']
     with col_ex[idx]:
+        stat = info.get('status', 'ONLINE')
+        stat_color = "#10b981" if stat == "ONLINE" else ("#f87171" if stat.startswith("ERR") else "#64748b")
+        stat_label = "ONLINE" if stat == "ONLINE" else stat
         st.markdown(f"""
         <div class="metric-card" style="padding: 10px 12px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 0.8rem; font-weight: 800; color: #ffffff;">{icon} {ex_name}</span>
+                <span style="font-size: 0.62rem; font-weight: 700; color: {stat_color};">{stat_label}</span>
             </div>
             <div style="font-size: 1.15rem; font-weight: 900; color: #38bdf8; margin: 2px 0;">${b_val:.2f}</div>
             <div style="font-size: 0.68rem; color: #94a3b8;">Rp {b_val*KURS_IDR:,.0f}</div>
