@@ -203,7 +203,7 @@ def load_accounts_config():
         },
         "akun_2": {
             "name": "Akun 2 (Keluarga 2)",
-            "Bitget": {"apiKey": "bg_4af01becb7eeb96cd94c3115603ae581", "secret": "5da2f6f81515774f5f4848b1ff8af3c751a24a579b53a1d60d8808d73cc49ddd", "password": "botmarukjosss"},
+            "Bitget": {"apiKey": "bg_4af01becb7eeb96cd94c3115603ae581", "secret": "5da2f6f81515774f5f4848b1ff8af3c751a24a579b53a1d60d8808d73cc49ddd", "password": "Pkbwiyungsby20."},
             "MEXC": {"apiKey": "mx0vglN1MRKhz7bB9F", "secret": "3c0659763b1846f09d463d5ef4ff6895"},
             "BingX": {"apiKey": "mpIKCc6DLijGftR5LY22kKYt3AsuBx5boAN6isHUX5uv2gwCHnlEM4w69vOYmlwF3AB7GZ2vNZylyCYTA", "secret": "9VLohe1fRHPFtYnoFtaFfX2s4zTilKwYlDNidsI32558scuvwyfQD5cXw5UiQBZsO5ZWgUV7atdrl4USZA"},
             "Bybit": {"apiKey": "", "secret": ""},
