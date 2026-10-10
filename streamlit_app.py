@@ -228,111 +228,103 @@ KURS_IDR = 17000.0
 @st.cache_resource
 def init_exchanges():
     ex_dict = {}
+    cfg = {'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 2500}
     if BINGX_API_KEY:
-        ex_dict['BingX'] = ccxt.bingx({'apiKey': BINGX_API_KEY, 'secret': BINGX_SECRET, 'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 8000})
+        ex_dict['BingX'] = ccxt.bingx({'apiKey': BINGX_API_KEY, 'secret': BINGX_SECRET, **cfg})
     if MEXC_API_KEY:
-        ex_dict['MEXC'] = ccxt.mexc({'apiKey': MEXC_API_KEY, 'secret': MEXC_SECRET, 'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 8000})
+        ex_dict['MEXC'] = ccxt.mexc({'apiKey': MEXC_API_KEY, 'secret': MEXC_SECRET, **cfg})
     if BITGET_API_KEY:
-        ex_dict['Bitget'] = ccxt.bitget({'apiKey': BITGET_API_KEY, 'secret': BITGET_SECRET, 'password': BITGET_PASSPHRASE, 'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 8000})
+        ex_dict['Bitget'] = ccxt.bitget({'apiKey': BITGET_API_KEY, 'secret': BITGET_SECRET, 'password': BITGET_PASSPHRASE, **cfg})
     if BYBIT_API_KEY:
-        ex_dict['Bybit'] = ccxt.bybit({'apiKey': BYBIT_API_KEY, 'secret': BYBIT_SECRET, 'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 8000})
+        ex_dict['Bybit'] = ccxt.bybit({'apiKey': BYBIT_API_KEY, 'secret': BYBIT_SECRET, **cfg})
     if GATE_API_KEY:
-        ex_dict['Gate.io'] = ccxt.gate({'apiKey': GATE_API_KEY, 'secret': GATE_SECRET, 'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 8000})
+        ex_dict['Gate.io'] = ccxt.gate({'apiKey': GATE_API_KEY, 'secret': GATE_SECRET, **cfg})
     return ex_dict
 
 exchanges = init_exchanges()
 
 # ========================================================
-# DATA HARVESTING ENGINE (LIVE 5 EXCHANGES)
+# DATA HARVESTING ENGINE (CACHED ULTRA-FAST)
 # ========================================================
-tot_bal = 0.0
-tot_pnl = 0.0
-pos_list = []
-ex_details = {}
+@st.cache_data(ttl=5)
+def get_dashboard_data():
+    tot_bal = 0.0
+    tot_pnl = 0.0
+    pos_list = []
+    ex_details = {}
+    live_mark_prices = {'BTC': 81750.0, 'ETH': 2470.0, 'XRP': 1.38, 'ADA': 0.234, 'AVAX': 10.15, 'LINK': 12.76}
 
-live_mark_prices = {'BTC': 81750.0, 'ETH': 2470.0, 'XRP': 1.38, 'ADA': 0.234, 'AVAX': 10.15, 'LINK': 12.76}
+    for name, ex in exchanges.items():
+        try:
+            bal = ex.fetch_balance()
+            usdt_total = 0.0
+            usdt_free = 0.0
+            if 'USDT' in bal and isinstance(bal['USDT'], dict):
+                usdt_total = float(bal['USDT'].get('total') or bal['USDT'].get('free') or 0.0)
+                usdt_free = float(bal['USDT'].get('free') or usdt_total)
+            elif 'total' in bal and isinstance(bal['total'], dict):
+                usdt_total = float(bal['total'].get('USDT', 0.0) or 0.0)
+                usdt_free = usdt_total
 
-# Probe Mark Prices
-for name, ex in exchanges.items():
-    try:
-        raw_pos = ex.fetch_positions()
-        for p in raw_pos:
-            sym_u = p.get('symbol', '')
-            m_p = float(p.get('markPrice') or p.get('info', {}).get('fairPrice') or 0.0)
-            for c in ['BTC', 'ETH', 'XRP', 'ADA', 'AVAX', 'LINK']:
-                if c in sym_u and m_p > 0:
-                    live_mark_prices[c] = m_p
-    except Exception:
-        pass
+            tot_bal += usdt_total
+            ex_details[name] = {'total': round(usdt_total, 2), 'free': round(usdt_free, 2), 'active_count': 0, 'status': 'ONLINE'}
 
-# Probe Balances & Open Positions
-for name, ex in exchanges.items():
-    try:
-        bal = ex.fetch_balance()
-        usdt_total = 0.0
-        usdt_free = 0.0
-        if 'USDT' in bal and isinstance(bal['USDT'], dict):
-            usdt_total = float(bal['USDT'].get('total') or bal['USDT'].get('free') or 0.0)
-            usdt_free = float(bal['USDT'].get('free') or usdt_total)
-        elif 'total' in bal and isinstance(bal['total'], dict):
-            usdt_total = float(bal['total'].get('USDT', 0.0) or 0.0)
-            usdt_free = usdt_total
+            raw_pos = ex.fetch_positions()
+            for p in raw_pos:
+                contracts = abs(float(p.get('contracts') or p.get('amount') or (p.get('info', {}).get('holdVol') if isinstance(p.get('info'), dict) else 0) or 0.0))
+                if contracts > 0:
+                    sym = p.get('symbol', 'UNKNOWN')
+                    clean_sym = sym.replace(':USDT', '').replace('/USDT', '')
+                    side = str(p.get('side', '')).upper()
+                    entry = float(p.get('entryPrice') or p.get('info', {}).get('openAvgPrice') or 0.0)
+                    lev = float(p.get('leverage') or 28)
 
-        tot_bal += usdt_total
-        ex_details[name] = {'total': round(usdt_total, 2), 'free': round(usdt_free, 2), 'active_count': 0, 'status': 'ONLINE'}
+                    c_size = float(p.get('contractSize') or (p.get('info', {}).get('contractSize') if isinstance(p.get('info'), dict) else 1.0) or 1.0)
+                    if name == 'MEXC':
+                        if 'BTC' in sym: c_size = 0.0001
+                        elif 'ETH' in sym: c_size = 0.01
 
-        raw_pos = ex.fetch_positions()
-        for p in raw_pos:
-            contracts = abs(float(p.get('contracts') or p.get('amount') or (p.get('info', {}).get('holdVol') if isinstance(p.get('info'), dict) else 0) or 0.0))
-            if contracts > 0:
-                sym = p.get('symbol', 'UNKNOWN')
-                clean_sym = sym.replace(':USDT', '').replace('/USDT', '')
-                side = str(p.get('side', '')).upper()
-                entry = float(p.get('entryPrice') or p.get('info', {}).get('openAvgPrice') or 0.0)
-                lev = float(p.get('leverage') or 28)
+                    real_notional = contracts * c_size * entry if entry > 0 else 0.0
+                    margin = float(p.get('initialMargin') or p.get('collateral') or 0.0)
+                    if margin <= 0 and real_notional > 0 and lev > 0:
+                        margin = real_notional / lev
+                    if margin <= 0: margin = 1.0
 
-                c_size = float(p.get('contractSize') or (p.get('info', {}).get('contractSize') if isinstance(p.get('info'), dict) else 1.0) or 1.0)
-                if name == 'MEXC':
-                    if 'BTC' in sym: c_size = 0.0001
-                    elif 'ETH' in sym: c_size = 0.01
+                    mark = float(p.get('markPrice') or p.get('info', {}).get('fairPrice') or 0.0)
+                    if mark <= 0:
+                        for c_key, c_val in live_mark_prices.items():
+                            if c_key in clean_sym:
+                                mark = c_val
+                                break
+                    if mark <= 0: mark = entry
 
-                real_notional = contracts * c_size * entry if entry > 0 else 0.0
-                margin = float(p.get('initialMargin') or p.get('collateral') or 0.0)
-                if margin <= 0 and real_notional > 0 and lev > 0:
-                    margin = real_notional / lev
-                if margin <= 0: margin = 1.0
+                    pnl = float(p.get('unrealizedPnl') or p.get('info', {}).get('floatingPL') or p.get('info', {}).get('unrealisedPnl') or 0.0)
+                    if abs(pnl) <= 0.0001 and entry > 0 and mark > 0 and real_notional > 0:
+                        diff = (mark - entry)/entry if side == 'LONG' else (entry - mark)/entry
+                        pnl = real_notional * diff
 
-                mark = float(p.get('markPrice') or p.get('info', {}).get('fairPrice') or 0.0)
-                if mark <= 0:
-                    for c_key, c_val in live_mark_prices.items():
-                        if c_key in clean_sym:
-                            mark = c_val
-                            break
-                if mark <= 0: mark = entry
+                    roe = (pnl / margin * 100.0) if margin > 0 else 0.0
+                    tot_pnl += pnl
+                    ex_details[name]['active_count'] += 1
 
-                pnl = float(p.get('unrealizedPnl') or p.get('info', {}).get('floatingPL') or p.get('info', {}).get('unrealisedPnl') or 0.0)
-                if abs(pnl) <= 0.0001 and entry > 0 and mark > 0 and real_notional > 0:
-                    diff = (mark - entry)/entry if side == 'LONG' else (entry - mark)/entry
-                    pnl = real_notional * diff
+                    pos_list.append({
+                        'exchange': name,
+                        'symbol': clean_sym + '/USDT',
+                        'side': side,
+                        'entry': entry,
+                        'mark': mark,
+                        'margin': margin,
+                        'notional': real_notional,
+                        'pnl': pnl,
+                        'roe': roe,
+                        'leverage': int(lev)
+                    })
+        except Exception as err:
+            ex_details[name] = {'total': 0.0, 'free': 0.0, 'active_count': 0, 'status': 'STANDBY', 'error': str(err)}
 
-                roe = (pnl / margin * 100.0) if margin > 0 else 0.0
-                tot_pnl += pnl
-                ex_details[name]['active_count'] += 1
+    return tot_bal, tot_pnl, pos_list, ex_details, live_mark_prices
 
-                pos_list.append({
-                    'exchange': name,
-                    'symbol': clean_sym + '/USDT',
-                    'side': side,
-                    'entry': entry,
-                    'mark': mark,
-                    'margin': margin,
-                    'notional': real_notional,
-                    'pnl': pnl,
-                    'roe': roe,
-                    'leverage': int(lev)
-                })
-    except Exception as err:
-        ex_details[name] = {'total': 0.0, 'free': 0.0, 'active_count': 0, 'status': 'STANDBY', 'error': str(err)}
+tot_bal, tot_pnl, pos_list, ex_details, live_mark_prices = get_dashboard_data()
 
 # Calculated Summary Metrics
 btc_p = live_mark_prices.get('BTC', 81750.0)
@@ -774,14 +766,19 @@ else: # Mode 10: Master Executive All-In-One HUD
     render_quant_calculator()
 
 # ========================================================
-# AUTO-REFRESH CONTROLLER
+# AUTO-REFRESH CONTROLLER (NON-BLOCKING)
 # ========================================================
 st.sidebar.title("⚡ Titan Controller")
-auto_refresh = st.sidebar.checkbox("Auto Refresh Real-Time", value=True)
-refresh_interval = st.sidebar.slider("Interval Detik", min_value=3, max_value=20, value=5)
-if st.sidebar.button("🔄 Paksa Refresh"):
+if st.sidebar.button("🔄 Segarkan Data Real-Time"):
+    st.cache_data.clear()
     st.rerun()
 
-if auto_refresh:
-    time.sleep(refresh_interval)
-    st.rerun()
+auto_reload = st.sidebar.checkbox("Auto Reload 10 Detik", value=False)
+if auto_reload:
+    st.markdown("""
+    <script>
+        setTimeout(function() {
+            window.location.reload();
+        }, 10000);
+    </script>
+    """, unsafe_allow_html=True)
