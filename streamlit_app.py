@@ -135,9 +135,11 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ========================================================
-# SMART DNS: NATIVE FIRST, DOH ONLY IF BLOCKED BY ISP
+# SMART DNS: CLOUDFLARE DOH ANTI-RECURSION
 # ========================================================
-_orig_getaddrinfo = socket.getaddrinfo
+if not hasattr(socket, '_orig_sys_getaddrinfo'):
+    socket._orig_sys_getaddrinfo = socket.getaddrinfo
+
 _dns_cache = {}
 
 def doh_resolve(host: str):
@@ -148,7 +150,7 @@ def doh_resolve(host: str):
             'https://1.1.1.1/dns-query',
             params={'name': host, 'type': 'A'},
             headers={'accept': 'application/dns-json'},
-            timeout=4
+            timeout=3
         )
         data = r.json()
         ips = [ans.get('data') for ans in data.get('Answer', []) if ans.get('type') == 1]
@@ -161,18 +163,18 @@ def doh_resolve(host: str):
 
 def custom_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
     targets = ['bybit', 'bytick', 'gateio', 'gate.io', 'bingx', 'bitget', 'mexc']
-    if any(t in host for t in targets):
+    if any(t in host.lower() for t in targets):
         ips = doh_resolve(host)
         if ips:
             res = []
             for ip in ips:
                 try:
-                    res.extend(_orig_getaddrinfo(ip, port, family, type, proto, flags))
+                    res.extend(socket._orig_sys_getaddrinfo(ip, port, family, type, proto, flags))
                 except Exception:
                     pass
             if res:
                 return res
-    return _orig_getaddrinfo(host, port, family, type, proto, flags)
+    return socket._orig_sys_getaddrinfo(host, port, family, type, proto, flags)
 
 socket.getaddrinfo = custom_getaddrinfo
 
