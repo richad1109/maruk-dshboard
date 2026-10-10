@@ -147,14 +147,17 @@ def doh_resolve(host):
     if host in _dns_cache:
         return _dns_cache[host]
     url = f"https://1.1.1.1/dns-query?name={host}&type=A"
-    req = urllib.request.Request(url, headers={"accept": "application/dns-json"})
+import requests
+
+def doh_resolve(host):
+    if host in _dns_cache:
+        return _dns_cache[host]
     try:
-        with urllib.request.urlopen(req, timeout=3) as resp:
-            data = json.loads(resp.read().decode())
-            ips = [ans["data"] for ans in data.get("Answer", []) if ans.get("type") == 1]
-            if ips:
-                _dns_cache[host] = ips
-                return ips
+        r = requests.get('https://1.1.1.1/dns-query', params={'name': host, 'type': 'A'}, headers={'accept': 'application/dns-json'}, timeout=4)
+        ips = [ans.get('data') for ans in r.json().get('Answer', []) if ans.get('type') == 1]
+        if ips:
+            _dns_cache[host] = ips
+            return ips
     except Exception:
         pass
     return []
@@ -198,7 +201,7 @@ KURS_IDR = 17000.0
 @st.cache_resource
 def init_exchanges():
     ex_dict = {}
-    cfg = {'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 2500}
+    cfg = {'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 5000}
     if BINGX_API_KEY: ex_dict['BingX'] = ccxt.bingx({'apiKey': BINGX_API_KEY, 'secret': BINGX_SECRET, **cfg})
     if MEXC_API_KEY: ex_dict['MEXC'] = ccxt.mexc({'apiKey': MEXC_API_KEY, 'secret': MEXC_SECRET, **cfg})
     if BITGET_API_KEY: ex_dict['Bitget'] = ccxt.bitget({'apiKey': BITGET_API_KEY, 'secret': BITGET_SECRET, 'password': BITGET_PASSPHRASE, **cfg})
@@ -221,20 +224,44 @@ def get_dashboard_data():
 
     for name, ex in exchanges.items():
         try:
-            bal = ex.fetch_balance()
             usdt_total = 0.0
             usdt_free = 0.0
-            if 'USDT' in bal and isinstance(bal['USDT'], dict):
-                usdt_total = float(bal['USDT'].get('total') or bal['USDT'].get('free') or 0.0)
-                usdt_free = float(bal['USDT'].get('free') or usdt_total)
-            elif 'total' in bal and isinstance(bal['total'], dict):
-                usdt_total = float(bal['total'].get('USDT', 0.0) or 0.0)
+            raw_pos = []
+
+            if name == "Bitget":
+                bal = ex.fetch_balance(params={'type': 'swap'})
+                usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or bal.get('total', {}).get('USDT', 0.0) or 0.0)
+                usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or usdt_total)
+                raw_pos = ex.fetch_positions(params={'productType': 'USDT-FUTURES'})
+            elif name == "MEXC":
+                bal = ex.fetch_balance(params={'type': 'swap'})
+                usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or bal.get('total', {}).get('USDT', 0.0) or 0.0)
+                usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or usdt_total)
+                raw_pos = ex.fetch_positions()
+            elif name == "BingX":
+                bal = ex.fetch_balance({'type': 'swap'})
+                usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or 0.0)
+                usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or usdt_total)
+                raw_pos = ex.fetch_positions()
+            elif name == "Bybit":
+                bal = ex.fetch_balance({'type': 'linear'})
+                usdt_total = float(bal.get('total', {}).get('USDT', 0.0) or 0.0)
+                usdt_free = float(bal.get('free', {}).get('USDT', 0.0) or usdt_total)
+                raw_pos = ex.fetch_positions(params={'settle': 'USDT'})
+            elif name == "Gate.io":
+                bal = ex.fetch_balance(params={'type': 'swap', 'settle': 'usdt'})
+                usdt_total = float(bal.get('total', {}).get('USDT', 0.0) or 0.0)
+                usdt_free = float(bal.get('free', {}).get('USDT', 0.0) or usdt_total)
+                raw_pos = ex.fetch_positions(params={'settle': 'usdt'})
+            else:
+                bal = ex.fetch_balance()
+                usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or 0.0)
                 usdt_free = usdt_total
+                raw_pos = ex.fetch_positions()
 
             tot_bal += usdt_total
             ex_details[name] = {'total': round(usdt_total, 2), 'free': round(usdt_free, 2)}
 
-            raw_pos = ex.fetch_positions()
             for p in raw_pos:
                 contracts = abs(float(p.get('contracts') or p.get('amount') or (p.get('info', {}).get('holdVol') if isinstance(p.get('info'), dict) else 0) or 0.0))
                 if contracts > 0:
