@@ -221,10 +221,44 @@ def load_accounts_config():
 
 accounts_cfg = load_accounts_config()
 
+from datetime import datetime, timezone, timedelta
+
+def get_wib_time_str():
+    wib = timezone(timedelta(hours=7))
+    return datetime.now(wib).strftime('%H:%M:%S WIB')
+
+@st.cache_data(ttl=4)
+def fetch_live_public_prices():
+    prices = {}
+    # 1. Try Gate.io public tickers (fast & never US geo-blocked)
+    try:
+        r = requests.get("https://api.gateio.ws/api/v4/futures/usdt/tickers", timeout=3)
+        if r.status_code == 200:
+            for item in r.json():
+                c = item.get("contract", "")
+                if c.endswith("_USDT"):
+                    sym = c.replace("_USDT", "/USDT")
+                    prices[sym] = float(item.get("mark_price") or item.get("last") or 0.0)
+    except Exception:
+        pass
+    # 2. Fallback KuCoin public tickers if needed
+    if "BTC/USDT" not in prices:
+        try:
+            r = requests.get("https://api.kucoin.com/api/v1/market/allTickers", timeout=3)
+            if r.status_code == 200:
+                for item in r.json().get("data", {}).get("ticker", []):
+                    s = item.get("symbol", "")
+                    if s.endswith("-USDT"):
+                        sym = s.replace("-USDT", "/USDT")
+                        prices[sym] = float(item.get("last") or 0.0)
+        except Exception:
+            pass
+    return prices
+
 # ========================================================
 # FETCH REAL FUTURES BALANCE & POSITIONS (PER PROFILE)
 # ========================================================
-@st.cache_data(ttl=2)
+@st.cache_data(ttl=4)
 def get_account_live_data(acc_key: str):
     profile = accounts_cfg.get(acc_key, {})
     tot_bal = 0.0
@@ -233,34 +267,66 @@ def get_account_live_data(acc_key: str):
     ex_details = {}
     cfg = {'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 15000}
 
-    # 1. BACA STATE TERUPDATE DARI LOCAL / GITHUB RAW
-    state_data = None
+    # 1. BACA STATE TERUPDATE DARI GITHUB RAW (CACHE-BUSTED) & LOCAL
+    remote_state = None
+    local_state = None
+    try:
+        r = requests.get(
+            f"https://raw.githubusercontent.com/richad1109/maruk-dshboard/main/live_bot_state.json?t={int(time.time())}",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
+            timeout=4
+        )
+        if r.status_code == 200:
+            remote_state = r.json()
+    except Exception:
+        pass
+
     state_file = os.path.join(os.path.dirname(__file__), "live_bot_state.json")
     if os.path.exists(state_file):
         try:
             with open(state_file, "r") as sf:
-                state_data = json.load(sf)
+                local_state = json.load(sf)
         except Exception:
             pass
 
-    if not state_data:
-        try:
-            r = requests.get(
-                "https://raw.githubusercontent.com/richad1109/maruk-dshboard/main/live_bot_state.json",
-                headers={"Cache-Control": "no-cache"},
-                timeout=3
-            )
-            if r.status_code == 200:
-                state_data = r.json()
-        except Exception:
-            pass
+    # Pilih state yang paling baru berdasarkan updated_at
+    state_data = remote_state or local_state
+    if remote_state and local_state:
+        r_ts = remote_state.get(acc_key, {}).get("updated_at", "")
+        l_ts = local_state.get(acc_key, {}).get("updated_at", "")
+        state_data = local_state if l_ts > r_ts else remote_state
 
     if state_data and acc_key in state_data:
         acc_state = state_data[acc_key]
+        raw_positions = acc_state.get('pos_list', [])
+        live_prices = fetch_live_public_prices()
+        updated_pos_list = []
+        recalc_pnl = 0.0
+
+        for p in raw_positions:
+            p_copy = dict(p)
+            sym = p_copy.get('symbol', '')
+            entry = float(p_copy.get('entry', 0.0))
+            mark = float(live_prices.get(sym) or p_copy.get('mark') or entry)
+            notional = float(p_copy.get('notional', 0.0))
+            margin = float(p_copy.get('margin', 1.0))
+            side = str(p_copy.get('side', 'LONG')).upper()
+
+            if entry > 0 and mark > 0 and notional > 0:
+                diff = (mark - entry) / entry if side == 'LONG' else (entry - mark) / entry
+                pnl = notional * diff
+                roe = (pnl / margin * 100.0) if margin > 0 else 0.0
+                p_copy['mark'] = mark
+                p_copy['pnl'] = pnl
+                p_copy['roe'] = roe
+
+            recalc_pnl += float(p_copy.get('pnl', 0.0))
+            updated_pos_list.append(p_copy)
+
         return (
             float(acc_state.get('total_bal', 0.0)),
-            float(acc_state.get('total_pnl', 0.0)),
-            acc_state.get('pos_list', []),
+            round(recalc_pnl, 2),
+            updated_pos_list,
             acc_state.get('ex_details', {})
         )
     
@@ -394,8 +460,8 @@ with col_h1:
 with col_h2:
     st.markdown(f"""
     <div style="text-align: right;">
-        <span class="badge-live"><span class="live-dot"></span> LIVE ONLINE</span>
-        <div style="font-size: 0.72rem; color: #64748b; margin-top: 4px;">{time.strftime('%H:%M:%S WIB')}</div>
+        <span class="badge-live"><span class="live-dot"></span> LIVE AUTO-REFRESH</span>
+        <div style="font-size: 0.72rem; color: #64748b; margin-top: 4px;">{get_wib_time_str()} (Update Otomatis)</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -597,9 +663,19 @@ for idx, (ex_name, icon) in enumerate(ex_icons.items()):
         """, unsafe_allow_html=True)
 
 # ========================================================
-# TOMBOL REFRESH
+# TOMBOL REFRESH & AUTO-REFRESH OTOMATIS
 # ========================================================
 st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
-if st.button("🔄 Segarkan Data Real-Time Sekarang", use_container_width=True):
+col_r1, col_r2 = st.columns([3, 1])
+with col_r1:
+    if st.button("🔄 Segarkan Data Real-Time Sekarang", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+with col_r2:
+    auto_refresh_enabled = st.checkbox("⚡ Auto-Refresh (8 dtk)", value=True)
+
+if auto_refresh_enabled:
+    time.sleep(8)
     st.cache_data.clear()
     st.rerun()
+

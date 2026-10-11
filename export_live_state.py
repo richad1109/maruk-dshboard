@@ -3,6 +3,7 @@ import sys
 import time
 import json
 import socket
+import subprocess
 import requests
 import ccxt
 
@@ -47,6 +48,7 @@ def generate_live_state():
 
     full_state = {}
     cfg_base = {'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 10000}
+    known_marks = {}
 
     for acc_key, profile in cfg.items():
         tot_bal = 0.0
@@ -54,7 +56,8 @@ def generate_live_state():
         pos_list = []
         ex_details = {}
 
-        ex_names = ["Bitget", "MEXC", "BingX", "Bybit", "Gate.io"]
+        # Put Bitget and BingX before MEXC so their live markPrices populate known_marks first
+        ex_names = ["Bitget", "BingX", "MEXC", "Bybit", "Gate.io"]
         for name in ex_names:
             creds = profile.get(name, {})
             api_k = creds.get("apiKey", "").strip()
@@ -129,9 +132,23 @@ def generate_live_state():
                 if contracts > 0:
                     sym = p.get('symbol', 'UNKNOWN')
                     clean_sym = sym.replace(':USDT', '').replace('/USDT', '')
+                    pair_key = clean_sym + '/USDT'
                     side = str(p.get('side', '')).upper()
                     entry = float(p.get('entryPrice') or p.get('info', {}).get('openAvgPrice') or p.get('info', {}).get('avgPrice') or 0.0)
-                    mark = float(p.get('markPrice') or p.get('info', {}).get('fairPrice') or entry or 0.0)
+                    mark = float(p.get('markPrice') or p.get('info', {}).get('fairPrice') or 0.0)
+                    if mark > 0 and mark != entry:
+                        known_marks[pair_key] = mark
+                    elif pair_key in known_marks:
+                        mark = known_marks[pair_key]
+                    else:
+                        try:
+                            tk = ex.fetch_ticker(sym)
+                            if tk and tk.get('last'):
+                                mark = float(tk['last'])
+                                known_marks[pair_key] = mark
+                        except Exception:
+                            mark = entry
+
                     lev = float(p.get('leverage') or 28)
 
                     c_size = float(p.get('contractSize') or (p.get('info', {}).get('contractSize') if isinstance(p.get('info'), dict) else 1.0) or 1.0)
@@ -140,12 +157,12 @@ def generate_live_state():
                         elif 'ETH' in sym: c_size = 0.01
 
                     real_notional = float(p.get('notional') or (contracts * c_size * entry if entry > 0 else 0.0))
-                    margin = float(p.get('initialMargin') or p.get('collateral') or (p.get('info', {}).get('initialMargin') if isinstance(p.get('info'), dict) else 0) or 0.0)
+                    margin = float(p.get('initialMargin') or p.get('collateral') or (p.get('info', {}).get('initialMargin') if isinstance(p.get('info'), dict) else 0) or (p.get('info', {}).get('im') if isinstance(p.get('info'), dict) else 0) or 0.0)
                     if margin <= 0 and real_notional > 0 and lev > 0:
                         margin = real_notional / lev
                     if margin <= 0: margin = 1.0
 
-                    pnl = float(p.get('unrealizedPnl') or (p.get('info', {}).get('unrealizedProfit') if isinstance(p.get('info'), dict) else 0) or 0.0)
+                    pnl = float(p.get('unrealizedPnl') or (p.get('info', {}).get('unrealizedProfit') if isinstance(p.get('info'), dict) else 0) or (p.get('info', {}).get('unRealizedPnl') if isinstance(p.get('info'), dict) else 0) or 0.0)
                     if abs(pnl) <= 0.0001 and entry > 0 and mark > 0 and real_notional > 0:
                         diff = (mark - entry)/entry if side == 'LONG' else (entry - mark)/entry
                         pnl = real_notional * diff
@@ -155,7 +172,7 @@ def generate_live_state():
 
                     pos_list.append({
                         'exchange': name,
-                        'symbol': clean_sym + '/USDT',
+                        'symbol': pair_key,
                         'side': side,
                         'entry': entry,
                         'mark': mark,
@@ -166,11 +183,16 @@ def generate_live_state():
                         'leverage': int(lev)
                     })
 
+        # Ensure standard display order in ex_details
+        ordered_ex = {}
+        for k_ex in ["Bitget", "MEXC", "BingX", "Bybit", "Gate.io"]:
+            ordered_ex[k_ex] = ex_details.get(k_ex, {'total': 0.0, 'free': 0.0, 'status': 'STANDBY'})
+
         full_state[acc_key] = {
             'total_bal': round(tot_bal, 2),
             'total_pnl': round(tot_pnl, 2),
             'pos_list': pos_list,
-            'ex_details': ex_details,
+            'ex_details': ordered_ex,
             'updated_at': time.strftime("%Y-%m-%d %H:%M:%S")
         }
 
@@ -183,17 +205,29 @@ def generate_live_state():
         print(f"[{k}] Bal: ${v['total_bal']} | PnL: ${v['total_pnl']} | Pos: {len(v['pos_list'])} | Details: {v['ex_details']}")
     return full_state
 
+def git_push_state():
+    repo_dir = os.path.dirname(os.path.abspath(__file__))
+    try:
+        subprocess.run(["git", "add", "live_bot_state.json"], cwd=repo_dir, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        res = subprocess.run(["git", "commit", "-m", f"chore: live state sync {time.strftime('%H:%M:%S')}"], cwd=repo_dir, capture_output=True, text=True)
+        if res.returncode == 0:
+            subprocess.run(["git", "push", "origin", "main"], cwd=repo_dir, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            print(f"[{time.strftime('%H:%M:%S')}] Pushed updated live_bot_state.json to GitHub!")
+    except Exception as e:
+        print(f"Git push error: {e}")
+
 if __name__ == "__main__":
     if "--daemon" in sys.argv:
-        print("Starting continuous live state daemon (sync every 15s)...")
-        last_bal = 0.0
+        print("Starting continuous live state & GitHub sync daemon (every 30s)...")
         while True:
             try:
-                st = generate_live_state()
-                cur_bal = st.get('akun_1', {}).get('total_bal', 0.0)
-                time.sleep(15)
+                generate_live_state()
+                git_push_state()
+                time.sleep(30)
             except Exception as e:
                 print(f"Sync error: {e}")
-                time.sleep(10)
+                time.sleep(15)
     else:
         generate_live_state()
+        if "--push" in sys.argv:
+            git_push_state()
