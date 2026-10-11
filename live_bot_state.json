@@ -1,18 +1,18 @@
 {
   "akun_1": {
-    "total_bal": 43.74,
-    "total_pnl": 0.76,
+    "total_bal": 43.76,
+    "total_pnl": 0.82,
     "pos_list": [
       {
         "exchange": "Bitget",
         "symbol": "ETH/USDT",
         "side": "SHORT",
         "entry": 2587.84,
-        "mark": 2539.7,
-        "margin": 0.907035714286,
-        "notional": 25.397,
-        "pnl": 0.4814,
-        "roe": 53.0739851163356,
+        "mark": 2539.25,
+        "margin": 0.906875,
+        "notional": 25.3925,
+        "pnl": 0.4859,
+        "roe": 53.57960027567194,
         "leverage": 28
       },
       {
@@ -20,11 +20,11 @@
         "symbol": "BTC/USDT",
         "side": "SHORT",
         "entry": 83325.0,
-        "mark": 83834.1,
-        "margin": 1.796445,
-        "notional": 50.30046,
-        "pnl": -0.30546,
-        "roe": -17.00358207459733,
+        "mark": 83818.7,
+        "margin": 1.796115,
+        "notional": 50.29122,
+        "pnl": -0.29622,
+        "roe": -16.492262466490175,
         "leverage": 28
       },
       {
@@ -32,11 +32,11 @@
         "symbol": "ETH/USDT",
         "side": "SHORT",
         "entry": 2585.24,
-        "mark": 2539.89,
+        "mark": 2539.48,
         "margin": 1.8466,
-        "notional": 50.79,
-        "pnl": 0.9071,
-        "roe": 49.12271201126395,
+        "notional": 50.78,
+        "pnl": 0.9152,
+        "roe": 49.56135600563197,
         "leverage": 28
       },
       {
@@ -44,11 +44,11 @@
         "symbol": "BTC/USDT",
         "side": "SHORT",
         "entry": 83302.4,
-        "mark": 83836.7,
+        "mark": 83818.0,
         "margin": 1.7851,
-        "notional": 50.3,
-        "pnl": -0.3206,
-        "roe": -17.95977816368831,
+        "notional": 50.29,
+        "pnl": -0.3094,
+        "roe": -17.332362332642433,
         "leverage": 28
       },
       {
@@ -56,11 +56,11 @@
         "symbol": "LIGHTER/USDT",
         "side": "LONG",
         "entry": 3.6705,
-        "mark": 3.7386,
+        "mark": 3.7387,
         "margin": 0.1977,
         "notional": 4.02,
-        "pnl": 0.0733,
-        "roe": 37.07637835103693,
+        "pnl": 0.0735,
+        "roe": 37.17754172989378,
         "leverage": 20
       },
       {
@@ -68,11 +68,11 @@
         "symbol": "BTC/USDT",
         "side": "SHORT",
         "entry": 83310.2,
-        "mark": 83836.7,
+        "mark": 83818.0,
         "margin": 3.0300686865164552,
         "notional": 83.3102,
-        "pnl": -0.52501,
-        "roe": -17.326669931155333,
+        "pnl": -0.50661,
+        "roe": -16.719422970653135,
         "leverage": 28
       },
       {
@@ -80,17 +80,17 @@
         "symbol": "ETH/USDT",
         "side": "SHORT",
         "entry": 2585.0,
-        "mark": 2539.89,
+        "mark": 2539.48,
         "margin": 0.9338200236552,
         "notional": 25.85,
-        "pnl": 0.4504,
-        "roe": 48.23199209597415,
+        "pnl": 0.4542,
+        "roe": 48.638922757529876,
         "leverage": 28
       }
     ],
     "ex_details": {
       "Bitget": {
-        "total": 17.37,
+        "total": 17.38,
         "free": 14.49,
         "status": "ONLINE"
       },
@@ -100,8 +100,8 @@
         "status": "ONLINE"
       },
       "BingX": {
-        "total": 5.33,
-        "free": 1.06,
+        "total": 5.34,
+        "free": 1.08,
         "status": "ONLINE"
       },
       "Bybit": {
@@ -115,7 +115,7 @@
         "status": "ONLINE"
       }
     },
-    "updated_at": "2026-10-12 01:32:09"
+    "updated_at": "2026-10-12 01:33:10"
   },
   "akun_2": {
     "total_bal": 28.74,
@@ -126,11 +126,11 @@
         "symbol": "BTC/USDT",
         "side": "SHORT",
         "entry": 83114.5,
-        "mark": 83819.6,
-        "margin": 0.867099310345,
-        "notional": 25.14588,
-        "pnl": -0.21153,
-        "roe": -24.395129540102715,
+        "mark": 83816.6,
+        "margin": 0.867068275863,
+        "notional": 25.14498,
+        "pnl": -0.21063,
+        "roe": -24.292204646786125,
         "leverage": 29
       },
       {
@@ -138,11 +138,11 @@
         "symbol": "BTC/USDT",
         "side": "SHORT",
         "entry": 83110.0,
-        "mark": 83823.2,
+        "mark": 83818.1,
         "margin": 0.8311,
         "notional": 16.76,
-        "pnl": -0.1426,
-        "roe": -17.157983395499944,
+        "pnl": -0.1416,
+        "roe": -17.037660931295875,
         "leverage": 20
       },
       {
@@ -150,17 +150,17 @@
         "symbol": "BTC/USDT",
         "side": "SHORT",
         "entry": 83035.6,
-        "mark": 83823.2,
+        "mark": 83818.1,
         "margin": 0.869196975550308,
         "notional": 24.910680000000003,
-        "pnl": -0.23574,
-        "roe": -27.121585397918324,
+        "pnl": -0.23433,
+        "roe": -26.959366701850346,
         "leverage": 29
       }
     ],
     "ex_details": {
       "Bitget": {
-        "total": 9.77,
+        "total": 9.78,
         "free": 8.91,
         "status": "ONLINE"
       },
@@ -185,7 +185,7 @@
         "status": "STANDBY"
       }
     },
-    "updated_at": "2026-10-12 01:32:18"
+    "updated_at": "2026-10-12 01:33:18"
   },
   "akun_3": {
     "total_bal": 19.7,
@@ -196,11 +196,11 @@
         "symbol": "BTC/USDT",
         "side": "SHORT",
         "entry": 83133.0,
-        "mark": 83819.0,
-        "margin": 1.156124137932,
-        "notional": 33.5276,
-        "pnl": -0.2744,
-        "roe": -23.734475476900684,
+        "mark": 83818.5,
+        "margin": 1.15611724138,
+        "notional": 33.5274,
+        "pnl": -0.2742,
+        "roe": -23.71731777589451,
         "leverage": 29
       },
       {
@@ -208,11 +208,11 @@
         "symbol": "BTC/USDT",
         "side": "SHORT",
         "entry": 83094.0,
-        "mark": 83821.8,
+        "mark": 83820.4,
         "margin": 0.8596,
         "notional": 25.14,
-        "pnl": -0.2184,
-        "roe": -25.407166123778502,
+        "pnl": -0.2179,
+        "roe": -25.34899953466729,
         "leverage": 29
       }
     ],
@@ -243,6 +243,6 @@
         "status": "STANDBY"
       }
     },
-    "updated_at": "2026-10-12 01:32:21"
+    "updated_at": "2026-10-12 01:33:21"
   }
 }
