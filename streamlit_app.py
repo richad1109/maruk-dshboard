@@ -228,94 +228,88 @@ def get_wib_time_str():
     wib = timezone(timedelta(hours=7))
     return datetime.now(wib).strftime('%H:%M:%S WIB')
 
-@st.cache_data(ttl=3)
-def fetch_live_public_prices():
-    prices = {}
-    target_syms = ["BTC/USDT", "ETH/USDT", "LIGHTER/USDT", "SOL/USDT"]
-    for sym in target_syms:
-        bx_sym = sym.replace("/USDT", "-USDT")
-        # 1. Fast BingX Swap Ticker (200 bytes, works globally & in Indonesia)
-        try:
-            r = requests.get(f"https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol={bx_sym}", timeout=2.5)
-            if r.status_code == 200:
-                lp = float(r.json().get("data", {}).get("lastPrice") or 0.0)
-                if lp > 0:
-                    prices[sym] = lp
-                    continue
-        except Exception:
-            pass
-        # 2. Fast Gate.io Single-Contract Futures Ticker
-        gt_sym = sym.replace("/USDT", "_USDT")
-        try:
-            r = requests.get(f"https://api.gateio.ws/api/v4/futures/usdt/tickers?contract={gt_sym}", timeout=2.5)
-            if r.status_code == 200 and isinstance(r.json(), list) and r.json():
-                lp = float(r.json()[0].get("mark_price") or r.json()[0].get("last") or 0.0)
-                if lp > 0:
-                    prices[sym] = lp
-                    continue
-        except Exception:
-            pass
-        # 3. Coinbase Spot Fallback for BTC/ETH
-        base_coin = sym.split("/")[0]
-        if base_coin in ["BTC", "ETH", "SOL"]:
-            try:
-                r = requests.get(f"https://api.coinbase.com/v2/prices/{base_coin}-USD/spot", timeout=2.5)
-                if r.status_code == 200:
-                    lp = float(r.json().get("data", {}).get("amount") or 0.0)
-                    if lp > 0:
-                        prices[sym] = lp
-            except Exception:
-                pass
-    return prices
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
-# ========================================================
-# FETCH REAL FUTURES BALANCE & POSITIONS (PER PROFILE)
-# ========================================================
-@st.cache_data(ttl=4)
-def get_account_live_data(acc_key: str):
+def _fetch_single_price(sym: str) -> tuple:
+    bx_sym = sym.replace("/USDT", "-USDT")
+    try:
+        r = requests.get(f"https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol={bx_sym}", timeout=2.0)
+        if r.status_code == 200:
+            lp = float(r.json().get("data", {}).get("lastPrice") or 0.0)
+            if lp > 0:
+                return sym, lp
+    except Exception:
+        pass
+    gt_sym = sym.replace("/USDT", "_USDT")
+    try:
+        r = requests.get(f"https://api.gateio.ws/api/v4/futures/usdt/tickers?contract={gt_sym}", timeout=2.0)
+        if r.status_code == 200 and isinstance(r.json(), list) and r.json():
+            lp = float(r.json()[0].get("mark_price") or r.json()[0].get("last") or 0.0)
+            if lp > 0:
+                return sym, lp
+    except Exception:
+        pass
+    base_coin = sym.split("/")[0]
+    if base_coin in ["BTC", "ETH", "SOL"]:
+        try:
+            r = requests.get(f"https://api.coinbase.com/v2/prices/{base_coin}-USD/spot", timeout=2.0)
+            if r.status_code == 200:
+                lp = float(r.json().get("data", {}).get("amount") or 0.0)
+                if lp > 0:
+                    return sym, lp
+        except Exception:
+            pass
+    return sym, 0.0
+
+def _poll_prices_parallel() -> dict:
+    target_syms = ["BTC/USDT", "ETH/USDT", "LIGHTER/USDT", "SOL/USDT"]
+    out = {}
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        for sym, val in pool.map(_fetch_single_price, target_syms):
+            if val > 0:
+                out[sym] = val
+    return out
+
+def _recalc_account_with_prices(acc_dict: dict, live_prices: dict) -> dict:
+    raw_positions = acc_dict.get("pos_list", [])
+    updated_pos_list = []
+    recalc_pnl = 0.0
+    for p in raw_positions:
+        p_copy = dict(p)
+        sym = p_copy.get("symbol", "")
+        entry = float(p_copy.get("entry", 0.0))
+        mark = float(live_prices.get(sym) or p_copy.get("mark") or entry)
+        notional = float(p_copy.get("notional", 0.0))
+        margin = float(p_copy.get("margin", 1.0))
+        side = str(p_copy.get("side", "LONG")).upper()
+        if entry > 0 and mark > 0 and notional > 0:
+            diff = (mark - entry) / entry if side == "LONG" else (entry - mark) / entry
+            pnl = notional * diff
+            roe = (pnl / margin * 100.0) if margin > 0 else 0.0
+            p_copy["mark"] = mark
+            p_copy["pnl"] = pnl
+            p_copy["roe"] = roe
+        recalc_pnl += float(p_copy.get("pnl", 0.0))
+        updated_pos_list.append(p_copy)
+    return {
+        "total_bal": round(float(acc_dict.get("total_bal", 0.0)), 2),
+        "total_pnl": round(recalc_pnl, 2),
+        "pos_list": updated_pos_list,
+        "ex_details": acc_dict.get("ex_details", {})
+    }
+
+def _sync_account_from_exchanges(acc_key: str, fallback_acc: dict, live_prices: dict) -> dict:
     profile = accounts_cfg.get(acc_key, {})
     tot_bal = 0.0
     tot_pnl = 0.0
     pos_list = []
     ex_details = {}
-    cfg = {'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 15000}
-
-    # 1. BACA STATE TERUPDATE DARI GITHUB RAW (CACHE-BUSTED) & LOCAL
-    remote_state = None
-    local_state = None
-    try:
-        r = requests.get(
-            f"https://raw.githubusercontent.com/richad1109/maruk-dshboard/main/live_bot_state.json?t={int(time.time())}",
-            headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
-            timeout=4
-        )
-        if r.status_code == 200:
-            remote_state = r.json()
-    except Exception:
-        pass
-
-    state_file = os.path.join(os.path.dirname(__file__), "live_bot_state.json")
-    if os.path.exists(state_file):
-        try:
-            with open(state_file, "r") as sf:
-                local_state = json.load(sf)
-        except Exception:
-            pass
-
-    # Pilih state yang paling baru berdasarkan updated_at sebagai fallback per-bursa
-    state_data = remote_state or local_state
-    if remote_state and local_state:
-        r_ts = remote_state.get(acc_key, {}).get("updated_at", "")
-        l_ts = local_state.get(acc_key, {}).get("updated_at", "")
-        state_data = local_state if l_ts > r_ts else remote_state
-
-    fallback_acc = (state_data or {}).get(acc_key, {})
     fallback_ex = fallback_acc.get("ex_details", {})
     fallback_pos = fallback_acc.get("pos_list", [])
-    live_prices = fetch_live_public_prices()
+    fast_cfg = {'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 3500}
 
-    ex_names = ["Bitget", "MEXC", "BingX", "Bybit", "Gate.io"]
-    for name in ex_names:
+    for name in ["Bitget", "MEXC", "BingX", "Bybit", "Gate.io"]:
         creds = profile.get(name, {})
         api_k = creds.get("apiKey", "").strip()
         sec_k = creds.get("secret", "").strip()
@@ -327,22 +321,17 @@ def get_account_live_data(acc_key: str):
 
         usdt_total = 0.0
         usdt_free = 0.0
-        status_str = "ONLINE"
-        ex = None
         raw_pos = []
-        pos_fetched_ok = False
-
-        # 1. COBA FETCH LANGSUNG DARI CLOUD KE BURSA (DENGAN TIMEOUT CEPAT 5 DETIK)
-        fast_cfg = {'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 5000}
+        ok = False
         try:
             if name == "Bitget":
                 ex = ccxt.bitget({'apiKey': api_k, 'secret': sec_k, 'password': pass_k, **fast_cfg})
                 ex.has['fetchCurrencies'] = False
                 bal = ex.fetch_balance(params={'type': 'swap'})
                 usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or (bal.get('total', {}) or {}).get('USDT', 0.0) or 0.0)
-                usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or (bal.get('free', {}) or {}).get('USDT', 0.0) or usdt_total)
+                usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or usdt_total)
                 raw_pos = ex.fetch_positions(params={'productType': 'USDT-FUTURES'})
-                pos_fetched_ok = True
+                ok = True
             elif name == "BingX":
                 ex = ccxt.bingx({'apiKey': api_k, 'secret': sec_k, **fast_cfg})
                 ex.has['fetchCurrencies'] = False
@@ -350,36 +339,35 @@ def get_account_live_data(acc_key: str):
                 usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or 0.0)
                 usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or usdt_total)
                 raw_pos = ex.fetch_positions()
-                pos_fetched_ok = True
-            elif name == "MEXC":
-                ex = ccxt.mexc({'apiKey': api_k, 'secret': sec_k, 'options': {'defaultType': 'swap', 'recvWindow': 10000, 'adjustForTimeDifference': True}, 'enableRateLimit': True, 'timeout': 5000})
-                ex.has['fetchCurrencies'] = False
-                bal = ex.fetch_balance(params={'type': 'swap'})
-                usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or (bal.get('total', {}) or {}).get('USDT', 0.0) or 0.0)
-                usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or (bal.get('free', {}) or {}).get('USDT', 0.0) or usdt_total)
-                raw_pos = ex.fetch_positions()
-                pos_fetched_ok = True
-            elif name == "Bybit":
-                ex = ccxt.bybit({'apiKey': api_k, 'secret': sec_k, **fast_cfg})
-                ex.has['fetchCurrencies'] = False
-                bal = ex.fetch_balance({'type': 'linear'})
-                usdt_total = float((bal.get('total', {}) or {}).get('USDT', 0.0) or (bal.get('USDT', {}) or {}).get('total', 0.0) or 0.0)
-                usdt_free = float((bal.get('free', {}) or {}).get('USDT', 0.0) or usdt_total)
-                raw_pos = ex.fetch_positions(params={'settle': 'USDT'})
-                pos_fetched_ok = True
+                ok = True
             elif name == "Gate.io":
                 ex = ccxt.gate({'apiKey': api_k, 'secret': sec_k, **fast_cfg})
                 ex.has['fetchCurrencies'] = False
                 bal = ex.fetch_balance(params={'type': 'swap', 'settle': 'usdt'})
-                usdt_total = float((bal.get('total', {}) or {}).get('USDT', 0.0) or (bal.get('USDT', {}) or {}).get('total', 0.0) or 0.0)
+                usdt_total = float((bal.get('total', {}) or {}).get('USDT', 0.0) or 0.0)
                 usdt_free = float((bal.get('free', {}) or {}).get('USDT', 0.0) or usdt_total)
                 raw_pos = ex.fetch_positions(params={'settle': 'usdt'})
-                pos_fetched_ok = True
-        except Exception as e_bal:
-            status_str = f"ERR: {str(e_bal)[:25]}"
+                ok = True
+            elif name == "MEXC":
+                ex = ccxt.mexc({'apiKey': api_k, 'secret': sec_k, 'options': {'defaultType': 'swap', 'recvWindow': 10000, 'adjustForTimeDifference': True}, 'enableRateLimit': True, 'timeout': 3500})
+                ex.has['fetchCurrencies'] = False
+                bal = ex.fetch_balance(params={'type': 'swap'})
+                usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or (bal.get('total', {}) or {}).get('USDT', 0.0) or 0.0)
+                usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or usdt_total)
+                raw_pos = ex.fetch_positions()
+                ok = True
+            elif name == "Bybit":
+                ex = ccxt.bybit({'apiKey': api_k, 'secret': sec_k, **fast_cfg})
+                ex.has['fetchCurrencies'] = False
+                bal = ex.fetch_balance({'type': 'linear'})
+                usdt_total = float((bal.get('total', {}) or {}).get('USDT', 0.0) or 0.0)
+                usdt_free = float((bal.get('free', {}) or {}).get('USDT', 0.0) or usdt_total)
+                raw_pos = ex.fetch_positions(params={'settle': 'USDT'})
+                ok = True
+        except Exception:
+            ok = False
 
-        # 2. JIKA BURSA TERBLOKIR DARI SERVER CLOUD (MISAL MEXC/BYBIT US IP), GUNAKAN FALLBACK STATE + HARGA LIVE
-        if (not pos_fetched_ok or status_str.startswith("ERR")) and name in fallback_ex:
+        if not ok and name in fallback_ex:
             fb_info = fallback_ex[name]
             tot_bal += float(fb_info.get("total", 0.0))
             ex_details[name] = {
@@ -389,27 +377,11 @@ def get_account_live_data(acc_key: str):
             }
             for fp in fallback_pos:
                 if fp.get("exchange") == name:
-                    p_copy = dict(fp)
-                    sym = p_copy.get('symbol', '')
-                    entry = float(p_copy.get('entry', 0.0))
-                    mark = float(live_prices.get(sym) or p_copy.get('mark') or entry)
-                    notional = float(p_copy.get('notional', 0.0))
-                    margin = float(p_copy.get('margin', 1.0))
-                    side = str(p_copy.get('side', 'LONG')).upper()
-                    if entry > 0 and mark > 0 and notional > 0:
-                        diff = (mark - entry) / entry if side == 'LONG' else (entry - mark) / entry
-                        pnl = notional * diff
-                        roe = (pnl / margin * 100.0) if margin > 0 else 0.0
-                        p_copy['mark'] = mark
-                        p_copy['pnl'] = pnl
-                        p_copy['roe'] = roe
-                    tot_pnl += float(p_copy.get('pnl', 0.0))
-                    pos_list.append(p_copy)
+                    pos_list.append(dict(fp))
             continue
 
         tot_bal += usdt_total
-        ex_details[name] = {'total': round(usdt_total, 2), 'free': round(usdt_free, 2), 'status': "ONLINE" if not status_str.startswith("ERR") else status_str}
-
+        ex_details[name] = {'total': round(usdt_total, 2), 'free': round(usdt_free, 2), 'status': "ONLINE"}
         for p in raw_pos:
             contracts = abs(float(p.get('contracts') or p.get('amount') or (p.get('info', {}).get('holdVol') if isinstance(p.get('info'), dict) else 0) or 0.0))
             if contracts > 0:
@@ -420,24 +392,15 @@ def get_account_live_data(acc_key: str):
                 entry = float(p.get('entryPrice') or p.get('info', {}).get('openAvgPrice') or 0.0)
                 mark = float(live_prices.get(pair_key) or p.get('markPrice') or p.get('info', {}).get('fairPrice') or entry or 0.0)
                 lev = float(p.get('leverage') or 28)
-
                 c_size = float(p.get('contractSize') or (p.get('info', {}).get('contractSize') if isinstance(p.get('info'), dict) else 1.0) or 1.0)
                 if name == 'MEXC':
                     if 'BTC' in sym: c_size = 0.0001
                     elif 'ETH' in sym: c_size = 0.01
-
                 real_notional = float(p.get('notional') or (contracts * c_size * entry if entry > 0 else 0.0))
                 margin = float(p.get('initialMargin') or p.get('collateral') or (p.get('info', {}).get('initialMargin') if isinstance(p.get('info'), dict) else 0) or (p.get('info', {}).get('im') if isinstance(p.get('info'), dict) else 0) or 0.0)
                 if margin <= 0 and real_notional > 0 and lev > 0:
                     margin = real_notional / lev
                 if margin <= 0: margin = 1.0
-
-                diff = (mark - entry)/entry if side == 'LONG' else (entry - mark)/entry
-                pnl = real_notional * diff if (entry > 0 and mark > 0 and real_notional > 0) else float(p.get('unrealizedPnl') or 0.0)
-
-                roe = (pnl / margin * 100.0) if margin > 0 else 0.0
-                tot_pnl += pnl
-
                 pos_list.append({
                     'exchange': name,
                     'symbol': pair_key,
@@ -446,12 +409,84 @@ def get_account_live_data(acc_key: str):
                     'mark': mark,
                     'margin': margin,
                     'notional': real_notional,
-                    'pnl': pnl,
-                    'roe': roe,
+                    'pnl': 0.0,
+                    'roe': 0.0,
                     'leverage': int(lev)
                 })
 
-    return round(tot_bal, 2), round(tot_pnl, 2), pos_list, ex_details
+    return _recalc_account_with_prices({
+        "total_bal": tot_bal,
+        "total_pnl": tot_pnl,
+        "pos_list": pos_list,
+        "ex_details": ex_details
+    }, live_prices)
+
+@st.cache_resource
+def get_cloud_live_daemon():
+    store = {
+        "prices": {"BTC/USDT": 84000.0, "ETH/USDT": 2570.0, "LIGHTER/USDT": 3.87, "SOL/USDT": 112.8},
+        "accounts": {}
+    }
+    # 1. Load initial snapshot from local live_bot_state.json immediately (0.001s)
+    state_file = os.path.join(os.path.dirname(__file__), "live_bot_state.json")
+    if os.path.exists(state_file):
+        try:
+            with open(state_file, "r") as sf:
+                init_state = json.load(sf)
+            for k in ["akun_1", "akun_2", "akun_3"]:
+                if k in init_state:
+                    store["accounts"][k] = init_state[k]
+        except Exception:
+            pass
+
+    # Initial fast price poll (0.3s)
+    init_p = _poll_prices_parallel()
+    if init_p:
+        store["prices"].update(init_p)
+        for k in list(store["accounts"].keys()):
+            store["accounts"][k] = _recalc_account_with_prices(store["accounts"][k], store["prices"])
+
+    def _price_loop():
+        while True:
+            try:
+                new_p = _poll_prices_parallel()
+                if new_p:
+                    store["prices"].update(new_p)
+                    for k in list(store["accounts"].keys()):
+                        store["accounts"][k] = _recalc_account_with_prices(store["accounts"][k], store["prices"])
+            except Exception:
+                pass
+            time.sleep(3)
+
+    def _exchange_loop():
+        while True:
+            try:
+                for k in ["akun_1", "akun_2", "akun_3"]:
+                    fb = store["accounts"].get(k, {})
+                    store["accounts"][k] = _sync_account_from_exchanges(k, fb, store["prices"])
+            except Exception:
+                pass
+            time.sleep(15)
+
+    t1 = threading.Thread(target=_price_loop, daemon=True)
+    t2 = threading.Thread(target=_exchange_loop, daemon=True)
+    t1.start()
+    t2.start()
+    return store
+
+cloud_store = get_cloud_live_daemon()
+
+def fetch_live_public_prices():
+    return cloud_store["prices"]
+
+def get_account_live_data(acc_key: str):
+    acc = cloud_store["accounts"].get(acc_key, {})
+    return (
+        float(acc.get("total_bal", 0.0)),
+        float(acc.get("total_pnl", 0.0)),
+        acc.get("pos_list", []),
+        acc.get("ex_details", {})
+    )
 
 # ========================================================
 # PILIHAN 3 AKUN KELUARGA (TAB INTERAKTIF)
@@ -691,13 +726,16 @@ st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
 col_r1, col_r2 = st.columns([3, 1])
 with col_r1:
     if st.button("🔄 Segarkan Data Real-Time Sekarang", use_container_width=True):
-        st.cache_data.clear()
+        new_p = _poll_prices_parallel()
+        if new_p:
+            cloud_store["prices"].update(new_p)
+            for k in list(cloud_store["accounts"].keys()):
+                cloud_store["accounts"][k] = _recalc_account_with_prices(cloud_store["accounts"][k], cloud_store["prices"])
         st.rerun()
 with col_r2:
-    auto_refresh_enabled = st.checkbox("⚡ Auto-Refresh (8 dtk)", value=True)
+    auto_refresh_enabled = st.checkbox("⚡ Auto-Refresh (4 dtk)", value=True)
 
 if auto_refresh_enabled:
-    time.sleep(8)
-    st.cache_data.clear()
+    time.sleep(4)
     st.rerun()
 
