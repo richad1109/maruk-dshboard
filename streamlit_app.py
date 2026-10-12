@@ -1,7 +1,14 @@
 import os
 import sys
 import time
+import importlib
 import socket
+if hasattr(socket, "_orig_sys_getaddrinfo") or getattr(socket.getaddrinfo, "__name__", "") == "custom_getaddrinfo":
+    try:
+        delattr(socket, "_orig_sys_getaddrinfo")
+    except Exception:
+        pass
+    importlib.reload(socket)
 import json
 from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor
