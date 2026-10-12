@@ -160,6 +160,7 @@ class ExchangeWorker:
         self.total_wins: int = 0
         self.total_losses: int = 0
         self.consecutive_losses: int = 0
+        self.consecutive_wins: int = 0
         self.total_realized_pnl: float = 0.0
         self.cooldowns: Dict[str, float] = {s: 0.0 for s in SYMBOLS}
         self.is_ready: bool = False
@@ -272,10 +273,10 @@ class ExchangeWorker:
             logger.error(f"[{self.tag}] Gagal intip posisi aktif: {e}")
             return self._last_active_cache
 
-    def calculate_safe_margin(self, symbol: str = None, cur_price: float = None, atr24: float = None) -> float:
+    def calculate_safe_margin(self, symbol: str = None, cur_price: float = None, atr24: float = None, mom: float = None, ker: float = None) -> float:
         if self.is_standby:
             return 0.0
-        # SUPERPOWER 4-STAGE DYNAMIC ANTI-MC ENGINE (TITAN RISK PARITY: LEV 28x, CAP $350, COMP 19%)
+        # SUPERPOWER 4-STAGE DYNAMIC ANTI-MC ENGINE (TITAN RISK PARITY: LEV 28x, CAP $380, COMP 19%)
         if self.balance < 10.0:
             calculated = max(0.60, round(self.balance * 0.06, 2))
         elif self.balance < 30.0:
@@ -285,7 +286,7 @@ class ExchangeWorker:
         else:
             calculated = max(2.00, min(self.balance * SUPERPOWER_COMP_PCT, SUPERPOWER_CAP_MARGIN))
 
-        # TITAN RISK PARITY SIZING (ATR Volatility Weighting):
+        # 1. TITAN RISK PARITY SIZING (ATR Volatility Weighting):
         # Koin liar (XRP/AVAX) dikurangi sedikit porsinya, koin stabil (BTC/ETH) dimaksimalkan
         if cur_price and atr24 and cur_price > 0:
             atr_pct = atr24 / cur_price
@@ -294,7 +295,21 @@ class ExchangeWorker:
             vol_scale = max(0.70, min(1.30, vol_scale))
             calculated = calculated * vol_scale
 
-        # REM DEFENSIF 70%: jika sedang mengalami consecutive loss >= 2, pangkas margin 70% (sisa 30%)
+        # 2. KELLY CONVICTION SIZING (Institutional Trend Purity & Momentum Velocity):
+        # Jika efisiensi tren sangat murni (KER >= 0.35) & momentum meledak (>= 3.5%), boost margin +15%.
+        # Jika efisiensi tren masih di batas awal (KER < 0.24), tahan margin -10% lebih konservatif.
+        if ker is not None and mom is not None:
+            if ker >= 0.35 and abs(mom) >= 0.035:
+                calculated = calculated * 1.15
+            elif ker < 0.24:
+                calculated = calculated * 0.90
+
+        # 3. HOT-HAND STREAK BOOSTER:
+        # Jika sedang dalam tren menang beruntun (Consecutive Wins >= 2 tanpa loss), boost +12%
+        if getattr(self, 'consecutive_wins', 0) >= 2 and self.consecutive_losses == 0:
+            calculated = calculated * 1.12
+
+        # 4. REM DEFENSIF 70%: jika sedang mengalami consecutive loss >= 2, pangkas margin 70% (sisa 30%)
         if self.consecutive_losses >= 2:
             calculated = max(0.60, calculated * 0.30)
 
@@ -394,7 +409,13 @@ class ExchangeWorker:
             return
 
         self.refresh_balance()
-        margin = self.calculate_safe_margin(symbol=symbol, cur_price=cur_price, atr24=signal_info.get("atr24"))
+        margin = self.calculate_safe_margin(
+            symbol=symbol,
+            cur_price=cur_price,
+            atr24=signal_info.get("atr24"),
+            mom=signal_info.get("mom"),
+            ker=signal_info.get("ker")
+        )
         if margin > self.balance or self.balance < 1.0:
             logger.warning(f"[{self.tag}] 🚫 Saldo tidak cukup untuk margin ${margin:.2f}")
             return
@@ -604,11 +625,13 @@ class ExchangeWorker:
                 if diff > 0.05:
                     self.total_wins += 1
                     self.consecutive_losses = 0
-                    cd = 7200 # 2 Jam Cooldown Kenyang
-                    logger.info(f"[{self.tag}] 🍖 [TAKE PROFIT {sym}] Cuan: +${diff:.2f}. Cooldown 2 jam.")
+                    self.consecutive_wins = getattr(self, 'consecutive_wins', 0) + 1
+                    cd = 3 * 3600 # 3 Jam Cooldown Kenyang (Anti-Pucuk / Blow-off Top)
+                    logger.info(f"[{self.tag}] 🍖 [TAKE PROFIT {sym}] Cuan: +${diff:.2f} (Streak {self.consecutive_wins}x). Cooldown 3 jam.")
                 else:
                     self.total_losses += 1
                     self.consecutive_losses += 1
+                    self.consecutive_wins = 0
                     if self.consecutive_losses >= 2:
                         cd = 16 * 3600 # 16 Jam Circuit Breaker Anti-Sideways
                         logger.warning(f"[{self.tag}] 🚨 [CIRCUIT BREAKER 16 JAM] 2x SL beruntun pada {sym}!")
@@ -1041,10 +1064,11 @@ class MultiExchangeManager:
                     return None
                 return {
                     "side": "LONG",
-                    "engine": f"🔥 TITAN V6 QUANT LONG (Donch 36H + Mom {mom_12h*100:.1f}% + KER {ker_16h:.2f})",
+                    "engine": f"🔥 TITAN APEX V6 LONG (Donch 36H + Mom {mom_12h*100:.1f}% + KER {ker_16h:.2f} + Kelly)",
                     "tp_pct": 0.082,
                     "sl_pct": 0.023,
                     "mom": mom_12h,
+                    "ker": ker_16h,
                     "atr24": atr24
                 }
         elif "BEARISH" in self.btc_trend:
@@ -1054,10 +1078,11 @@ class MultiExchangeManager:
                     return None
                 return {
                     "side": "SHORT",
-                    "engine": f"🩸 TITAN V6 QUANT SHORT (Donch 36H + Mom {mom_12h*100:.1f}% + KER {ker_16h:.2f})",
+                    "engine": f"🩸 TITAN APEX V6 SHORT (Donch 36H + Mom {mom_12h*100:.1f}% + KER {ker_16h:.2f} + Kelly)",
                     "tp_pct": 0.082,
                     "sl_pct": 0.023,
                     "mom": mom_12h,
+                    "ker": ker_16h,
                     "atr24": atr24
                 }
         return None
