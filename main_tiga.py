@@ -101,9 +101,10 @@ LEVERAGE = 28                          # Opsi 3 Hyper Growth: Leverage 28x (teru
 MAX_POSITIONS_PER_EXCHANGE = 2
 SCAN_INTERVAL_SECONDS = 12        # Pemindaian cepat tanpa jeda & aman limit bursa
 
-# SUPERPOWER COMPOUNDING LIMITS (TITAN APEX V5: GOLDEN SWEET SPOT | MAX DD 65.8% | TEMBUS RP 593 JUTA)
-SUPERPOWER_COMP_PCT = 0.19       # 19% compounding presisi emas
-SUPERPOWER_CAP_MARGIN = 380.0    # Cap margin $380 USD (Plafon Emas Teruji)
+# SUPERPOWER COMPOUNDING LIMITS (TITAN APEX V7 ULTRA: 5-STAGE INSTITUTIONAL CURVE | TEMBUS RP 2,70 - 2,98 MILIAR)
+SUPERPOWER_MID_COMP_PCT = 0.16   # 16% mid-tier compounding (Saldo $150 - $500)
+SUPERPOWER_COMP_PCT = 0.12       # 12% high-tier compounding (Saldo >= $500, anti-drawdown)
+SUPERPOWER_CAP_MARGIN = 500.0    # Cap margin $500 USD (Plafon Institusional Apex V7)
 KURS_IDR = 17000.0               # Kurs acuan tetap: 1 USD = Rp 17.000
 
 # 6 KOIN EMAS PILIHAN TERBAIK (BUANG 4 KOIN RACUN: SOL, BNB, DOGE, WIF)
@@ -276,13 +277,15 @@ class ExchangeWorker:
     def calculate_safe_margin(self, symbol: str = None, cur_price: float = None, atr24: float = None, mom: float = None, ker: float = None) -> float:
         if self.is_standby:
             return 0.0
-        # SUPERPOWER 4-STAGE DYNAMIC ANTI-MC ENGINE (TITAN RISK PARITY: LEV 28x, CAP $380, COMP 19%)
+        # SUPERPOWER 5-STAGE INSTITUTIONAL ANTI-DRAWDOWN ENGINE (TITAN APEX V7 ULTRA)
         if self.balance < 10.0:
             calculated = max(0.60, round(self.balance * 0.06, 2))
         elif self.balance < 30.0:
             calculated = max(1.00, min(self.balance * 0.055, 1.80))
         elif self.balance < 150.0:
             calculated = max(1.50, min(self.balance * 0.08, 12.00))
+        elif self.balance < 500.0:
+            calculated = max(2.00, min(self.balance * SUPERPOWER_MID_COMP_PCT, SUPERPOWER_CAP_MARGIN))
         else:
             calculated = max(2.00, min(self.balance * SUPERPOWER_COMP_PCT, SUPERPOWER_CAP_MARGIN))
 
@@ -296,18 +299,18 @@ class ExchangeWorker:
             calculated = calculated * vol_scale
 
         # 2. KELLY CONVICTION SIZING (Institutional Trend Purity & Momentum Velocity):
-        # Jika efisiensi tren sangat murni (KER >= 0.35) & momentum meledak (>= 3.5%), boost margin +15%.
-        # Jika efisiensi tren masih di batas awal (KER < 0.24), tahan margin -10% lebih konservatif.
+        # Jika efisiensi tren sangat murni (KER >= 0.35) & momentum meledak (>= 3.5%), boost margin +30% (1.30x).
+        # Jika efisiensi tren masih di batas awal (KER < 0.24), tahan margin -10% (0.90x) lebih konservatif.
         if ker is not None and mom is not None:
             if ker >= 0.35 and abs(mom) >= 0.035:
-                calculated = calculated * 1.15
+                calculated = calculated * 1.30
             elif ker < 0.24:
                 calculated = calculated * 0.90
 
         # 3. HOT-HAND STREAK BOOSTER:
-        # Jika sedang dalam tren menang beruntun (Consecutive Wins >= 2 tanpa loss), boost +12%
+        # Jika sedang dalam tren menang beruntun (Consecutive Wins >= 2 tanpa loss), boost +18% (1.18x)
         if getattr(self, 'consecutive_wins', 0) >= 2 and self.consecutive_losses == 0:
-            calculated = calculated * 1.12
+            calculated = calculated * 1.18
 
         # 4. REM DEFENSIF 70%: jika sedang mengalami consecutive loss >= 2, pangkas margin 70% (sisa 30%)
         if self.consecutive_losses >= 2:
@@ -1034,10 +1037,11 @@ class MultiExchangeManager:
         price_12h_ago = closes[-13]
         mom_12h = (cur_price - price_12h_ago) / price_12h_ago
 
+        price_4h_ago = closes[-5]
+        mom_4h = (cur_price - price_4h_ago) / price_4h_ago
+
         # KAUFMAN EFFICIENCY RATIO (KER 16H >= 0.20 Anti-Sideways Regime)
         # Mengukur kemurnian tren vs bolak-balik (chop/whipsaw) selama 16 jam terakhir.
-        # Terbukti menaikkan profit 1 Tahun 3 Akun dari Rp 367 Jt -> Rp 411,8 Jt (+Rp 44,8 Jt)
-        # dan 2 Tahun Akun 1 dari Rp 647 Jt -> Rp 662,5 Jt (Total 3 Akun Rp 1,755 Miliar).
         net_move_16h = abs(closes[-1] - closes[-17])
         path_move_16h = sum(abs(closes[i] - closes[i - 1]) for i in range(len(closes) - 16, len(closes)))
         ker_16h = (net_move_16h / path_move_16h) if path_move_16h > 0 else 0.0
@@ -1062,9 +1066,12 @@ class MultiExchangeManager:
                 if ker_16h < 0.20:
                     logger.debug(f"🛡️ [ANTI-SIDEWAYS KER] Abaikan sinyal {symbol} LONG di pasar sideways (KER {ker_16h:.2f} < 0.20).")
                     return None
+                if mom_4h < 0.005:
+                    logger.debug(f"🛡️ [MOM 4H IMPULSE] Abaikan sinyal {symbol} LONG karena momentum 4 jam melambat ({mom_4h*100:.2f}% < +0.50%).")
+                    return None
                 return {
                     "side": "LONG",
-                    "engine": f"🔥 TITAN APEX V6 LONG (Donch 36H + Mom {mom_12h*100:.1f}% + KER {ker_16h:.2f} + Kelly)",
+                    "engine": f"🔥 TITAN APEX V7 LONG (Donch 36H + Mom12H {mom_12h*100:.1f}% + Mom4H {mom_4h*100:.1f}% + KER {ker_16h:.2f})",
                     "tp_pct": 0.082,
                     "sl_pct": 0.023,
                     "mom": mom_12h,
@@ -1076,9 +1083,12 @@ class MultiExchangeManager:
                 if ker_16h < 0.20:
                     logger.debug(f"🛡️ [ANTI-SIDEWAYS KER] Abaikan sinyal {symbol} SHORT di pasar sideways (KER {ker_16h:.2f} < 0.20).")
                     return None
+                if mom_4h > -0.005:
+                    logger.debug(f"🛡️ [MOM 4H IMPULSE] Abaikan sinyal {symbol} SHORT karena momentum 4 jam melambat ({mom_4h*100:.2f}% > -0.50%).")
+                    return None
                 return {
                     "side": "SHORT",
-                    "engine": f"🩸 TITAN APEX V6 SHORT (Donch 36H + Mom {mom_12h*100:.1f}% + KER {ker_16h:.2f} + Kelly)",
+                    "engine": f"🩸 TITAN APEX V7 SHORT (Donch 36H + Mom12H {mom_12h*100:.1f}% + Mom4H {mom_4h*100:.1f}% + KER {ker_16h:.2f})",
                     "tp_pct": 0.082,
                     "sl_pct": 0.023,
                     "mom": mom_12h,
