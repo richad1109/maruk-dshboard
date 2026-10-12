@@ -40,9 +40,7 @@ st.markdown("""
 #stAppDeployButton,
 div[class*="viewerBadge"],
 a[class*="viewerBadge"],
-.viewerBadge_container__1QSob,
-[data-testid="manage-app-button"],
-div[class*="manage-app"] {
+.viewerBadge_container__1QSob {
     display: none !important;
     visibility: hidden !important;
     height: 0px !important;
