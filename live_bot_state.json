@@ -115,7 +115,7 @@
         "status": "ONLINE"
       }
     },
-    "updated_at": "2026-10-12 14:19:45"
+    "updated_at": "2026-10-12 14:20:23"
   },
   "akun_2": {
     "total_bal": 28.77,
@@ -185,7 +185,7 @@
         "status": "STANDBY"
       }
     },
-    "updated_at": "2026-10-12 14:19:47"
+    "updated_at": "2026-10-12 14:20:23"
   },
   "akun_3": {
     "total_bal": 19.82,
@@ -243,6 +243,6 @@
         "status": "STANDBY"
       }
     },
-    "updated_at": "2026-10-12 14:19:48"
+    "updated_at": "2026-10-12 14:20:24"
   }
 }
