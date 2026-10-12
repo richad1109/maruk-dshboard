@@ -176,7 +176,8 @@ def custom_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
                 return res
     return socket._orig_sys_getaddrinfo(host, port, family, type, proto, flags)
 
-socket.getaddrinfo = custom_getaddrinfo
+if sys.platform == "win32":
+    socket.getaddrinfo = custom_getaddrinfo
 
 # ========================================================
 # LOAD MULTI-ACCOUNT CONFIGURATION (3 AKUN KELUARGA)
@@ -227,32 +228,44 @@ def get_wib_time_str():
     wib = timezone(timedelta(hours=7))
     return datetime.now(wib).strftime('%H:%M:%S WIB')
 
-@st.cache_data(ttl=4)
+@st.cache_data(ttl=3)
 def fetch_live_public_prices():
     prices = {}
-    # 1. Try Gate.io public tickers (fast & never US geo-blocked)
-    try:
-        r = requests.get("https://api.gateio.ws/api/v4/futures/usdt/tickers", timeout=3)
-        if r.status_code == 200:
-            for item in r.json():
-                c = item.get("contract", "")
-                if c.endswith("_USDT"):
-                    sym = c.replace("_USDT", "/USDT")
-                    prices[sym] = float(item.get("mark_price") or item.get("last") or 0.0)
-    except Exception:
-        pass
-    # 2. Fallback KuCoin public tickers if needed
-    if "BTC/USDT" not in prices:
+    target_syms = ["BTC/USDT", "ETH/USDT", "LIGHTER/USDT", "SOL/USDT"]
+    for sym in target_syms:
+        bx_sym = sym.replace("/USDT", "-USDT")
+        # 1. Fast BingX Swap Ticker (200 bytes, works globally & in Indonesia)
         try:
-            r = requests.get("https://api.kucoin.com/api/v1/market/allTickers", timeout=3)
+            r = requests.get(f"https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol={bx_sym}", timeout=2.5)
             if r.status_code == 200:
-                for item in r.json().get("data", {}).get("ticker", []):
-                    s = item.get("symbol", "")
-                    if s.endswith("-USDT"):
-                        sym = s.replace("-USDT", "/USDT")
-                        prices[sym] = float(item.get("last") or 0.0)
+                lp = float(r.json().get("data", {}).get("lastPrice") or 0.0)
+                if lp > 0:
+                    prices[sym] = lp
+                    continue
         except Exception:
             pass
+        # 2. Fast Gate.io Single-Contract Futures Ticker
+        gt_sym = sym.replace("/USDT", "_USDT")
+        try:
+            r = requests.get(f"https://api.gateio.ws/api/v4/futures/usdt/tickers?contract={gt_sym}", timeout=2.5)
+            if r.status_code == 200 and isinstance(r.json(), list) and r.json():
+                lp = float(r.json()[0].get("mark_price") or r.json()[0].get("last") or 0.0)
+                if lp > 0:
+                    prices[sym] = lp
+                    continue
+        except Exception:
+            pass
+        # 3. Coinbase Spot Fallback for BTC/ETH
+        base_coin = sym.split("/")[0]
+        if base_coin in ["BTC", "ETH", "SOL"]:
+            try:
+                r = requests.get(f"https://api.coinbase.com/v2/prices/{base_coin}-USD/spot", timeout=2.5)
+                if r.status_code == 200:
+                    lp = float(r.json().get("data", {}).get("amount") or 0.0)
+                    if lp > 0:
+                        prices[sym] = lp
+            except Exception:
+                pass
     return prices
 
 # ========================================================
@@ -464,6 +477,20 @@ with col_h2:
         <div style="font-size: 0.72rem; color: #64748b; margin-top: 4px;">{get_wib_time_str()} (Update Otomatis)</div>
     </div>
     """, unsafe_allow_html=True)
+
+live_mkt = fetch_live_public_prices()
+btc_now = live_mkt.get("BTC/USDT", 0.0)
+eth_now = live_mkt.get("ETH/USDT", 0.0)
+ltr_now = live_mkt.get("LIGHTER/USDT", 0.0)
+
+st.markdown(f"""
+<div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 8px 14px; margin-bottom: 8px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; font-size: 0.78rem;">
+    <span style="color: #94a3b8; font-weight: 700;">📡 HARGA PASAR REAL-TIME:</span>
+    <span><b style="color: #f59e0b;">₿ BTC/USDT:</b> <b style="color: #ffffff; font-size: 0.88rem;">${btc_now:,.2f}</b> <span style="color: #64748b;">(Rp {btc_now*KURS_IDR:,.0f})</span></span>
+    <span><b style="color: #38bdf8;">Ξ ETH/USDT:</b> <b style="color: #ffffff; font-size: 0.88rem;">${eth_now:,.2f}</b></span>
+    <span><b style="color: #34d399;">⚡ LIGHTER/USDT:</b> <b style="color: #ffffff; font-size: 0.88rem;">${ltr_now:,.4f}</b></span>
+</div>
+""", unsafe_allow_html=True)
 
 # TAB SELECTOR 3 AKUN
 tab_select = st.radio(

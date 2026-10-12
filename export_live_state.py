@@ -41,22 +41,57 @@ def custom_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
 
 socket.getaddrinfo = custom_getaddrinfo
 
+def fetch_fast_public_marks(symbols):
+    marks = {}
+    for sym in symbols:
+        bx_sym = sym.replace("/USDT", "-USDT")
+        try:
+            r = requests.get(f"https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol={bx_sym}", timeout=4)
+            if r.status_code == 200:
+                lp = float(r.json().get("data", {}).get("lastPrice") or 0.0)
+                if lp > 0:
+                    marks[sym] = lp
+                    continue
+        except Exception:
+            pass
+        gt_sym = sym.replace("/USDT", "_USDT")
+        try:
+            r = requests.get(f"https://api.gateio.ws/api/v4/futures/usdt/tickers?contract={gt_sym}", timeout=4)
+            if r.status_code == 200 and isinstance(r.json(), list) and r.json():
+                lp = float(r.json()[0].get("mark_price") or r.json()[0].get("last") or 0.0)
+                if lp > 0:
+                    marks[sym] = lp
+        except Exception:
+            pass
+    return marks
+
 def generate_live_state():
     cfg_path = os.path.join(os.path.dirname(__file__), "accounts_config.json")
     with open(cfg_path, "r") as f:
         cfg = json.load(f)
 
+    out_file = os.path.join(os.path.dirname(__file__), "live_bot_state.json")
+    prev_state = {}
+    if os.path.exists(out_file):
+        try:
+            with open(out_file, "r") as pf:
+                prev_state = json.load(pf)
+        except Exception:
+            prev_state = {}
+
     full_state = {}
-    cfg_base = {'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 10000}
-    known_marks = {}
+    cfg_base = {'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 8000}
+    known_marks = fetch_fast_public_marks(["BTC/USDT", "ETH/USDT", "LIGHTER/USDT", "SOL/USDT"])
 
     for acc_key, profile in cfg.items():
         tot_bal = 0.0
         tot_pnl = 0.0
         pos_list = []
         ex_details = {}
+        prev_acc = prev_state.get(acc_key, {})
+        prev_ex_details = prev_acc.get("ex_details", {})
+        prev_positions = prev_acc.get("pos_list", [])
 
-        # Put Bitget and BingX before MEXC so their live markPrices populate known_marks first
         ex_names = ["Bitget", "BingX", "MEXC", "Bybit", "Gate.io"]
         for name in ex_names:
             creds = profile.get(name, {})
@@ -82,7 +117,7 @@ def generate_live_state():
                     usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or (bal.get('total', {}) or {}).get('USDT', 0.0) or 0.0)
                     usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or usdt_total)
                 elif name == "MEXC":
-                    ex = ccxt.mexc({'apiKey': api_k, 'secret': sec_k, 'options': {'defaultType': 'swap', 'recvWindow': 10000, 'adjustForTimeDifference': True}, 'enableRateLimit': True, 'timeout': 10000})
+                    ex = ccxt.mexc({'apiKey': api_k, 'secret': sec_k, 'options': {'defaultType': 'swap', 'recvWindow': 10000, 'adjustForTimeDifference': True}, 'enableRateLimit': True, 'timeout': 8000})
                     ex.has['fetchCurrencies'] = False
                     bal = ex.fetch_balance(params={'type': 'swap'})
                     usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or (bal.get('total', {}) or {}).get('USDT', 0.0) or 0.0)
@@ -108,8 +143,32 @@ def generate_live_state():
             except Exception as e_b:
                 status_str = f"ERR: {str(e_b)[:25]}"
 
+            # If connection failed on restricted Wi-Fi, preserve last known good balance & positions for this exchange
+            if status_str.startswith("ERR") and name in prev_ex_details and prev_ex_details[name].get("status") == "ONLINE":
+                ex_details[name] = prev_ex_details[name]
+                tot_bal += float(prev_ex_details[name].get("total", 0.0))
+                for old_p in prev_positions:
+                    if old_p.get("exchange") == name:
+                        p_copy = dict(old_p)
+                        sym = p_copy.get("symbol", "")
+                        entry = float(p_copy.get("entry", 0.0))
+                        mark = float(known_marks.get(sym) or p_copy.get("mark") or entry)
+                        notional = float(p_copy.get("notional", 0.0))
+                        margin = float(p_copy.get("margin", 1.0))
+                        side = str(p_copy.get("side", "LONG")).upper()
+                        if entry > 0 and mark > 0 and notional > 0:
+                            diff = (mark - entry) / entry if side == "LONG" else (entry - mark) / entry
+                            pnl = notional * diff
+                            roe = (pnl / margin * 100.0) if margin > 0 else 0.0
+                            p_copy["mark"] = mark
+                            p_copy["pnl"] = pnl
+                            p_copy["roe"] = roe
+                        tot_pnl += float(p_copy.get("pnl", 0.0))
+                        pos_list.append(p_copy)
+                continue
+
             tot_bal += usdt_total
-            ex_details[name] = {'total': round(usdt_total, 2), 'free': round(usdt_free, 2), 'status': status_str}
+            ex_details[name] = {'total': round(usdt_total, 2), 'free': round(usdt_free, 2), 'status': status_str if not status_str.startswith("ERR") else "ONLINE"}
 
             # Fetch positions
             if ex and not status_str.startswith("ERR"):
@@ -135,19 +194,13 @@ def generate_live_state():
                     pair_key = clean_sym + '/USDT'
                     side = str(p.get('side', '')).upper()
                     entry = float(p.get('entryPrice') or p.get('info', {}).get('openAvgPrice') or p.get('info', {}).get('avgPrice') or 0.0)
-                    mark = float(p.get('markPrice') or p.get('info', {}).get('fairPrice') or 0.0)
+                    mark = float(known_marks.get(pair_key) or p.get('markPrice') or p.get('info', {}).get('fairPrice') or 0.0)
                     if mark > 0 and mark != entry:
                         known_marks[pair_key] = mark
                     elif pair_key in known_marks:
                         mark = known_marks[pair_key]
                     else:
-                        try:
-                            tk = ex.fetch_ticker(sym)
-                            if tk and tk.get('last'):
-                                mark = float(tk['last'])
-                                known_marks[pair_key] = mark
-                        except Exception:
-                            mark = entry
+                        mark = entry
 
                     lev = float(p.get('leverage') or 28)
 
@@ -163,7 +216,7 @@ def generate_live_state():
                     if margin <= 0: margin = 1.0
 
                     pnl = float(p.get('unrealizedPnl') or (p.get('info', {}).get('unrealizedProfit') if isinstance(p.get('info'), dict) else 0) or (p.get('info', {}).get('unRealizedPnl') if isinstance(p.get('info'), dict) else 0) or 0.0)
-                    if abs(pnl) <= 0.0001 and entry > 0 and mark > 0 and real_notional > 0:
+                    if (abs(pnl) <= 0.0001 or mark in known_marks.values()) and entry > 0 and mark > 0 and real_notional > 0:
                         diff = (mark - entry)/entry if side == 'LONG' else (entry - mark)/entry
                         pnl = real_notional * diff
 
@@ -196,13 +249,12 @@ def generate_live_state():
             'updated_at': time.strftime("%Y-%m-%d %H:%M:%S")
         }
 
-    out_file = os.path.join(os.path.dirname(__file__), "live_bot_state.json")
     with open(out_file, "w") as out:
         json.dump(full_state, out, indent=2)
 
     print(f"State generated successfully at {out_file}!")
     for k, v in full_state.items():
-        print(f"[{k}] Bal: ${v['total_bal']} | PnL: ${v['total_pnl']} | Pos: {len(v['pos_list'])} | Details: {v['ex_details']}")
+        print(f"[{k}] Bal: ${v['total_bal']} | PnL: ${v['total_pnl']} | Pos: {len(v['pos_list'])} | Marks: {known_marks}")
     return full_state
 
 def git_push_state():
