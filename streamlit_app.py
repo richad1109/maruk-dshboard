@@ -302,47 +302,18 @@ def get_account_live_data(acc_key: str):
         except Exception:
             pass
 
-    # Pilih state yang paling baru berdasarkan updated_at
+    # Pilih state yang paling baru berdasarkan updated_at sebagai fallback per-bursa
     state_data = remote_state or local_state
     if remote_state and local_state:
         r_ts = remote_state.get(acc_key, {}).get("updated_at", "")
         l_ts = local_state.get(acc_key, {}).get("updated_at", "")
         state_data = local_state if l_ts > r_ts else remote_state
 
-    if state_data and acc_key in state_data:
-        acc_state = state_data[acc_key]
-        raw_positions = acc_state.get('pos_list', [])
-        live_prices = fetch_live_public_prices()
-        updated_pos_list = []
-        recalc_pnl = 0.0
+    fallback_acc = (state_data or {}).get(acc_key, {})
+    fallback_ex = fallback_acc.get("ex_details", {})
+    fallback_pos = fallback_acc.get("pos_list", [])
+    live_prices = fetch_live_public_prices()
 
-        for p in raw_positions:
-            p_copy = dict(p)
-            sym = p_copy.get('symbol', '')
-            entry = float(p_copy.get('entry', 0.0))
-            mark = float(live_prices.get(sym) or p_copy.get('mark') or entry)
-            notional = float(p_copy.get('notional', 0.0))
-            margin = float(p_copy.get('margin', 1.0))
-            side = str(p_copy.get('side', 'LONG')).upper()
-
-            if entry > 0 and mark > 0 and notional > 0:
-                diff = (mark - entry) / entry if side == 'LONG' else (entry - mark) / entry
-                pnl = notional * diff
-                roe = (pnl / margin * 100.0) if margin > 0 else 0.0
-                p_copy['mark'] = mark
-                p_copy['pnl'] = pnl
-                p_copy['roe'] = roe
-
-            recalc_pnl += float(p_copy.get('pnl', 0.0))
-            updated_pos_list.append(p_copy)
-
-        return (
-            float(acc_state.get('total_bal', 0.0)),
-            round(recalc_pnl, 2),
-            updated_pos_list,
-            acc_state.get('ex_details', {})
-        )
-    
     ex_names = ["Bitget", "MEXC", "BingX", "Bybit", "Gate.io"]
     for name in ex_names:
         creds = profile.get(name, {})
@@ -359,69 +330,95 @@ def get_account_live_data(acc_key: str):
         status_str = "ONLINE"
         ex = None
         raw_pos = []
+        pos_fetched_ok = False
 
-        # 1. FETCH BALANCE (ISOLATED - TIDAK BOLEH GAGAL KARENA POSISI)
+        # 1. COBA FETCH LANGSUNG DARI CLOUD KE BURSA (DENGAN TIMEOUT CEPAT 5 DETIK)
+        fast_cfg = {'options': {'defaultType': 'swap'}, 'enableRateLimit': True, 'timeout': 5000}
         try:
             if name == "Bitget":
-                ex = ccxt.bitget({'apiKey': api_k, 'secret': sec_k, 'password': pass_k, **cfg})
+                ex = ccxt.bitget({'apiKey': api_k, 'secret': sec_k, 'password': pass_k, **fast_cfg})
                 ex.has['fetchCurrencies'] = False
                 bal = ex.fetch_balance(params={'type': 'swap'})
                 usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or (bal.get('total', {}) or {}).get('USDT', 0.0) or 0.0)
                 usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or (bal.get('free', {}) or {}).get('USDT', 0.0) or usdt_total)
-            elif name == "MEXC":
-                ex = ccxt.mexc({'apiKey': api_k, 'secret': sec_k, 'options': {'defaultType': 'swap', 'recvWindow': 10000, 'adjustForTimeDifference': True}, 'enableRateLimit': True, 'timeout': 15000})
-                ex.has['fetchCurrencies'] = False
-                bal = ex.fetch_balance(params={'type': 'swap'})
-                usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or (bal.get('total', {}) or {}).get('USDT', 0.0) or 0.0)
-                usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or (bal.get('free', {}) or {}).get('USDT', 0.0) or usdt_total)
+                raw_pos = ex.fetch_positions(params={'productType': 'USDT-FUTURES'})
+                pos_fetched_ok = True
             elif name == "BingX":
-                ex = ccxt.bingx({'apiKey': api_k, 'secret': sec_k, **cfg})
+                ex = ccxt.bingx({'apiKey': api_k, 'secret': sec_k, **fast_cfg})
                 ex.has['fetchCurrencies'] = False
                 bal = ex.fetch_balance({'type': 'swap'})
                 usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or 0.0)
                 usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or usdt_total)
+                raw_pos = ex.fetch_positions()
+                pos_fetched_ok = True
+            elif name == "MEXC":
+                ex = ccxt.mexc({'apiKey': api_k, 'secret': sec_k, 'options': {'defaultType': 'swap', 'recvWindow': 10000, 'adjustForTimeDifference': True}, 'enableRateLimit': True, 'timeout': 5000})
+                ex.has['fetchCurrencies'] = False
+                bal = ex.fetch_balance(params={'type': 'swap'})
+                usdt_total = float(bal.get('USDT', {}).get('total', 0.0) or (bal.get('total', {}) or {}).get('USDT', 0.0) or 0.0)
+                usdt_free = float(bal.get('USDT', {}).get('free', 0.0) or (bal.get('free', {}) or {}).get('USDT', 0.0) or usdt_total)
+                raw_pos = ex.fetch_positions()
+                pos_fetched_ok = True
             elif name == "Bybit":
-                ex = ccxt.bybit({'apiKey': api_k, 'secret': sec_k, **cfg})
+                ex = ccxt.bybit({'apiKey': api_k, 'secret': sec_k, **fast_cfg})
                 ex.has['fetchCurrencies'] = False
                 bal = ex.fetch_balance({'type': 'linear'})
                 usdt_total = float((bal.get('total', {}) or {}).get('USDT', 0.0) or (bal.get('USDT', {}) or {}).get('total', 0.0) or 0.0)
                 usdt_free = float((bal.get('free', {}) or {}).get('USDT', 0.0) or usdt_total)
+                raw_pos = ex.fetch_positions(params={'settle': 'USDT'})
+                pos_fetched_ok = True
             elif name == "Gate.io":
-                ex = ccxt.gate({'apiKey': api_k, 'secret': sec_k, **cfg})
+                ex = ccxt.gate({'apiKey': api_k, 'secret': sec_k, **fast_cfg})
                 ex.has['fetchCurrencies'] = False
                 bal = ex.fetch_balance(params={'type': 'swap', 'settle': 'usdt'})
                 usdt_total = float((bal.get('total', {}) or {}).get('USDT', 0.0) or (bal.get('USDT', {}) or {}).get('total', 0.0) or 0.0)
                 usdt_free = float((bal.get('free', {}) or {}).get('USDT', 0.0) or usdt_total)
+                raw_pos = ex.fetch_positions(params={'settle': 'usdt'})
+                pos_fetched_ok = True
         except Exception as e_bal:
             status_str = f"ERR: {str(e_bal)[:25]}"
 
-        tot_bal += usdt_total
-        ex_details[name] = {'total': round(usdt_total, 2), 'free': round(usdt_free, 2), 'status': status_str}
+        # 2. JIKA BURSA TERBLOKIR DARI SERVER CLOUD (MISAL MEXC/BYBIT US IP), GUNAKAN FALLBACK STATE + HARGA LIVE
+        if (not pos_fetched_ok or status_str.startswith("ERR")) and name in fallback_ex:
+            fb_info = fallback_ex[name]
+            tot_bal += float(fb_info.get("total", 0.0))
+            ex_details[name] = {
+                'total': round(float(fb_info.get("total", 0.0)), 2),
+                'free': round(float(fb_info.get("free", 0.0)), 2),
+                'status': "ONLINE"
+            }
+            for fp in fallback_pos:
+                if fp.get("exchange") == name:
+                    p_copy = dict(fp)
+                    sym = p_copy.get('symbol', '')
+                    entry = float(p_copy.get('entry', 0.0))
+                    mark = float(live_prices.get(sym) or p_copy.get('mark') or entry)
+                    notional = float(p_copy.get('notional', 0.0))
+                    margin = float(p_copy.get('margin', 1.0))
+                    side = str(p_copy.get('side', 'LONG')).upper()
+                    if entry > 0 and mark > 0 and notional > 0:
+                        diff = (mark - entry) / entry if side == 'LONG' else (entry - mark) / entry
+                        pnl = notional * diff
+                        roe = (pnl / margin * 100.0) if margin > 0 else 0.0
+                        p_copy['mark'] = mark
+                        p_copy['pnl'] = pnl
+                        p_copy['roe'] = roe
+                    tot_pnl += float(p_copy.get('pnl', 0.0))
+                    pos_list.append(p_copy)
+            continue
 
-        # 2. FETCH POSITIONS (SAFE & ISOLATED)
-        if ex and not status_str.startswith("ERR"):
-            try:
-                if name == "Bitget":
-                    raw_pos = ex.fetch_positions(params={'productType': 'USDT-FUTURES'})
-                elif name == "MEXC":
-                    raw_pos = ex.fetch_positions()
-                elif name == "BingX":
-                    raw_pos = ex.fetch_positions()
-                elif name == "Bybit":
-                    raw_pos = ex.fetch_positions(params={'settle': 'USDT'})
-                elif name == "Gate.io":
-                    raw_pos = ex.fetch_positions(params={'settle': 'usdt'})
-            except Exception:
-                raw_pos = []
+        tot_bal += usdt_total
+        ex_details[name] = {'total': round(usdt_total, 2), 'free': round(usdt_free, 2), 'status': "ONLINE" if not status_str.startswith("ERR") else status_str}
 
         for p in raw_pos:
             contracts = abs(float(p.get('contracts') or p.get('amount') or (p.get('info', {}).get('holdVol') if isinstance(p.get('info'), dict) else 0) or 0.0))
             if contracts > 0:
                 sym = p.get('symbol', 'UNKNOWN')
                 clean_sym = sym.replace(':USDT', '').replace('/USDT', '')
+                pair_key = clean_sym + '/USDT'
                 side = str(p.get('side', '')).upper()
                 entry = float(p.get('entryPrice') or p.get('info', {}).get('openAvgPrice') or 0.0)
-                mark = float(p.get('markPrice') or p.get('info', {}).get('fairPrice') or entry or 0.0)
+                mark = float(live_prices.get(pair_key) or p.get('markPrice') or p.get('info', {}).get('fairPrice') or entry or 0.0)
                 lev = float(p.get('leverage') or 28)
 
                 c_size = float(p.get('contractSize') or (p.get('info', {}).get('contractSize') if isinstance(p.get('info'), dict) else 1.0) or 1.0)
@@ -429,23 +426,21 @@ def get_account_live_data(acc_key: str):
                     if 'BTC' in sym: c_size = 0.0001
                     elif 'ETH' in sym: c_size = 0.01
 
-                real_notional = contracts * c_size * entry if entry > 0 else 0.0
-                margin = float(p.get('initialMargin') or p.get('collateral') or 0.0)
+                real_notional = float(p.get('notional') or (contracts * c_size * entry if entry > 0 else 0.0))
+                margin = float(p.get('initialMargin') or p.get('collateral') or (p.get('info', {}).get('initialMargin') if isinstance(p.get('info'), dict) else 0) or (p.get('info', {}).get('im') if isinstance(p.get('info'), dict) else 0) or 0.0)
                 if margin <= 0 and real_notional > 0 and lev > 0:
                     margin = real_notional / lev
                 if margin <= 0: margin = 1.0
 
-                pnl = float(p.get('unrealizedPnl') or p.get('info', {}).get('floatingPL') or p.get('info', {}).get('unrealisedPnl') or 0.0)
-                if abs(pnl) <= 0.0001 and entry > 0 and mark > 0 and real_notional > 0:
-                    diff = (mark - entry)/entry if side == 'LONG' else (entry - mark)/entry
-                    pnl = real_notional * diff
+                diff = (mark - entry)/entry if side == 'LONG' else (entry - mark)/entry
+                pnl = real_notional * diff if (entry > 0 and mark > 0 and real_notional > 0) else float(p.get('unrealizedPnl') or 0.0)
 
                 roe = (pnl / margin * 100.0) if margin > 0 else 0.0
                 tot_pnl += pnl
 
                 pos_list.append({
                     'exchange': name,
-                    'symbol': clean_sym + '/USDT',
+                    'symbol': pair_key,
                     'side': side,
                     'entry': entry,
                     'mark': mark,
@@ -456,7 +451,7 @@ def get_account_live_data(acc_key: str):
                     'leverage': int(lev)
                 })
 
-    return tot_bal, tot_pnl, pos_list, ex_details
+    return round(tot_bal, 2), round(tot_pnl, 2), pos_list, ex_details
 
 # ========================================================
 # PILIHAN 3 AKUN KELUARGA (TAB INTERAKTIF)
