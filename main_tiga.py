@@ -1003,6 +1003,7 @@ class MultiExchangeManager:
         highs = [float(k[2]) for k in klines]
         lows = [float(k[3]) for k in klines]
         closes = [float(k[4]) for k in klines]
+        volumes = [float(k[5]) for k in klines]
         cur_price = closes[-1]
 
         donch_high36 = max(highs[-37:-1])
@@ -1010,6 +1011,18 @@ class MultiExchangeManager:
 
         price_12h_ago = closes[-13]
         mom_12h = (cur_price - price_12h_ago) / price_12h_ago
+
+        # 1. INSTITUTIONAL VOLUME SPIKE (RVOL >= 1.15x Rata-rata 20 Jam)
+        # Mencegah jebakan 'Fakeout / Liquidity Grab' tanpa dukungan volume bandar
+        avg_vol20 = sum(volumes[-22:-2]) / 20.0 if len(volumes) >= 22 else (sum(volumes[:-1]) / max(1, len(volumes) - 1))
+        cur_vol_eff = max(volumes[-1], volumes[-2]) if len(volumes) >= 2 else volumes[-1]
+        rvol = (cur_vol_eff / avg_vol20) if avg_vol20 > 0 else 1.0
+
+        # 2. KAUFMAN EFFICIENCY RATIO (KER 16H >= 0.22 Anti-Sideways Regime)
+        # Mengukur kemurnian tren vs bolak-balik (chop/whipsaw) selama 16 jam terakhir
+        net_move_16h = abs(closes[-1] - closes[-17])
+        path_move_16h = sum(abs(closes[i] - closes[i - 1]) for i in range(len(closes) - 16, len(closes)))
+        ker_16h = (net_move_16h / path_move_16h) if path_move_16h > 0 else 0.0
 
         # ATR 24 Calculation for Titan Risk Parity Sizing
         atrs = []
@@ -1028,9 +1041,15 @@ class MultiExchangeManager:
                 logger.debug(f"🛡️ [FLASH DUMP SHIELD AKTIF] Tahan entri LONG {symbol} (sisa jeda {sisa_menit} menit).")
                 return None
             if cur_price > donch_high36 and mom_12h >= 0.026:
+                if rvol < 1.15:
+                    logger.debug(f"🛡️ [RVOL FILTER] Abaikan breakout tipis {symbol} LONG (RVOL {rvol:.2f}x < 1.15x).")
+                    return None
+                if ker_16h < 0.22:
+                    logger.debug(f"🛡️ [ANTI-SIDEWAYS KER] Abaikan sinyal {symbol} LONG di pasar sideways (KER {ker_16h:.2f} < 0.22).")
+                    return None
                 return {
                     "side": "LONG",
-                    "engine": "🔥 TITAN SWEET SPOT LONG (Donch 36H + Mom >=2.6% | TP +8.2% SL -2.3%)",
+                    "engine": f"🔥 TITAN V6 QUANT LONG (Donch 36H + Mom {mom_12h*100:.1f}% + RVOL {rvol:.2f}x + KER {ker_16h:.2f})",
                     "tp_pct": 0.082,
                     "sl_pct": 0.023,
                     "mom": mom_12h,
@@ -1038,9 +1057,15 @@ class MultiExchangeManager:
                 }
         elif "BEARISH" in self.btc_trend:
             if cur_price < donch_low36 and mom_12h <= -0.026:
+                if rvol < 1.15:
+                    logger.debug(f"🛡️ [RVOL FILTER] Abaikan breakdown tipis {symbol} SHORT (RVOL {rvol:.2f}x < 1.15x).")
+                    return None
+                if ker_16h < 0.22:
+                    logger.debug(f"🛡️ [ANTI-SIDEWAYS KER] Abaikan sinyal {symbol} SHORT di pasar sideways (KER {ker_16h:.2f} < 0.22).")
+                    return None
                 return {
                     "side": "SHORT",
-                    "engine": "🩸 TITAN SWEET SPOT SHORT (Donch 36H + Mom <=-2.6% | TP +8.2% SL -2.3%)",
+                    "engine": f"🩸 TITAN V6 QUANT SHORT (Donch 36H + Mom {mom_12h*100:.1f}% + RVOL {rvol:.2f}x + KER {ker_16h:.2f})",
                     "tp_pct": 0.082,
                     "sl_pct": 0.023,
                     "mom": mom_12h,
