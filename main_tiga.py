@@ -642,7 +642,7 @@ class MultiExchangeManager:
                 except Exception as e:
                     logger.error(f"Gagal membaca {c}: {e}")
 
-        # Fallback jika accounts_config.json belum ada
+        # Fallback jika accounts_config.json belum ada (Otomatis 3 Akun Lengkap di Termux)
         if not accounts_data:
             accounts_data = {
                 "akun_1": {
@@ -652,6 +652,22 @@ class MultiExchangeManager:
                     "Gate.io": {"apiKey": GATE_API_KEY, "secret": GATE_SECRET},
                     "Bitget": {"apiKey": BITGET_API_KEY, "secret": BITGET_SECRET, "password": BITGET_PASSPHRASE},
                     "MEXC": {"apiKey": MEXC_API_KEY, "secret": MEXC_SECRET}
+                },
+                "akun_2": {
+                    "name": "Akun 2 (Keluarga 2)",
+                    "Bitget": {"apiKey": "bg_4af01becb7eeb96cd94c3115603ae581", "secret": "5da2f6f81515774f5f4848b1ff8af3c751a24a579b53a1d60d8808d73cc49ddd", "password": "Pkbwiyung20"},
+                    "MEXC": {"apiKey": "mx0vglN1MRKhz7bB9F", "secret": "3c0659763b1846f09d463d5ef4ff6895"},
+                    "BingX": {"apiKey": "mpIKCc6DLijGftR5LY22kKYt3AsuBx5boAN6isHUX5uv2gwCHnlEM4w69vOYmlwF3AB7GZ2vNZylyCYTA", "secret": "9VLohe1fRHPFtYnoFtaFfX2s4zTilKwYlDNidsI32558scuvwyfQD5cXw5UiQBZsO5ZWgUV7atdrl4USZA"},
+                    "Bybit": {"apiKey": "", "secret": ""},
+                    "Gate.io": {"apiKey": "", "secret": ""}
+                },
+                "akun_3": {
+                    "name": "Akun 3 (Keluarga 3)",
+                    "Bitget": {"apiKey": "bg_73608afab557072fb1bec7de9dd5cea6", "secret": "061d71394f06d89a4be2ae2cdeaa4e91e975cf0fe9dc4db03c4d7de26be70736", "password": "Pkbwiyung20"},
+                    "MEXC": {"apiKey": "", "secret": ""},
+                    "BingX": {"apiKey": "Chwko9lscMzBW0NoHtwUkNM3czPZwc6jfxlW59ug6tn1auLRrx653uLCX5bpudQuanIRKbmq542kSFeqAA", "secret": "axgJhbOKmrB7iaW2zm3SsY4vyMI9FKtC6GCa3AzxlFIntIOA0hBSD9dfuhYPNVrZr3Dc8TQbN4RRnlSQOg"},
+                    "Bybit": {"apiKey": "", "secret": ""},
+                    "Gate.io": {"apiKey": "", "secret": ""}
                 }
             }
 
