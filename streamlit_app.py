@@ -230,20 +230,17 @@ def get_all_accounts_live_v6():
         except Exception:
             state_data = {}
 
-    # 2. Check GitHub raw state in case remote was updated
+    # 2. Check GitHub raw state in case remote was updated (Zero CDN cache)
     try:
         r = requests.get(
-            f"https://raw.githubusercontent.com/richad1109/maruk-dshboard/main/live_bot_state.json?t={int(time.time()//3)}",
-            headers={"Cache-Control": "no-cache"},
+            f"https://raw.githubusercontent.com/richad1109/maruk-dshboard/main/live_bot_state.json?nocache={time.time()}",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"},
             timeout=3.5
         )
         if r.status_code == 200:
             rem = r.json()
             if isinstance(rem, dict) and "akun_1" in rem:
-                r_ts = rem.get("akun_1", {}).get("updated_at", "")
-                l_ts = state_data.get("akun_1", {}).get("updated_at", "")
-                if r_ts >= l_ts or not state_data:
-                    state_data = rem
+                state_data = rem
     except Exception:
         pass
 
