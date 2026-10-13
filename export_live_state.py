@@ -43,22 +43,24 @@ socket.getaddrinfo = custom_getaddrinfo
 def fetch_fast_public_marks():
     marks = {}
     hdr = {"User-Agent": "Mozilla/5.0"}
-    # 1. Gate.io Spot (works in US & ID)
-    for pair in ["BTC_USDT", "ETH_USDT", "SOL_USDT"]:
+    # 1. Gate.io Spot
+    for coin in ["BTC", "ETH", "ADA", "XRP", "AVAX", "LINK"]:
+        pair = f"{coin}_USDT"
         try:
-            r = requests.get(f"https://api.gateio.ws/api/v4/spot/tickers?currency_pair={pair}", headers=hdr, timeout=3)
+            r = requests.get(f"https://api.gateio.ws/api/v4/spot/tickers?currency_pair={pair}", headers=hdr, timeout=2.5)
             if r.status_code == 200 and r.json():
-                marks[pair.replace("_", "/")] = float(r.json()[0].get("last") or 0.0)
+                marks[f"{coin}/USDT"] = float(r.json()[0].get("last") or 0.0)
         except Exception:
             pass
-    # 2. BingX Swap (for LIGHTER/USDT and exact swap marks)
-    for sym in ["BTC-USDT", "ETH-USDT", "LIGHTER-USDT", "SOL-USDT"]:
+    # 2. BingX Swap
+    for coin in ["BTC", "ETH", "ADA", "XRP", "AVAX", "LINK"]:
+        sym = f"{coin}-USDT"
         try:
-            r = requests.get(f"https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol={sym}", headers=hdr, timeout=3)
+            r = requests.get(f"https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol={sym}", headers=hdr, timeout=2.5)
             if r.status_code == 200:
                 lp = float(r.json().get("data", {}).get("lastPrice") or 0.0)
                 if lp > 0:
-                    marks[sym.replace("-", "/")] = lp
+                    marks[f"{coin}/USDT"] = lp
         except Exception:
             pass
     return marks
@@ -235,10 +237,11 @@ def generate_live_state():
 def git_push_state():
     repo_dir = os.path.dirname(os.path.abspath(__file__))
     try:
-        subprocess.run(["git", "add", "live_bot_state.json"], cwd=repo_dir, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        res = subprocess.run(["git", "commit", "-m", f"chore: live state sync {time.strftime('%H:%M:%S')}"], cwd=repo_dir, capture_output=True, text=True)
+        env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
+        subprocess.run(["git", "add", "live_bot_state.json"], cwd=repo_dir, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+        res = subprocess.run(["git", "commit", "-m", f"chore: live state sync {time.strftime('%H:%M:%S')}"], cwd=repo_dir, capture_output=True, text=True, timeout=5)
         if res.returncode == 0:
-            subprocess.run(["git", "push", "origin", "main"], cwd=repo_dir, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(["git", "push", "origin", "main"], cwd=repo_dir, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=12, env=env)
             print(f"[{time.strftime('%H:%M:%S')}] Pushed updated live_bot_state.json to GitHub!")
     except Exception as e:
         print(f"Git push error: {e}")

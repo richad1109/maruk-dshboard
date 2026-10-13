@@ -165,14 +165,20 @@ def fetch_live_prices_v6() -> dict:
     urls = {
         "gate_btc": "https://api.gateio.ws/api/v4/spot/tickers?currency_pair=BTC_USDT",
         "gate_eth": "https://api.gateio.ws/api/v4/spot/tickers?currency_pair=ETH_USDT",
-        "kraken": "https://api.kraken.com/0/public/Ticker?pair=XBTUSD,ETHUSD",
-        "coingecko": "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd",
+        "gate_ada": "https://api.gateio.ws/api/v4/spot/tickers?currency_pair=ADA_USDT",
+        "gate_xrp": "https://api.gateio.ws/api/v4/spot/tickers?currency_pair=XRP_USDT",
+        "gate_avax": "https://api.gateio.ws/api/v4/spot/tickers?currency_pair=AVAX_USDT",
+        "gate_link": "https://api.gateio.ws/api/v4/spot/tickers?currency_pair=LINK_USDT",
+        "coingecko": "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,cardano,ripple,avalanche-2,chainlink&vs_currencies=usd",
         "bingx_btc": "https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol=BTC-USDT",
         "bingx_eth": "https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol=ETH-USDT",
-        "bingx_ltr": "https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol=LIGHTER-USDT",
+        "bingx_ada": "https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol=ADA-USDT",
+        "bingx_xrp": "https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol=XRP-USDT",
+        "bingx_avax": "https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol=AVAX-USDT",
+        "bingx_link": "https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol=LINK-USDT",
     }
     results = {}
-    with ThreadPoolExecutor(max_workers=7) as pool:
+    with ThreadPoolExecutor(max_workers=10) as pool:
         future_map = {pool.submit(_fetch_url_json, u): k for k, u in urls.items()}
         for fut, k in future_map.items():
             try:
@@ -183,36 +189,27 @@ def fetch_live_prices_v6() -> dict:
     # 1. CoinGecko fallback
     cg = results.get("coingecko")
     if isinstance(cg, dict):
-        if cg.get("bitcoin", {}).get("usd"):
-            prices["BTC/USDT"] = float(cg["bitcoin"]["usd"])
-        if cg.get("ethereum", {}).get("usd"):
-            prices["ETH/USDT"] = float(cg["ethereum"]["usd"])
+        cg_map = {
+            "bitcoin": "BTC/USDT", "ethereum": "ETH/USDT", "cardano": "ADA/USDT",
+            "ripple": "XRP/USDT", "avalanche-2": "AVAX/USDT", "chainlink": "LINK/USDT"
+        }
+        for cg_id, sym in cg_map.items():
+            if cg.get(cg_id, {}).get("usd"):
+                prices[sym] = float(cg[cg_id]["usd"])
 
-    # 2. Kraken US Official Exchange Ticker (override if available)
-    kr = results.get("kraken")
-    if isinstance(kr, dict) and isinstance(kr.get("result"), dict):
-        res_k = kr["result"]
-        for k_pair, k_val in res_k.items():
-            if "XBT" in k_pair and isinstance(k_val, dict) and k_val.get("c"):
-                prices["BTC/USDT"] = float(k_val["c"][0])
-            elif "ETH" in k_pair and isinstance(k_val, dict) and k_val.get("c"):
-                prices["ETH/USDT"] = float(k_val["c"][0])
+    # 2. Gate.io Spot
+    for coin in ["BTC", "ETH", "ADA", "XRP", "AVAX", "LINK"]:
+        g_res = results.get(f"gate_{coin.lower()}")
+        if isinstance(g_res, list) and g_res and g_res[0].get("last"):
+            prices[f"{coin}/USDT"] = float(g_res[0]["last"])
 
-    # 3. Gate.io Spot (override with exact USDT pair)
-    g_btc = results.get("gate_btc")
-    if isinstance(g_btc, list) and g_btc and g_btc[0].get("last"):
-        prices["BTC/USDT"] = float(g_btc[0]["last"])
-    g_eth = results.get("gate_eth")
-    if isinstance(g_eth, list) and g_eth and g_eth[0].get("last"):
-        prices["ETH/USDT"] = float(g_eth[0]["last"])
-
-    # 4. BingX Swap (if not US-blocked, gives exact futures mark/last price + LIGHTER/USDT)
-    for k_bx, sym_name in [("bingx_btc", "BTC/USDT"), ("bingx_eth", "ETH/USDT"), ("bingx_ltr", "LIGHTER/USDT")]:
-        bx = results.get(k_bx)
+    # 3. BingX Swap
+    for coin in ["BTC", "ETH", "ADA", "XRP", "AVAX", "LINK"]:
+        bx = results.get(f"bingx_{coin.lower()}")
         if isinstance(bx, dict) and isinstance(bx.get("data"), dict):
             lp = float(bx["data"].get("lastPrice") or 0.0)
             if lp > 0:
-                prices[sym_name] = lp
+                prices[f"{coin}/USDT"] = lp
 
     return prices
 

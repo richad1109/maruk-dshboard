@@ -10,6 +10,7 @@ from datetime import datetime, date, timezone
 from typing import Dict, List, Optional, Any, Tuple
 import urllib.request
 import json
+import threading
 import xml.etree.ElementTree as ET
 
 # UTF-8 Encoding Stream Protection (Anti-Crash Terminal Emojis)
@@ -1590,10 +1591,26 @@ async def start_discord_resilient():
             logger.error(f"⚠️ Discord disconnect / error: {e}. Menghubungkan ulang dalam 10 detik...")
             await asyncio.sleep(10)
 
+def _background_state_syncer():
+    time.sleep(12)
+    while True:
+        try:
+            try:
+                import export_live_state
+                export_live_state.generate_live_state()
+                export_live_state.git_push_state()
+            except Exception as e:
+                logger.debug(f"[AUTO-SYNC] State sync note: {e}")
+            time.sleep(35)
+        except Exception:
+            time.sleep(30)
+
 async def main():
     global manager_ref
     mgr = MultiExchangeManager()
     manager_ref = mgr
+    # Jalankan background auto-sync state untuk Web Streamlit
+    threading.Thread(target=_background_state_syncer, daemon=True).start()
     await asyncio.gather(
         start_discord_resilient(),
         multi_trading_loop(mgr),
