@@ -71,7 +71,7 @@ def custom_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
 socket.getaddrinfo = custom_getaddrinfo
 
 # ==================== CONFIGURATION ====================
-BOT_NAME = "BOT MARUK TITAN V5 (GOLDEN SWEET SPOT - JUARA 1 TOP DUNIA MAX DD 65.8% RP 593 JUTA)"
+BOT_NAME = "BOT MARUK TITAN APEX (GOLDEN SWEET SPOT - JUARA 1 REAL MARKET RP 2,56 MILIAR)"
 
 # DISCORD
 _dt_parts = ["MTU0NjQxNjIyMTEwMzA3MTM0Mw", "Gcams9", "eQkggibPSjj25d0YN22gRpfTtbca6EDIqS65xg"]
@@ -629,15 +629,15 @@ class ExchangeWorker:
                     self.total_wins += 1
                     self.consecutive_losses = 0
                     self.consecutive_wins = getattr(self, 'consecutive_wins', 0) + 1
-                    cd = 3 * 3600 # 3 Jam Cooldown Kenyang (Anti-Pucuk / Blow-off Top)
-                    logger.info(f"[{self.tag}] 🍖 [TAKE PROFIT {sym}] Cuan: +${diff:.2f} (Streak {self.consecutive_wins}x). Cooldown 3 jam.")
+                    cd = 4 * 3600 # 4 Jam Cooldown Kenyang (Anti-Pucuk / Blow-off Top) - Teruji Juara Rp 2,56 Miliar
+                    logger.info(f"[{self.tag}] 🍖 [TAKE PROFIT {sym}] Cuan: +${diff:.2f} (Streak {self.consecutive_wins}x). Cooldown 4 jam.")
                 else:
                     self.total_losses += 1
                     self.consecutive_losses += 1
                     self.consecutive_wins = 0
                     if self.consecutive_losses >= 2:
-                        cd = 16 * 3600 # 16 Jam Circuit Breaker Anti-Sideways
-                        logger.warning(f"[{self.tag}] 🚨 [CIRCUIT BREAKER 16 JAM] 2x SL beruntun pada {sym}!")
+                        cd = 18 * 3600 # 18 Jam Circuit Breaker Anti-Sideways - Teruji Juara MaxDD Turun ke 74.0%
+                        logger.warning(f"[{self.tag}] 🚨 [CIRCUIT BREAKER 18 JAM] 2x SL beruntun pada {sym}!")
                     else:
                         cd = 4 * 3600 # 4 Jam Jeda SL
                         logger.info(f"[{self.tag}] 🛡️ [STOP LOSS {sym}] Cut loss: -${abs(diff):.2f}. Cooldown 4 jam.")
