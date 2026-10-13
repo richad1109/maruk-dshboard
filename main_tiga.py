@@ -101,10 +101,10 @@ LEVERAGE = 28                          # Opsi 3 Hyper Growth: Leverage 28x (teru
 MAX_POSITIONS_PER_EXCHANGE = 2
 SCAN_INTERVAL_SECONDS = 12        # Pemindaian cepat tanpa jeda & aman limit bursa
 
-# SUPERPOWER COMPOUNDING LIMITS (TITAN APEX V8 SUPER MENTOK: 1 THN RP 1,14 - 1,40 MILIAR | 2 THN RP 4,39 - 4,78 MILIAR)
-SUPERPOWER_MID_COMP_PCT = 0.14   # 14% mid-tier compounding (Saldo $150 - $450, MaxDD turun ke 71.3%)
-SUPERPOWER_COMP_PCT = 0.115      # 11.5% high-tier compounding (Saldo >= $450, anti-drawdown & super compounding)
-SUPERPOWER_CAP_MARGIN = 680.0    # Cap margin $680 USD (Plafon Paus Apex V8)
+# SUPERPOWER COMPOUNDING LIMITS (TITAN APEX REAL CHAMPION: 1 THN RP 413 JUTA | 2 THN RP 1,93 MILIAR)
+SUPERPOWER_MID_COMP_PCT = 0.16   # 16% mid-tier compounding (Saldo $150 - $450)
+SUPERPOWER_COMP_PCT = 0.12       # 12% high-tier compounding (Saldo >= $450, menjaga kestabilan saldo besar)
+SUPERPOWER_CAP_MARGIN = 380.0    # Cap margin $380 USD (Plafon Likuiditas Bursa Realistis & Bebas Slippage Liar)
 KURS_IDR = 17000.0               # Kurs acuan tetap: 1 USD = Rp 17.000
 
 # 6 KOIN EMAS PILIHAN TERBAIK (BUANG 4 KOIN RACUN: SOL, BNB, DOGE, WIF)
@@ -277,7 +277,7 @@ class ExchangeWorker:
     def calculate_safe_margin(self, symbol: str = None, cur_price: float = None, atr24: float = None, mom: float = None, ker: float = None) -> float:
         if self.is_standby:
             return 0.0
-        # SUPERPOWER 5-STAGE INSTITUTIONAL ANTI-DRAWDOWN ENGINE (TITAN APEX V8 SUPER MENTOK)
+        # SUPERPOWER 5-STAGE INSTITUTIONAL ANTI-DRAWDOWN ENGINE (TITAN APEX REAL CHAMPION)
         if self.balance < 10.0:
             calculated = max(0.60, round(self.balance * 0.06, 2))
         elif self.balance < 30.0:
@@ -298,25 +298,19 @@ class ExchangeWorker:
             vol_scale = max(0.70, min(1.30, vol_scale))
             calculated = calculated * vol_scale
 
-        # 2. 2-TIER SUPER KELLY CONVICTION SIZING (Institutional Trend Purity & Momentum Velocity):
-        # Tier A (Super-Impulse: KER >= 0.45 & Mom >= 4.5%): boost +45% (1.45x)
-        # Tier B (High-Impulse : KER >= 0.35 & Mom >= 3.5%): boost +32% (1.32x)
-        # Tier C (Early-Trend  : KER < 0.24)               : rem -10% (0.90x)
+        # 2. KELLY CONVICTION SIZING (Institutional Trend Purity & Momentum Velocity):
+        # Jika efisiensi tren sangat murni (KER >= 0.35) & momentum meledak (>= 3.5%), boost margin +25% (1.25x).
+        # Jika efisiensi tren masih di batas awal (KER < 0.24), tahan margin -10% (0.90x) lebih konservatif.
         if ker is not None and mom is not None:
-            if ker >= 0.45 and abs(mom) >= 0.045:
-                calculated = calculated * 1.45
-            elif ker >= 0.35 and abs(mom) >= 0.035:
-                calculated = calculated * 1.32
+            if ker >= 0.35 and abs(mom) >= 0.035:
+                calculated = calculated * 1.25
             elif ker < 0.24:
                 calculated = calculated * 0.90
 
-        # 3. 2-TIER SUPER HOT-HAND STREAK BOOSTER:
-        # Jika Win Streak >= 3x berturut-turut: boost +28% (1.28x), jika Win Streak == 2x: boost +20% (1.20x)
-        c_wins = getattr(self, 'consecutive_wins', 0)
-        if c_wins >= 3 and self.consecutive_losses == 0:
-            calculated = calculated * 1.28
-        elif c_wins == 2 and self.consecutive_losses == 0:
-            calculated = calculated * 1.20
+        # 3. HOT-HAND STREAK BOOSTER:
+        # Jika sedang dalam tren menang beruntun (Consecutive Wins >= 2 tanpa loss), boost +15% (1.15x)
+        if getattr(self, 'consecutive_wins', 0) >= 2 and self.consecutive_losses == 0:
+            calculated = calculated * 1.15
 
         # 4. REM DEFENSIF 70%: jika sedang mengalami consecutive loss >= 2, pangkas margin 70% (sisa 30%)
         if self.consecutive_losses >= 2:
@@ -1037,7 +1031,6 @@ class MultiExchangeManager:
         lows = [float(k[3]) for k in klines]
         closes = [float(k[4]) for k in klines]
         cur_price = closes[-1]
-        cur_open = opens[-1]
 
         donch_high36 = max(highs[-37:-1])
         donch_low36 = min(lows[-37:-1])
@@ -1047,11 +1040,6 @@ class MultiExchangeManager:
 
         price_4h_ago = closes[-5]
         mom_4h = (cur_price - price_4h_ago) / price_4h_ago
-
-        # ANTI-CLIMAX / ANTI-EXHAUSTION CANDLE FILTER:
-        # Jika dalam 1 candle 1 jam terakhir harga sudah terbang/longsor > 5.0%, tahan entri
-        # agar tidak membeli di pucuk klimaks (exhaustion top) sebelum terjadi koreksi wajar.
-        bar_1h_pct = abs(cur_price - cur_open) / cur_open if cur_open > 0 else 0.0
 
         # KAUFMAN EFFICIENCY RATIO (KER 16H >= 0.20 Anti-Sideways Regime)
         # Mengukur kemurnian tren vs bolak-balik (chop/whipsaw) selama 16 jam terakhir.
@@ -1082,12 +1070,9 @@ class MultiExchangeManager:
                 if mom_4h < 0.005:
                     logger.debug(f"🛡️ [MOM 4H IMPULSE] Abaikan sinyal {symbol} LONG karena momentum 4 jam melambat ({mom_4h*100:.2f}% < +0.50%).")
                     return None
-                if bar_1h_pct > 0.050:
-                    logger.debug(f"🛡️ [ANTI-CLIMAX GUARD] Abaikan sinyal {symbol} LONG karena candle 1 jam sudah terbang {bar_1h_pct*100:.2f}% > 5.0% (rawan pucuk).")
-                    return None
                 return {
                     "side": "LONG",
-                    "engine": f"🔥 TITAN APEX V8 SUPER MENTOK LONG (Donch 36H + Mom12H {mom_12h*100:.1f}% + Mom4H {mom_4h*100:.1f}% + KER {ker_16h:.2f})",
+                    "engine": f"🔥 TITAN APEX LONG (Donch 36H + Mom12H {mom_12h*100:.1f}% + Mom4H {mom_4h*100:.1f}% + KER {ker_16h:.2f})",
                     "tp_pct": 0.082,
                     "sl_pct": 0.023,
                     "mom": mom_12h,
@@ -1102,12 +1087,9 @@ class MultiExchangeManager:
                 if mom_4h > -0.005:
                     logger.debug(f"🛡️ [MOM 4H IMPULSE] Abaikan sinyal {symbol} SHORT karena momentum 4 jam melambat ({mom_4h*100:.2f}% > -0.50%).")
                     return None
-                if bar_1h_pct > 0.050:
-                    logger.debug(f"🛡️ [ANTI-CLIMAX GUARD] Abaikan sinyal {symbol} SHORT karena candle 1 jam sudah anjlok {bar_1h_pct*100:.2f}% > 5.0% (rawan pantulan).")
-                    return None
                 return {
                     "side": "SHORT",
-                    "engine": f"🩸 TITAN APEX V8 SUPER MENTOK SHORT (Donch 36H + Mom12H {mom_12h*100:.1f}% + Mom4H {mom_4h*100:.1f}% + KER {ker_16h:.2f})",
+                    "engine": f"🩸 TITAN APEX SHORT (Donch 36H + Mom12H {mom_12h*100:.1f}% + Mom4H {mom_4h*100:.1f}% + KER {ker_16h:.2f})",
                     "tp_pct": 0.082,
                     "sl_pct": 0.023,
                     "mom": mom_12h,
