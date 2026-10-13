@@ -230,29 +230,39 @@ def get_all_accounts_live_v6():
         except Exception:
             state_data = {}
 
-    # 2. Check GitHub raw state (with fast 1.5s timeout) in case remote was updated
+    # 2. Check GitHub raw state in case remote was updated
     try:
         r = requests.get(
-            f"https://raw.githubusercontent.com/richad1109/maruk-dshboard/main/live_bot_state.json?t={int(time.time()//5)}",
+            f"https://raw.githubusercontent.com/richad1109/maruk-dshboard/main/live_bot_state.json?t={int(time.time()//3)}",
             headers={"Cache-Control": "no-cache"},
-            timeout=1.5
+            timeout=3.5
         )
         if r.status_code == 200:
             rem = r.json()
             if isinstance(rem, dict) and "akun_1" in rem:
                 r_ts = rem.get("akun_1", {}).get("updated_at", "")
                 l_ts = state_data.get("akun_1", {}).get("updated_at", "")
-                if r_ts >= l_ts:
+                if r_ts >= l_ts or not state_data:
                     state_data = rem
     except Exception:
         pass
 
-    # Extract any missing coin marks from state_data
+    # Extract or fetch live mark for any coin (including manual trades like ARC)
     for acc_k in ["akun_1", "akun_2", "akun_3"]:
         for p in state_data.get(acc_k, {}).get("pos_list", []):
             sym = p.get("symbol", "")
-            if sym and sym not in live_prices and p.get("mark"):
-                live_prices[sym] = float(p["mark"])
+            if sym and sym not in live_prices:
+                try:
+                    bx_sym = sym.replace("/", "-")
+                    r_p = requests.get(f"https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol={bx_sym}", timeout=1.8)
+                    if r_p.status_code == 200:
+                        lp = float(r_p.json().get("data", {}).get("lastPrice") or 0.0)
+                        if lp > 0:
+                            live_prices[sym] = lp
+                except Exception:
+                    pass
+                if sym not in live_prices and p.get("mark"):
+                    live_prices[sym] = float(p["mark"])
 
     # Recalculate every position's Mark, PnL, and ROE with real-time prices
     final_accounts = {}
@@ -295,9 +305,10 @@ def get_all_accounts_live_v6():
     return live_prices, final_accounts
 
 live_mkt, all_acc_data = get_all_accounts_live_v6()
-btc_now = live_mkt.get("BTC/USDT", 83788.1)
-eth_now = live_mkt.get("ETH/USDT", 2559.57)
-ltr_now = live_mkt.get("LIGHTER/USDT", 3.847)
+btc_now = live_mkt.get("BTC/USDT", 83067.8)
+eth_now = live_mkt.get("ETH/USDT", 2507.49)
+ada_now = live_mkt.get("ADA/USDT", 0.2367)
+arc_now = live_mkt.get("ARC/USDT", 0.03344)
 
 # ========================================================
 # PILIHAN 3 AKUN KELUARGA (TAB INTERAKTIF)
@@ -315,12 +326,27 @@ with col_h2:
 <div style="font-size: 0.72rem; color: #64748b; margin-top: 4px;">{get_wib_time_str()} (Update Otomatis)</div>
 </div>""", unsafe_allow_html=True)
 
-st.markdown(f"""<div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 8px 14px; margin-bottom: 8px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; font-size: 0.78rem;">
-<span style="color: #94a3b8; font-weight: 700;">📡 HARGA PASAR REAL-TIME:</span>
-<span><b style="color: #f59e0b;">₿ BTC/USDT:</b> <b style="color: #ffffff; font-size: 0.88rem;">${btc_now:,.1f}</b> <span style="color: #64748b;">(Rp {btc_now*KURS_IDR:,.0f})</span></span>
-<span><b style="color: #38bdf8;">Ξ ETH/USDT:</b> <b style="color: #ffffff; font-size: 0.88rem;">${eth_now:,.2f}</b></span>
-<span><b style="color: #34d399;">⚡ LIGHTER/USDT:</b> <b style="color: #ffffff; font-size: 0.88rem;">${ltr_now:,.4f}</b></span>
+col_s1, col_s2 = st.columns([3, 1])
+with col_s1:
+    st.markdown(f"""<div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 8px 14px; margin-bottom: 8px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; font-size: 0.78rem;">
+<span style="color: #94a3b8; font-weight: 700;">📡 PASAR REAL-TIME:</span>
+<span><b style="color: #f59e0b;">₿ BTC:</b> <b style="color: #ffffff;">${btc_now:,.1f}</b></span>
+<span><b style="color: #38bdf8;">Ξ ETH:</b> <b style="color: #ffffff;">${eth_now:,.2f}</b></span>
+<span><b style="color: #34d399;">💎 ADA:</b> <b style="color: #ffffff;">${ada_now:,.4f}</b></span>
+<span><b style="color: #ec4899;">🚀 ARC:</b> <b style="color: #ffffff;">${arc_now:,.5f}</b></span>
 </div>""", unsafe_allow_html=True)
+
+with col_s2:
+    if st.button("🔄 Sync Bursa Manual", use_container_width=True, help="Tarik langsung semua posisi bursa termasuk trade manual"):
+        with st.spinner("Menghubungkan langsung ke API bursa..."):
+            try:
+                import export_live_state
+                export_live_state.generate_live_state()
+                st.cache_data.clear()
+                st.success("Tersinkronkan!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Gagal: {e}")
 
 # TAB SELECTOR 3 AKUN
 tab_select = st.radio(
