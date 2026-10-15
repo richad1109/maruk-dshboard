@@ -539,140 +539,116 @@ st.markdown(f"""
 # ========================================================
 # 4. MARKAS KANTOR BOT MARUK (3 LANTAI ANIMASI)
 # ========================================================
-st.markdown("""
-<div class="office-box">
-  <div class="office-header">
-    <span>🏢 MARKAS BOT MARUK — 3 LANTAI COMMAND CENTER</span>
-    <span style="color: #10b981;">● AKTIVITAS REAL-TIME LIVE</span>
-  </div>
-  <div class="building-canvas">
-    
-    <!-- LANTAI 3: CEO EXECUTIVE SUITE (BOS BESAR 👑) -->
-    <div class="floor-lane fl-lane-3">
-      <div class="lane-tag">LANTAI 3 — CEO EXECUTIVE SUITE (BOS BESAR 👑)</div>
-      <div class="win-cluster">
-        <div class="office-win win-lit"></div>
-        <div class="office-win win-lit" style="animation-delay: 0.5s;"></div>
-        <div class="office-win win-dark"></div>
-        <div class="office-win win-lit" style="animation-delay: 1.2s;"></div>
-        <div class="office-win win-dark"></div>
-        <div class="office-win win-lit" style="animation-delay: 0.8s;"></div>
-      </div>
-      
-      <!-- BOS BESAR ICON (USER) -->
-      <div class="boss-anchor">
-        <svg width="28" height="36" viewBox="0 0 28 36">
-          <polygon points="4,10 8,4 14,8 20,4 24,10" fill="#fbbf24"/>
-          <circle cx="14" cy="14" r="6" fill="#fde68a"/>
-          <rect x="7" y="20" width="14" height="14" rx="3" fill="#1e3a5f"/>
-          <polygon points="14,21 12,26 14,28 16,26" fill="#ef4444"/>
-          <line x1="7" y1="22" x2="2" y2="28" stroke="#1e3a5f" stroke-width="3" stroke-linecap="round"/>
-          <line x1="21" y1="22" x2="26" y2="28" stroke="#1e3a5f" stroke-width="3" stroke-linecap="round"/>
-        </svg>
-      </div>
-      
-      <!-- DESK PROFIT CHART TELEMETRY -->
-      <svg width="85" height="32" viewBox="0 0 85 32" style="position: absolute; right: 62px; bottom: 4px;">
-        <rect x="0" y="18" width="9" height="14" fill="#34d399" class="bar-grow" style="animation-delay: 0s;"/>
-        <rect x="13" y="11" width="9" height="21" fill="#34d399" class="bar-grow" style="animation-delay: 0.2s;"/>
-        <rect x="26" y="7" width="9" height="25" fill="#34d399" class="bar-grow" style="animation-delay: 0.4s;"/>
-        <rect x="39" y="14" width="9" height="18" fill="#fbbf24" class="bar-grow" style="animation-delay: 0.1s;"/>
-        <rect x="52" y="4" width="9" height="28" fill="#34d399" class="bar-grow" style="animation-delay: 0.3s;"/>
-        <rect x="65" y="8" width="9" height="24" fill="#34d399" class="bar-grow" style="animation-delay: 0.5s;"/>
-      </svg>
-    </div>
-
-    <!-- LANTAI 2: AI QUANT & MARKET ANALYST TEAM -->
-    <div class="floor-lane fl-lane-2">
-      <div class="lane-tag">LANTAI 2 — AI QUANT &amp; MARKET ANALYST TEAM 📊</div>
-      <div class="win-cluster">
-        <div class="office-win win-lit" style="animation-delay: 0.2s;"></div>
-        <div class="office-win win-dark"></div>
-        <div class="office-win win-lit" style="animation-delay: 0.9s;"></div>
-        <div class="office-win win-lit" style="animation-delay: 0.3s;"></div>
-        <div class="office-win win-dark"></div>
-        <div class="office-win win-lit" style="animation-delay: 1.1s;"></div>
-      </div>
-      
-      <!-- Analyst 1 (Walking) -->
-      <div class="walk-f1" style="animation-duration: 7s;">
-        <svg width="22" height="28" viewBox="0 0 22 28">
-          <circle cx="11" cy="5" r="4" fill="#fde68a"/>
-          <rect x="5" y="9" width="12" height="12" rx="2" fill="#3b82f6"/>
-          <line x1="5" y1="11" x2="1" y2="18" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="17" y1="11" x2="21" y2="18" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="8" y1="21" x2="6" y2="28" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="14" y1="21" x2="16" y2="28" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
-        </svg>
-      </div>
-
-      <!-- Analyst 2 (Walking Opposite) -->
-      <div class="walk-f2" style="animation-duration: 9.5s; animation-delay: -3s;">
-        <svg width="22" height="28" viewBox="0 0 22 28">
-          <circle cx="11" cy="5" r="4" fill="#e2c9a0"/>
-          <rect x="5" y="9" width="12" height="12" rx="2" fill="#8b5cf6"/>
-          <line x1="5" y1="11" x2="1" y2="18" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="17" y1="11" x2="21" y2="18" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="8" y1="21" x2="6" y2="28" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="14" y1="21" x2="16" y2="28" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
-        </svg>
-      </div>
-
-      <!-- Analyst Terminal Line Curve -->
-      <svg width="85" height="26" viewBox="0 0 85 26" style="position: absolute; right: 58px; bottom: 4px;">
-        <polyline points="0,20 14,16 28,18 42,9 56,12 70,6 82,8" fill="none" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/>
-        <circle cx="82" cy="8" r="2.5" fill="#38bdf8"></circle>
-      </svg>
-    </div>
-
-    <!-- LANTAI 1: HIGH-FREQUENCY TRADING FLOOR -->
-    <div class="floor-lane fl-lane-1">
-      <div class="lane-tag">LANTAI 1 — HIGH-FREQUENCY TRADING FLOOR ⚡ (5 BURSA)</div>
-      <div class="win-cluster">
-        <div class="office-win win-lit" style="animation-delay: 0.4s;"></div>
-        <div class="office-win win-lit" style="animation-delay: 0.8s;"></div>
-        <div class="office-win win-dark"></div>
-        <div class="office-win win-lit" style="animation-delay: 1.4s;"></div>
-        <div class="office-win win-dark"></div>
-        <div class="office-win win-lit" style="animation-delay: 0.1s;"></div>
-      </div>
-
-      <!-- Trader 1 (Green Execution) -->
-      <div class="walk-f1" style="animation-duration: 6.5s; animation-delay: -1s;">
-        <svg width="22" height="28" viewBox="0 0 22 28">
-          <circle cx="11" cy="5" r="4" fill="#fcd9a0"/>
-          <rect x="5" y="9" width="12" height="12" rx="2" fill="#10b981"/>
-          <line x1="5" y1="11" x2="1" y2="18" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="17" y1="11" x2="21" y2="18" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="8" y1="21" x2="6" y2="28" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="14" y1="21" x2="16" y2="28" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
-        </svg>
-      </div>
-
-      <!-- Trader 2 (Short Spec) -->
-      <div class="walk-f2" style="animation-duration: 8.5s; animation-delay: -4s;">
-        <svg width="22" height="28" viewBox="0 0 22 28">
-          <circle cx="11" cy="5" r="4" fill="#fde68a"/>
-          <rect x="5" y="9" width="12" height="12" rx="2" fill="#ef4444"/>
-          <line x1="5" y1="11" x2="1" y2="18" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="17" y1="11" x2="21" y2="18" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="8" y1="21" x2="6" y2="28" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
-          <line x1="14" y1="21" x2="16" y2="28" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
-        </svg>
-      </div>
-
-      <!-- Live Price Action Pulse Wave -->
-      <svg width="95" height="28" viewBox="0 0 95 28" style="position: absolute; right: 55px; bottom: 5px;">
-        <polyline points="0,23 10,20 22,22 35,13 48,15 60,8 72,10 84,5 92,6" fill="none" stroke="#34d399" stroke-width="1.8" stroke-linejoin="round"/>
-        <circle cx="92" cy="6" r="3" fill="#34d399">
-          <animate attributeName="r" values="3;5;3" dur="1s" repeatCount="indefinite"/>
-        </circle>
-      </svg>
-    </div>
-
-  </div>
+office_html = """<div class="office-box">
+<div class="office-header">
+<span>🏢 MARKAS BOT MARUK — 3 LANTAI COMMAND CENTER</span>
+<span style="color: #10b981;">● AKTIVITAS REAL-TIME LIVE</span>
 </div>
-""", unsafe_allow_html=True)
+<div class="building-canvas">
+<div class="floor-lane fl-lane-3">
+<div class="lane-tag">LANTAI 3 — CEO EXECUTIVE SUITE (BOS BESAR 👑)</div>
+<div class="win-cluster">
+<div class="office-win win-lit"></div>
+<div class="office-win win-lit" style="animation-delay: 0.5s;"></div>
+<div class="office-win win-dark"></div>
+<div class="office-win win-lit" style="animation-delay: 1.2s;"></div>
+<div class="office-win win-dark"></div>
+<div class="office-win win-lit" style="animation-delay: 0.8s;"></div>
+</div>
+<div class="boss-anchor">
+<svg width="28" height="36" viewBox="0 0 28 36">
+<polygon points="4,10 8,4 14,8 20,4 24,10" fill="#fbbf24"/>
+<circle cx="14" cy="14" r="6" fill="#fde68a"/>
+<rect x="7" y="20" width="14" height="14" rx="3" fill="#1e3a5f"/>
+<polygon points="14,21 12,26 14,28 16,26" fill="#ef4444"/>
+<line x1="7" y1="22" x2="2" y2="28" stroke="#1e3a5f" stroke-width="3" stroke-linecap="round"/>
+<line x1="21" y1="22" x2="26" y2="28" stroke="#1e3a5f" stroke-width="3" stroke-linecap="round"/>
+</svg>
+</div>
+<svg width="85" height="32" viewBox="0 0 85 32" style="position: absolute; right: 62px; bottom: 4px;">
+<rect x="0" y="18" width="9" height="14" fill="#34d399" class="bar-grow" style="animation-delay: 0s;"/>
+<rect x="13" y="11" width="9" height="21" fill="#34d399" class="bar-grow" style="animation-delay: 0.2s;"/>
+<rect x="26" y="7" width="9" height="25" fill="#34d399" class="bar-grow" style="animation-delay: 0.4s;"/>
+<rect x="39" y="14" width="9" height="18" fill="#fbbf24" class="bar-grow" style="animation-delay: 0.1s;"/>
+<rect x="52" y="4" width="9" height="28" fill="#34d399" class="bar-grow" style="animation-delay: 0.3s;"/>
+<rect x="65" y="8" width="9" height="24" fill="#34d399" class="bar-grow" style="animation-delay: 0.5s;"/>
+</svg>
+</div>
+<div class="floor-lane fl-lane-2">
+<div class="lane-tag">LANTAI 2 — AI QUANT &amp; MARKET ANALYST TEAM 📊</div>
+<div class="win-cluster">
+<div class="office-win win-lit" style="animation-delay: 0.2s;"></div>
+<div class="office-win win-dark"></div>
+<div class="office-win win-lit" style="animation-delay: 0.9s;"></div>
+<div class="office-win win-lit" style="animation-delay: 0.3s;"></div>
+<div class="office-win win-dark"></div>
+<div class="office-win win-lit" style="animation-delay: 1.1s;"></div>
+</div>
+<div class="walk-f1" style="animation-duration: 7s;">
+<svg width="22" height="28" viewBox="0 0 22 28">
+<circle cx="11" cy="5" r="4" fill="#fde68a"/>
+<rect x="5" y="9" width="12" height="12" rx="2" fill="#3b82f6"/>
+<line x1="5" y1="11" x2="1" y2="18" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="17" y1="11" x2="21" y2="18" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="8" y1="21" x2="6" y2="28" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="14" y1="21" x2="16" y2="28" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
+</svg>
+</div>
+<div class="walk-f2" style="animation-duration: 9.5s; animation-delay: -3s;">
+<svg width="22" height="28" viewBox="0 0 22 28">
+<circle cx="11" cy="5" r="4" fill="#e2c9a0"/>
+<rect x="5" y="9" width="12" height="12" rx="2" fill="#8b5cf6"/>
+<line x1="5" y1="11" x2="1" y2="18" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="17" y1="11" x2="21" y2="18" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="8" y1="21" x2="6" y2="28" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="14" y1="21" x2="16" y2="28" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
+</svg>
+</div>
+<svg width="85" height="26" viewBox="0 0 85 26" style="position: absolute; right: 58px; bottom: 4px;">
+<polyline points="0,20 14,16 28,18 42,9 56,12 70,6 82,8" fill="none" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="82" cy="8" r="2.5" fill="#38bdf8"></circle>
+</svg>
+</div>
+<div class="floor-lane fl-lane-1">
+<div class="lane-tag">LANTAI 1 — HIGH-FREQUENCY TRADING FLOOR ⚡ (5 BURSA)</div>
+<div class="win-cluster">
+<div class="office-win win-lit" style="animation-delay: 0.4s;"></div>
+<div class="office-win win-lit" style="animation-delay: 0.8s;"></div>
+<div class="office-win win-dark"></div>
+<div class="office-win win-lit" style="animation-delay: 1.4s;"></div>
+<div class="office-win win-dark"></div>
+<div class="office-win win-lit" style="animation-delay: 0.1s;"></div>
+</div>
+<div class="walk-f1" style="animation-duration: 6.5s; animation-delay: -1s;">
+<svg width="22" height="28" viewBox="0 0 22 28">
+<circle cx="11" cy="5" r="4" fill="#fcd9a0"/>
+<rect x="5" y="9" width="12" height="12" rx="2" fill="#10b981"/>
+<line x1="5" y1="11" x2="1" y2="18" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="17" y1="11" x2="21" y2="18" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="8" y1="21" x2="6" y2="28" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="14" y1="21" x2="16" y2="28" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
+</svg>
+</div>
+<div class="walk-f2" style="animation-duration: 8.5s; animation-delay: -4s;">
+<svg width="22" height="28" viewBox="0 0 22 28">
+<circle cx="11" cy="5" r="4" fill="#fde68a"/>
+<rect x="5" y="9" width="12" height="12" rx="2" fill="#ef4444"/>
+<line x1="5" y1="11" x2="1" y2="18" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="17" y1="11" x2="21" y2="18" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="8" y1="21" x2="6" y2="28" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+<line x1="14" y1="21" x2="16" y2="28" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
+</svg>
+</div>
+<svg width="95" height="28" viewBox="0 0 95 28" style="position: absolute; right: 55px; bottom: 5px;">
+<polyline points="0,23 10,20 22,22 35,13 48,15 60,8 72,10 84,5 92,6" fill="none" stroke="#34d399" stroke-width="1.8" stroke-linejoin="round"/>
+<circle cx="92" cy="6" r="3" fill="#34d399">
+<animate attributeName="r" values="3;5;3" dur="1s" repeatCount="indefinite"/>
+</circle>
+</svg>
+</div>
+</div>
+</div>"""
+st.markdown(office_html, unsafe_allow_html=True)
 
 # ========================================================
 # 5. MARKET INTELLIGENCE & KALENDER EKONOMI
