@@ -20,8 +20,8 @@ import ccxt
 # STREAMLIT PAGE CONFIGURATION - CLEAN & RESPONSIVE
 # ========================================================
 st.set_page_config(
-    page_title="⚡ TITAN V5 Family Dashboard",
-    page_icon="⚡",
+    page_title="👑 BOT MARUK RAKUS PEMBANTAI PASAR",
+    page_icon="👑",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -310,7 +310,7 @@ btc_now = live_mkt.get("BTC/USDT", 82386.2)
 col_h1, col_h2 = st.columns([2, 1])
 with col_h1:
     st.markdown("""<div style="margin-bottom: 4px;">
-<h2 style="margin: 0; font-size: 1.35rem; font-weight: 900; color: #ffffff;">⚡ TITAN V5 BOT MARUK (3 AKUN KELUARGA)</h2>
+<h2 style="margin: 0; font-size: 1.35rem; font-weight: 900; color: #ffffff;">👑 BOT MARUK RAKUS PEMBANTAI PASAR (3 AKUN KELUARGA)</h2>
 <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 600;">Penta-Titan 5 Bursa • 28x Leverage • Target TP 8.2% & SL 2.3%</div>
 </div>""", unsafe_allow_html=True)
 
@@ -320,25 +320,11 @@ with col_h2:
 <div style="font-size: 0.72rem; color: #64748b; margin-top: 4px;">{get_wib_time_str()} (Update Otomatis)</div>
 </div>""", unsafe_allow_html=True)
 
-col_s1, col_s2 = st.columns([3, 1])
-with col_s1:
-    st.markdown(f"""<div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 8px 14px; margin-bottom: 8px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; font-size: 0.78rem;">
+st.markdown(f"""<div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 8px 14px; margin-bottom: 8px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; font-size: 0.78rem;">
 <span style="color: #94a3b8; font-weight: 700;">📡 KOMPAS PASAR REAL-TIME:</span>
 <span><b style="color: #f59e0b;">₿ BITCOIN (BTC/USDT):</b> <b style="color: #ffffff; font-size: 0.88rem;">${btc_now:,.1f}</b> <span style="color: #94a3b8;">(~Rp {btc_now*KURS_IDR:,.0f})</span></span>
 <span style="color: #ef4444; font-weight: 800;">🔴 TREN: BEARISH (DUMP LONGSOR)</span>
 </div>""", unsafe_allow_html=True)
-
-with col_s2:
-    if st.button("🔄 Sync Bursa Manual", use_container_width=True, help="Tarik langsung semua posisi bursa termasuk trade manual"):
-        with st.spinner("Menghubungkan langsung ke API bursa..."):
-            try:
-                import export_live_state
-                export_live_state.generate_live_state()
-                st.cache_data.clear()
-                st.success("Tersinkronkan!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Gagal: {e}")
 
 # TAB SELECTOR 3 AKUN
 tab_select = st.radio(
