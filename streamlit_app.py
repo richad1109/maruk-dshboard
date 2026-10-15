@@ -302,10 +302,7 @@ def get_all_accounts_live_v6():
     return live_prices, final_accounts
 
 live_mkt, all_acc_data = get_all_accounts_live_v6()
-btc_now = live_mkt.get("BTC/USDT", 83067.8)
-eth_now = live_mkt.get("ETH/USDT", 2507.49)
-ada_now = live_mkt.get("ADA/USDT", 0.2367)
-arc_now = live_mkt.get("ARC/USDT", 0.03344)
+btc_now = live_mkt.get("BTC/USDT", 82386.2)
 
 # ========================================================
 # PILIHAN 3 AKUN KELUARGA (TAB INTERAKTIF)
@@ -326,11 +323,9 @@ with col_h2:
 col_s1, col_s2 = st.columns([3, 1])
 with col_s1:
     st.markdown(f"""<div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 8px 14px; margin-bottom: 8px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; font-size: 0.78rem;">
-<span style="color: #94a3b8; font-weight: 700;">📡 PASAR REAL-TIME:</span>
-<span><b style="color: #f59e0b;">₿ BTC:</b> <b style="color: #ffffff;">${btc_now:,.1f}</b></span>
-<span><b style="color: #38bdf8;">Ξ ETH:</b> <b style="color: #ffffff;">${eth_now:,.2f}</b></span>
-<span><b style="color: #34d399;">💎 ADA:</b> <b style="color: #ffffff;">${ada_now:,.4f}</b></span>
-<span><b style="color: #ec4899;">🚀 ARC:</b> <b style="color: #ffffff;">${arc_now:,.5f}</b></span>
+<span style="color: #94a3b8; font-weight: 700;">📡 KOMPAS PASAR REAL-TIME:</span>
+<span><b style="color: #f59e0b;">₿ BITCOIN (BTC/USDT):</b> <b style="color: #ffffff; font-size: 0.88rem;">${btc_now:,.1f}</b> <span style="color: #94a3b8;">(~Rp {btc_now*KURS_IDR:,.0f})</span></span>
+<span style="color: #ef4444; font-weight: 800;">🔴 TREN: BEARISH (DUMP LONGSOR)</span>
 </div>""", unsafe_allow_html=True)
 
 with col_s2:
@@ -403,7 +398,7 @@ with c4:
     st.markdown(f"""<div class="metric-card">
 <div class="metric-title">₿ Harga BTC Live</div>
 <div class="metric-val" style="color: #f59e0b;">${btc_now:,.1f}</div>
-<div class="metric-sub" style="color: #38bdf8;">ETH: ${eth_now:,.2f}</div>
+<div class="metric-sub" style="color: #94a3b8;">Rp {btc_now*KURS_IDR:,.0f}</div>
 </div>""", unsafe_allow_html=True)
 
 st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
