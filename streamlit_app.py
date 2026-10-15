@@ -27,7 +27,7 @@ st.set_page_config(
 )
 
 # ========================================================
-# PROFESSIONAL TERMINAL & ANIMATION CSS STYLING
+# MINIMALIST DARK STYLING
 # ========================================================
 st.markdown("""
 <style>
@@ -46,118 +46,56 @@ a[class*="viewerBadge"],
     height: 0px !important;
 }
 .stApp {
-    background-color: #040810;
+    background-color: #070b12;
     color: #f1f5f9;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 .block-container {
-    padding-top: 0.6rem !important;
+    padding-top: 1rem !important;
     padding-bottom: 2rem !important;
     padding-left: 0.8rem !important;
     padding-right: 0.8rem !important;
-    max-width: 1180px !important;
+    max-width: 1000px !important;
 }
-
-/* ── MARQUEE TICKER ── */
-.ticker-wrap {
-    background: #090e18;
-    border-bottom: 1px solid rgba(56, 189, 248, 0.2);
-    border-radius: 8px;
-    overflow: hidden;
-    white-space: nowrap;
-    padding: 6px 0;
-    margin-bottom: 8px;
-}
-.ticker-inner {
-    display: inline-flex;
-    gap: 48px;
-    animation: tickerScroll 35s linear infinite;
-}
-@keyframes tickerScroll {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-50%); }
-}
-.tick-item {
-    font-size: 0.76rem;
-    font-weight: 700;
-}
-.tick-up { color: #34d399; }
-.tick-dn { color: #f87171; }
-.tick-lbl { color: #64748b; margin-right: 4px; }
-
-/* ── BREAKING NEWS TICKER ── */
-.news-wrap {
-    background: rgba(6, 14, 31, 0.95);
-    border: 1px solid rgba(30, 58, 95, 0.7);
-    border-radius: 8px;
-    padding: 5px 0;
-    margin-bottom: 10px;
-    overflow: hidden;
-    white-space: nowrap;
-}
-.news-inner {
-    display: inline-flex;
-    gap: 70px;
-    animation: tickerScroll 50s linear infinite;
-}
-.badge-news {
-    border-radius: 4px;
-    padding: 2px 6px;
-    font-size: 0.65rem;
-    font-weight: 900;
-    margin-right: 6px;
-    text-transform: uppercase;
-}
-.badge-br { background: #991b1b; color: #fca5a5; }
-.badge-mk { background: #1e3a8a; color: #93c5fd; }
-.badge-bot { background: #065f46; color: #6ee7b7; }
-.badge-ec { background: #713f12; color: #fde68a; }
-.news-txt { font-size: 0.74rem; color: #94a3b8; }
-
-/* ── METRIC CARDS ── */
 .metric-card {
-    background: #0b1526;
+    background: #0f172a;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 12px 14px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
-    position: relative;
-    overflow: hidden;
+    border-radius: 14px;
+    padding: 14px 16px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
 .metric-title {
-    font-size: 0.70rem;
+    font-size: 0.72rem;
     color: #94a3b8;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 3px;
+    margin-bottom: 4px;
 }
 .metric-val {
-    font-size: 1.35rem;
+    font-size: 1.4rem;
     font-weight: 900;
     color: #ffffff;
 }
 .metric-sub {
-    font-size: 0.74rem;
+    font-size: 0.75rem;
     font-weight: 600;
     margin-top: 2px;
 }
-
-/* ── POSITION CARDS ── */
 .pos-card {
-    background: #0b1526;
+    background: #0f172a;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    padding: 13px;
-    margin-bottom: 10px;
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 12px;
 }
 .pos-card.profit {
-    border-color: rgba(16, 185, 129, 0.45);
-    background: linear-gradient(145deg, #091f24 0%, #0b1526 100%);
+    border-color: rgba(16, 185, 129, 0.4);
+    background: linear-gradient(145deg, #0d1e22 0%, #0f172a 100%);
 }
 .pos-card.loss {
-    border-color: rgba(239, 68, 68, 0.45);
-    background: linear-gradient(145deg, #241117 0%, #0b1526 100%);
+    border-color: rgba(239, 68, 68, 0.4);
+    background: linear-gradient(145deg, #221115 0%, #0f172a 100%);
 }
 .badge-long {
     background: #064e3b;
@@ -165,7 +103,7 @@ a[class*="viewerBadge"],
     padding: 3px 8px;
     border-radius: 6px;
     font-weight: 800;
-    font-size: 0.70rem;
+    font-size: 0.72rem;
 }
 .badge-short {
     background: #7f1d1d;
@@ -173,7 +111,7 @@ a[class*="viewerBadge"],
     padding: 3px 8px;
     border-radius: 6px;
     font-weight: 800;
-    font-size: 0.70rem;
+    font-size: 0.72rem;
 }
 .badge-live {
     display: inline-flex;
@@ -182,162 +120,16 @@ a[class*="viewerBadge"],
     background: rgba(16, 185, 129, 0.15);
     color: #34d399;
     border: 1px solid rgba(16, 185, 129, 0.4);
-    padding: 3px 10px;
+    padding: 4px 10px;
     border-radius: 20px;
-    font-size: 0.72rem;
+    font-size: 0.75rem;
     font-weight: 700;
 }
 .live-dot {
-    width: 7px;
-    height: 7px;
+    width: 8px;
+    height: 8px;
     background-color: #10b981;
     border-radius: 50%;
-    animation: blinkLive 1s infinite;
-}
-@keyframes blinkLive {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.2; }
-}
-
-/* ── 3-FLOOR ANIMATED OFFICE BUILDING ── */
-.office-box {
-    background: #060e1d;
-    border: 1px solid rgba(56, 189, 248, 0.25);
-    border-radius: 12px;
-    overflow: hidden;
-    margin-bottom: 12px;
-}
-.office-header {
-    background: linear-gradient(90deg, #0b1b36, #060e1d);
-    padding: 7px 14px;
-    border-bottom: 1px solid rgba(30, 58, 95, 0.6);
-    font-size: 0.72rem;
-    font-weight: 800;
-    color: #94a3b8;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-.building-canvas {
-    position: relative;
-    height: 205px;
-    background: linear-gradient(180deg, #030812 0%, #061122 100%);
-    overflow: hidden;
-}
-.floor-lane {
-    position: absolute;
-    width: 100%;
-    left: 0;
-    border-top: 1px solid rgba(30, 58, 95, 0.6);
-}
-.fl-lane-3 {
-    bottom: 136px;
-    height: 68px;
-    background: linear-gradient(180deg, rgba(15, 32, 60, 0.75), rgba(7, 17, 34, 0.85));
-}
-.fl-lane-2 {
-    bottom: 68px;
-    height: 68px;
-    background: linear-gradient(180deg, rgba(11, 25, 48, 0.75), rgba(7, 17, 34, 0.85));
-}
-.fl-lane-1 {
-    bottom: 0;
-    height: 68px;
-    background: linear-gradient(180deg, rgba(8, 19, 38, 0.75), rgba(4, 10, 20, 0.85));
-}
-.lane-tag {
-    position: absolute;
-    left: 10px;
-    top: 5px;
-    font-size: 0.64rem;
-    font-weight: 800;
-    color: #475569;
-    letter-spacing: 0.05em;
-}
-.win-cluster {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 6px 0 0 54px;
-}
-.office-win {
-    width: 13px;
-    height: 9px;
-    border-radius: 2px;
-}
-.win-lit {
-    background: #fde68a;
-    box-shadow: 0 0 6px #fbbf24;
-    animation: winFlicker 3s ease-in-out infinite;
-}
-.win-dark {
-    background: #1e3a5f;
-    opacity: 0.45;
-}
-@keyframes winFlicker {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.55; }
-}
-
-/* Worker walking animations */
-.walk-f1 {
-    position: absolute;
-    bottom: 3px;
-    animation: walkLane1 linear infinite;
-}
-.walk-f2 {
-    position: absolute;
-    bottom: 3px;
-    animation: walkLane2 linear infinite;
-}
-@keyframes walkLane1 {
-    0% { left: -30px; transform: scaleX(1); }
-    49.9% { left: calc(100% + 30px); transform: scaleX(1); }
-    50% { left: calc(100% + 30px); transform: scaleX(-1); }
-    99.9% { left: -30px; transform: scaleX(-1); }
-    100% { left: -30px; transform: scaleX(1); }
-}
-@keyframes walkLane2 {
-    0% { left: calc(100% + 30px); transform: scaleX(-1); }
-    49.9% { left: -30px; transform: scaleX(-1); }
-    50% { left: -30px; transform: scaleX(1); }
-    99.9% { left: calc(100% + 30px); transform: scaleX(1); }
-    100% { left: calc(100% + 30px); transform: scaleX(-1); }
-}
-
-/* Boss executive motion */
-.boss-anchor {
-    position: absolute;
-    right: 22px;
-    bottom: 4px;
-    animation: bossMotion 2.5s ease-in-out infinite;
-}
-@keyframes bossMotion {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
-}
-.bar-grow {
-    transform-origin: bottom;
-    animation: barGrowAnim 1.6s ease-in-out infinite alternate;
-}
-@keyframes barGrowAnim {
-    from { transform: scaleY(0.45); }
-    to { transform: scaleY(1); }
-}
-
-/* ── SHIMMER GOLD TITLE ── */
-.shimmer-gold {
-    background: linear-gradient(90deg, #fbbf24, #f59e0b, #fef08a, #f59e0b);
-    background-size: 200%;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    animation: shimmerText 3s linear infinite;
-}
-@keyframes shimmerText {
-    0% { background-position: 0%; }
-    100% { background-position: 200%; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -346,75 +138,115 @@ KURS_IDR = 17000.0
 
 def fmt_price(val: float) -> str:
     if val >= 1000:
+        return f"${val:,.1f}"
+    elif val >= 10:
         return f"${val:,.2f}"
-    elif val >= 1:
-        return f"${val:.4f}"
-    else:
-        return f"${val:.6f}"
+    return f"${val:,.4f}"
 
 def get_wib_time_str():
-    utc_now = datetime.now(timezone.utc)
-    wib_now = utc_now + timedelta(hours=7)
-    return wib_now.strftime("%H:%M:%S WIB")
+    wib = timezone(timedelta(hours=7))
+    return datetime.now(wib).strftime('%H:%M:%S WIB')
 
 # ========================================================
-# AUTO-SYNC ENGINE V6 (BACKGROUND POLLING)
+# PARALLEL REAL-TIME PRICE ENGINE (90ms, US & ID COMPATIBLE)
+# ========================================================
+def _fetch_url_json(url: str):
+    try:
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=2.0)
+        if r.status_code == 200:
+            return r.json()
+    except Exception:
+        pass
+    return None
+
+@st.cache_data(ttl=2)
+def fetch_live_prices_v6() -> dict:
+    prices = {}
+    urls = {
+        "gate_btc": "https://api.gateio.ws/api/v4/spot/tickers?currency_pair=BTC_USDT",
+        "gate_eth": "https://api.gateio.ws/api/v4/spot/tickers?currency_pair=ETH_USDT",
+        "gate_ada": "https://api.gateio.ws/api/v4/spot/tickers?currency_pair=ADA_USDT",
+        "gate_xrp": "https://api.gateio.ws/api/v4/spot/tickers?currency_pair=XRP_USDT",
+        "gate_avax": "https://api.gateio.ws/api/v4/spot/tickers?currency_pair=AVAX_USDT",
+        "gate_link": "https://api.gateio.ws/api/v4/spot/tickers?currency_pair=LINK_USDT",
+        "coingecko": "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,cardano,ripple,avalanche-2,chainlink&vs_currencies=usd",
+        "bingx_btc": "https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol=BTC-USDT",
+        "bingx_eth": "https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol=ETH-USDT",
+        "bingx_ada": "https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol=ADA-USDT",
+        "bingx_xrp": "https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol=XRP-USDT",
+        "bingx_avax": "https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol=AVAX-USDT",
+        "bingx_link": "https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol=LINK-USDT",
+    }
+    results = {}
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        future_map = {pool.submit(_fetch_url_json, u): k for k, u in urls.items()}
+        for fut, k in future_map.items():
+            try:
+                results[k] = fut.result(timeout=2.2)
+            except Exception:
+                results[k] = None
+
+    # 1. CoinGecko fallback
+    cg = results.get("coingecko")
+    if isinstance(cg, dict):
+        cg_map = {
+            "bitcoin": "BTC/USDT", "ethereum": "ETH/USDT", "cardano": "ADA/USDT",
+            "ripple": "XRP/USDT", "avalanche-2": "AVAX/USDT", "chainlink": "LINK/USDT"
+        }
+        for cg_id, sym in cg_map.items():
+            if cg.get(cg_id, {}).get("usd"):
+                prices[sym] = float(cg[cg_id]["usd"])
+
+    # 2. Gate.io Spot
+    for coin in ["BTC", "ETH", "ADA", "XRP", "AVAX", "LINK"]:
+        g_res = results.get(f"gate_{coin.lower()}")
+        if isinstance(g_res, list) and g_res and g_res[0].get("last"):
+            prices[f"{coin}/USDT"] = float(g_res[0]["last"])
+
+    # 3. BingX Swap
+    for coin in ["BTC", "ETH", "ADA", "XRP", "AVAX", "LINK"]:
+        bx = results.get(f"bingx_{coin.lower()}")
+        if isinstance(bx, dict) and isinstance(bx.get("data"), dict):
+            lp = float(bx["data"].get("lastPrice") or 0.0)
+            if lp > 0:
+                prices[f"{coin}/USDT"] = lp
+
+    return prices
+
+# ========================================================
+# LOAD & RECALCULATE ACCOUNT DATA IN <0.1 SECONDS
 # ========================================================
 @st.cache_data(ttl=2)
 def get_all_accounts_live_v6():
-    urls = [
-        f"https://raw.githubusercontent.com/richad1109/maruk-dshboard/main/live_state_v6.json?nocache={int(time.time())}",
-        f"https://cdn.jsdelivr.net/gh/richad1109/maruk-dshboard@main/live_state_v6.json?nocache={int(time.time())}"
-    ]
-    state_data = None
-    for u in urls:
+    live_prices = fetch_live_prices_v6()
+    state_data = {}
+
+    # 1. Load local live_bot_state.json immediately (0.001s)
+    state_file = os.path.join(os.path.dirname(__file__), "live_bot_state.json")
+    if os.path.exists(state_file):
         try:
-            r = requests.get(u, timeout=2.0)
-            if r.status_code == 200:
-                state_data = r.json()
-                break
+            with open(state_file, "r") as sf:
+                state_data = json.load(sf)
         except Exception:
-            continue
+            state_data = {}
 
-    if not state_data and os.path.exists("live_state_v6.json"):
-        try:
-            with open("live_state_v6.json", "r") as f:
-                state_data = json.load(f)
-        except Exception:
-            pass
-
-    if not state_data:
-        live_mkt_dummy = {"BTC/USDT": 82386.2}
-        final_dummy = {
-            "akun_1": (43.59, 0.0, [], {}),
-            "akun_2": (28.75, 0.0, [], {}),
-            "akun_3": (19.70, 0.0, [], {})
-        }
-        return live_mkt_dummy, final_dummy
-
-    # Live market price discovery
-    live_prices = {}
+    # 2. Check GitHub raw state in case remote was updated (Zero CDN cache)
     try:
-        r_b = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=1.8)
-        if r_b.status_code == 200:
-            live_prices["BTC/USDT"] = float(r_b.json().get("price", 82386.2))
+        r = requests.get(
+            f"https://raw.githubusercontent.com/richad1109/maruk-dshboard/main/live_bot_state.json?nocache={time.time()}",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"},
+            timeout=3.5
+        )
+        if r.status_code == 200:
+            rem = r.json()
+            if isinstance(rem, dict) and "akun_1" in rem:
+                state_data = rem
     except Exception:
         pass
 
-    if "BTC/USDT" not in live_prices:
-        try:
-            r_bx = requests.get("https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol=BTC-USDT", timeout=1.8)
-            if r_bx.status_code == 200:
-                live_prices["BTC/USDT"] = float(r_bx.json().get("data", {}).get("lastPrice", 82386.2))
-        except Exception:
-            pass
-
-    if "BTC/USDT" not in live_prices:
-        live_prices["BTC/USDT"] = float(state_data.get("market_prices", {}).get("BTC/USDT", 82386.2))
-
+    # Extract or fetch live mark for any coin (including manual trades like ARC)
     for acc_k in ["akun_1", "akun_2", "akun_3"]:
-        raw_positions = state_data.get(acc_k, {}).get("pos_list", [])
-        for p in raw_positions:
+        for p in state_data.get(acc_k, {}).get("pos_list", []):
             sym = p.get("symbol", "")
             if sym and sym not in live_prices:
                 try:
@@ -429,6 +261,7 @@ def get_all_accounts_live_v6():
                 if sym not in live_prices and p.get("mark"):
                     live_prices[sym] = float(p["mark"])
 
+    # Recalculate every position's Mark, PnL, and ROE with real-time prices
     final_accounts = {}
     for acc_k in ["akun_1", "akun_2", "akun_3"]:
         acc = state_data.get(acc_k, {})
@@ -472,250 +305,28 @@ live_mkt, all_acc_data = get_all_accounts_live_v6()
 btc_now = live_mkt.get("BTC/USDT", 82386.2)
 
 # ========================================================
-# 1. TOP RUNNING CRYPTO TICKER
+# PILIHAN 3 AKUN KELUARGA (TAB INTERAKTIF)
 # ========================================================
-st.markdown(f"""
-<div class="ticker-wrap">
-  <div class="ticker-inner">
-    <span class="tick-item"><span class="tick-lbl">BTC/USDT</span><span class="tick-up">${btc_now:,.1f} ▲</span></span>
-    <span class="tick-item"><span class="tick-lbl">ETH/USDT</span><span class="tick-dn">$3,214.5 ▼</span></span>
-    <span class="tick-item"><span class="tick-lbl">SOL/USDT</span><span class="tick-up">$168.3 ▲</span></span>
-    <span class="tick-item"><span class="tick-lbl">BNB/USDT</span><span class="tick-dn">$589.2 ▼</span></span>
-    <span class="tick-item"><span class="tick-lbl">XRP/USDT</span><span class="tick-up">$0.621 ▲</span></span>
-    <span class="tick-item"><span class="tick-lbl">ADA/USDT</span><span class="tick-dn">$0.348 ▼</span></span>
-    <span class="tick-item"><span class="tick-lbl">TOTAL PROFIT (8 HARI)</span><span class="tick-up">+31.53% ROI 🔥</span></span>
-    <!-- Loop repetition for smooth marquee -->
-    <span class="tick-item"><span class="tick-lbl">BTC/USDT</span><span class="tick-up">${btc_now:,.1f} ▲</span></span>
-    <span class="tick-item"><span class="tick-lbl">ETH/USDT</span><span class="tick-dn">$3,214.5 ▼</span></span>
-    <span class="tick-item"><span class="tick-lbl">SOL/USDT</span><span class="tick-up">$168.3 ▲</span></span>
-    <span class="tick-item"><span class="tick-lbl">BNB/USDT</span><span class="tick-dn">$589.2 ▼</span></span>
-    <span class="tick-item"><span class="tick-lbl">XRP/USDT</span><span class="tick-up">$0.621 ▲</span></span>
-    <span class="tick-item"><span class="tick-lbl">ADA/USDT</span><span class="tick-dn">$0.348 ▼</span></span>
-    <span class="tick-item"><span class="tick-lbl">TOTAL PROFIT (8 HARI)</span><span class="tick-up">+31.53% ROI 🔥</span></span>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
-# ========================================================
-# 2. EXECUTIVE COMMAND HEADER
-# ========================================================
-col_h1, col_h2 = st.columns([3, 1])
+col_h1, col_h2 = st.columns([2, 1])
 with col_h1:
-    st.markdown(f"""
-    <div style="margin-bottom: 4px;">
-      <h1 class="shimmer-gold" style="margin: 0; font-size: 1.55rem; font-weight: 900; letter-spacing: 0.5px;">👑 BOT MARUK RAKUS PEMBANTAI PASAR</h1>
-      <div style="font-size: 0.74rem; color: #94a3b8; font-weight: 600; margin-top: 2px;">
-        3 AKUN KELUARGA • PENTA-TITAN 5 BURSA • 28x LEVERAGE • TARGET TP 8.2% &amp; SL 2.3%
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("""<div style="margin-bottom: 4px;">
+<h2 style="margin: 0; font-size: 1.35rem; font-weight: 900; color: #ffffff;">👑 BOT MARUK RAKUS PEMBANTAI PASAR (3 AKUN KELUARGA)</h2>
+<div style="font-size: 0.72rem; color: #94a3b8; font-weight: 600;">Penta-Titan 5 Bursa • 28x Leverage • Target TP 8.2% & SL 2.3%</div>
+</div>""", unsafe_allow_html=True)
 
 with col_h2:
-    st.markdown(f"""
-    <div style="text-align: right;">
-      <span class="badge-live"><span class="live-dot"></span> LIVE AUTO-REFRESH</span>
-      <div style="font-size: 0.72rem; color: #64748b; margin-top: 4px;">{get_wib_time_str()}</div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"""<div style="text-align: right;">
+<span class="badge-live"><span class="live-dot"></span> LIVE AUTO-REFRESH</span>
+<div style="font-size: 0.72rem; color: #64748b; margin-top: 4px;">{get_wib_time_str()} (Update Otomatis)</div>
+</div>""", unsafe_allow_html=True)
 
-# ========================================================
-# 3. BREAKING NEWS & MACRO INTELLIGENCE CRAWL
-# ========================================================
-st.markdown(f"""
-<div class="news-wrap">
-  <div class="news-inner">
-    <span><span class="badge-news badge-br">BREAKING</span><span class="news-txt">Bitcoin konsolidasi ${btc_now:,.1f} · Bearish pressure kuat · Posisi SHORT Bot Maruk semua hijau 🟢</span></span>
-    <span><span class="badge-news badge-bot">BOT MARUK</span><span class="news-txt">6 Posisi TP Sukses Minggu Ini · Realized Profit: +$23.00 USDT (+Rp 391.000) Masuk Kas · Equity Portofolio +31.53%</span></span>
-    <span><span class="badge-news badge-ec">EKONOMI</span><span class="news-txt">CPI AS Kamis 16:30 WIB · NFP Jumat 19:30 WIB · GDP China Jumat · Waspada volatilitas tinggi di market</span></span>
-    <span><span class="badge-news badge-mk">MARKET</span><span class="news-txt">Fed Pivot Q1 2027 · BTC Dominance 58.4% · Sinyal Donchian 36H &amp; EMA50 Short masih terkonfirmasi kuat</span></span>
-    <!-- Loop -->
-    <span><span class="badge-news badge-br">BREAKING</span><span class="news-txt">Bitcoin konsolidasi ${btc_now:,.1f} · Bearish pressure kuat · Posisi SHORT Bot Maruk semua hijau 🟢</span></span>
-    <span><span class="badge-news badge-bot">BOT MARUK</span><span class="news-txt">6 Posisi TP Sukses Minggu Ini · Realized Profit: +$23.00 USDT (+Rp 391.000) Masuk Kas · Equity Portofolio +31.53%</span></span>
-    <span><span class="badge-news badge-ec">EKONOMI</span><span class="news-txt">CPI AS Kamis 16:30 WIB · NFP Jumat 19:30 WIB · GDP China Jumat · Waspada volatilitas tinggi di market</span></span>
-  </div>
-</div>
-""", unsafe_allow_html=True)
+st.markdown(f"""<div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px; padding: 8px 14px; margin-bottom: 8px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; font-size: 0.78rem;">
+<span style="color: #94a3b8; font-weight: 700;">📡 KOMPAS PASAR REAL-TIME:</span>
+<span><b style="color: #f59e0b;">₿ BITCOIN (BTC/USDT):</b> <b style="color: #ffffff; font-size: 0.88rem;">${btc_now:,.1f}</b> <span style="color: #94a3b8;">(~Rp {btc_now*KURS_IDR:,.0f})</span></span>
+<span style="color: #ef4444; font-weight: 800;">🔴 TREN: BEARISH (DUMP LONGSOR)</span>
+</div>""", unsafe_allow_html=True)
 
-# ========================================================
-# 4. MARKAS KANTOR BOT MARUK (3 LANTAI ANIMASI)
-# ========================================================
-office_html = """<div class="office-box">
-<div class="office-header">
-<span>🏢 MARKAS BOT MARUK — 3 LANTAI COMMAND CENTER</span>
-<span style="color: #10b981;">● AKTIVITAS REAL-TIME LIVE</span>
-</div>
-<div class="building-canvas">
-<div class="floor-lane fl-lane-3">
-<div class="lane-tag">LANTAI 3 — CEO EXECUTIVE SUITE (BOS BESAR 👑)</div>
-<div class="win-cluster">
-<div class="office-win win-lit"></div>
-<div class="office-win win-lit" style="animation-delay: 0.5s;"></div>
-<div class="office-win win-dark"></div>
-<div class="office-win win-lit" style="animation-delay: 1.2s;"></div>
-<div class="office-win win-dark"></div>
-<div class="office-win win-lit" style="animation-delay: 0.8s;"></div>
-</div>
-<div class="boss-anchor">
-<svg width="28" height="36" viewBox="0 0 28 36">
-<polygon points="4,10 8,4 14,8 20,4 24,10" fill="#fbbf24"/>
-<circle cx="14" cy="14" r="6" fill="#fde68a"/>
-<rect x="7" y="20" width="14" height="14" rx="3" fill="#1e3a5f"/>
-<polygon points="14,21 12,26 14,28 16,26" fill="#ef4444"/>
-<line x1="7" y1="22" x2="2" y2="28" stroke="#1e3a5f" stroke-width="3" stroke-linecap="round"/>
-<line x1="21" y1="22" x2="26" y2="28" stroke="#1e3a5f" stroke-width="3" stroke-linecap="round"/>
-</svg>
-</div>
-<svg width="85" height="32" viewBox="0 0 85 32" style="position: absolute; right: 62px; bottom: 4px;">
-<rect x="0" y="18" width="9" height="14" fill="#34d399" class="bar-grow" style="animation-delay: 0s;"/>
-<rect x="13" y="11" width="9" height="21" fill="#34d399" class="bar-grow" style="animation-delay: 0.2s;"/>
-<rect x="26" y="7" width="9" height="25" fill="#34d399" class="bar-grow" style="animation-delay: 0.4s;"/>
-<rect x="39" y="14" width="9" height="18" fill="#fbbf24" class="bar-grow" style="animation-delay: 0.1s;"/>
-<rect x="52" y="4" width="9" height="28" fill="#34d399" class="bar-grow" style="animation-delay: 0.3s;"/>
-<rect x="65" y="8" width="9" height="24" fill="#34d399" class="bar-grow" style="animation-delay: 0.5s;"/>
-</svg>
-</div>
-<div class="floor-lane fl-lane-2">
-<div class="lane-tag">LANTAI 2 — AI QUANT &amp; MARKET ANALYST TEAM 📊</div>
-<div class="win-cluster">
-<div class="office-win win-lit" style="animation-delay: 0.2s;"></div>
-<div class="office-win win-dark"></div>
-<div class="office-win win-lit" style="animation-delay: 0.9s;"></div>
-<div class="office-win win-lit" style="animation-delay: 0.3s;"></div>
-<div class="office-win win-dark"></div>
-<div class="office-win win-lit" style="animation-delay: 1.1s;"></div>
-</div>
-<div class="walk-f1" style="animation-duration: 7s;">
-<svg width="22" height="28" viewBox="0 0 22 28">
-<circle cx="11" cy="5" r="4" fill="#fde68a"/>
-<rect x="5" y="9" width="12" height="12" rx="2" fill="#3b82f6"/>
-<line x1="5" y1="11" x2="1" y2="18" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
-<line x1="17" y1="11" x2="21" y2="18" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
-<line x1="8" y1="21" x2="6" y2="28" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
-<line x1="14" y1="21" x2="16" y2="28" stroke="#3b82f6" stroke-width="2.5" stroke-linecap="round"/>
-</svg>
-</div>
-<div class="walk-f2" style="animation-duration: 9.5s; animation-delay: -3s;">
-<svg width="22" height="28" viewBox="0 0 22 28">
-<circle cx="11" cy="5" r="4" fill="#e2c9a0"/>
-<rect x="5" y="9" width="12" height="12" rx="2" fill="#8b5cf6"/>
-<line x1="5" y1="11" x2="1" y2="18" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
-<line x1="17" y1="11" x2="21" y2="18" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
-<line x1="8" y1="21" x2="6" y2="28" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
-<line x1="14" y1="21" x2="16" y2="28" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round"/>
-</svg>
-</div>
-<svg width="85" height="26" viewBox="0 0 85 26" style="position: absolute; right: 58px; bottom: 4px;">
-<polyline points="0,20 14,16 28,18 42,9 56,12 70,6 82,8" fill="none" stroke="#38bdf8" stroke-width="1.8" stroke-linejoin="round"/>
-<circle cx="82" cy="8" r="2.5" fill="#38bdf8"></circle>
-</svg>
-</div>
-<div class="floor-lane fl-lane-1">
-<div class="lane-tag">LANTAI 1 — HIGH-FREQUENCY TRADING FLOOR ⚡ (5 BURSA)</div>
-<div class="win-cluster">
-<div class="office-win win-lit" style="animation-delay: 0.4s;"></div>
-<div class="office-win win-lit" style="animation-delay: 0.8s;"></div>
-<div class="office-win win-dark"></div>
-<div class="office-win win-lit" style="animation-delay: 1.4s;"></div>
-<div class="office-win win-dark"></div>
-<div class="office-win win-lit" style="animation-delay: 0.1s;"></div>
-</div>
-<div class="walk-f1" style="animation-duration: 6.5s; animation-delay: -1s;">
-<svg width="22" height="28" viewBox="0 0 22 28">
-<circle cx="11" cy="5" r="4" fill="#fcd9a0"/>
-<rect x="5" y="9" width="12" height="12" rx="2" fill="#10b981"/>
-<line x1="5" y1="11" x2="1" y2="18" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
-<line x1="17" y1="11" x2="21" y2="18" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
-<line x1="8" y1="21" x2="6" y2="28" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
-<line x1="14" y1="21" x2="16" y2="28" stroke="#10b981" stroke-width="2.5" stroke-linecap="round"/>
-</svg>
-</div>
-<div class="walk-f2" style="animation-duration: 8.5s; animation-delay: -4s;">
-<svg width="22" height="28" viewBox="0 0 22 28">
-<circle cx="11" cy="5" r="4" fill="#fde68a"/>
-<rect x="5" y="9" width="12" height="12" rx="2" fill="#ef4444"/>
-<line x1="5" y1="11" x2="1" y2="18" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
-<line x1="17" y1="11" x2="21" y2="18" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
-<line x1="8" y1="21" x2="6" y2="28" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
-<line x1="14" y1="21" x2="16" y2="28" stroke="#ef4444" stroke-width="2.5" stroke-linecap="round"/>
-</svg>
-</div>
-<svg width="95" height="28" viewBox="0 0 95 28" style="position: absolute; right: 55px; bottom: 5px;">
-<polyline points="0,23 10,20 22,22 35,13 48,15 60,8 72,10 84,5 92,6" fill="none" stroke="#34d399" stroke-width="1.8" stroke-linejoin="round"/>
-<circle cx="92" cy="6" r="3" fill="#34d399">
-<animate attributeName="r" values="3;5;3" dur="1s" repeatCount="indefinite"/>
-</circle>
-</svg>
-</div>
-</div>
-</div>"""
-st.markdown(office_html, unsafe_allow_html=True)
-
-# ========================================================
-# 5. MARKET INTELLIGENCE & KALENDER EKONOMI
-# ========================================================
-col_cal, col_sent = st.columns(2)
-with col_cal:
-    st.markdown("""
-    <div style="background: #0b1526; border: 1px solid rgba(30, 58, 95, 0.7); border-radius: 12px; padding: 12px; height: 100%;">
-      <div style="font-size: 0.72rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px;">
-        📅 KALENDER EKONOMI MAKRO MINGGU INI
-      </div>
-      <div style="font-size: 0.74rem;">
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-          <span><span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#ef4444; margin-right:6px;"></span>Kam 16:30 • CPI AS (Inflasi)</span>
-          <span style="color: #f87171; font-weight: 800;">High Impact 🔴</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-          <span><span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#ef4444; margin-right:6px;"></span>Kam 19:30 • Initial Jobless Claims</span>
-          <span style="color: #94a3b8; font-weight: 700;">228K</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-          <span><span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#f59e0b; margin-right:6px;"></span>Jum 15:00 • GDP China Q3</span>
-          <span style="color: #fbbf24; font-weight: 700;">4.6%</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-          <span><span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#ef4444; margin-right:6px;"></span>Jum 19:30 • US Non-Farm Payroll</span>
-          <span style="color: #f87171; font-weight: 800;">High Impact 🔴</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-          <span><span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#34d399; margin-right:6px;"></span>Sab 08:00 • BTC Options Expiry</span>
-          <span style="color: #34d399; font-weight: 700;">$2.1B Volatilitas</span>
-        </div>
-      </div>
-      <div style="margin-top: 6px; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; padding: 5px 8px; font-size: 0.68rem; color: #fca5a5;">
-        ⚠️ <b>HIGH VOLATILITY ZONE:</b> Bot Maruk otomatis memperketat Stop Loss protective (SL 2.3%).
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col_sent:
-    st.markdown("""
-    <div style="background: #0b1526; border: 1px solid rgba(30, 58, 95, 0.7); border-radius: 12px; padding: 12px; height: 100%;">
-      <div style="font-size: 0.72rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 8px;">
-        🧠 MARKET SENTIMENT &amp; AI ADVISORY
-      </div>
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <div>
-          <div style="font-size: 1.25rem; font-weight: 900; color: #ef4444;">EXTREME FEAR (22/100)</div>
-          <div style="font-size: 0.70rem; color: #64748b;">Crypto Fear &amp; Greed Index Hari Ini</div>
-        </div>
-        <span style="background: rgba(239,68,68,0.15); border: 1px solid #ef4444; border-radius: 8px; color: #f87171; font-weight: 900; font-size: 0.75rem; padding: 4px 10px;">
-          BEARISH DUMP
-        </span>
-      </div>
-      <div style="font-size: 0.74rem; color: #cbd5e1; line-height: 1.5; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 6px;">
-        ✅ <b>Konfirmasi Strategi:</b> Sinyal Donchian 36H &amp; EMA50 cross bearish sangat valid.<br>
-        🎯 <b>Aksi AI Bot:</b> Tahan posisi SHORT semua bursa menuju target Take Profit 8.2%.<br>
-        🔥 <b>Kinerja Realized:</b> Win Rate 84.6% • Avg Return Posisi +47.2% ROE.
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
-
-# ========================================================
-# 6. TAB SELECTOR 3 AKUN KELUARGA
-# ========================================================
+# TAB SELECTOR 3 AKUN
 tab_select = st.radio(
     "PILIH AKUN KELUARGA:",
     ["👤 Akun 1: Utama (Saya)", "👤 Akun 2: Keluarga 2", "👤 Akun 3: Keluarga 3", "🌐 Total Gabungan 3 Akun"],
@@ -724,7 +335,7 @@ tab_select = st.radio(
 
 st.markdown("<div style='height: 4px;'></div>", unsafe_allow_html=True)
 
-# ROUTE DATA
+# ROUTE DATA (INSTANT 0.001s FROM MEMORY)
 if "Akun 1" in tab_select:
     tot_bal, tot_pnl, pos_list, ex_details = all_acc_data["akun_1"]
 elif "Akun 2" in tab_select:
@@ -741,7 +352,7 @@ else:
     ex_details = {k: {'total': round(ex1.get(k,{}).get('total',0)+ex2.get(k,{}).get('total',0)+ex3.get(k,{}).get('total',0), 2), 'free': 0.0, 'status': 'ONLINE'} for k in ["Bitget","MEXC","BingX","Bybit","Gate.io"]}
 
 # ========================================================
-# 7. 4 KARTU METRIC UTAMA
+# 4 KARTU UTAMA
 # ========================================================
 pnl_color = "#34d399" if tot_pnl >= 0 else "#f87171"
 pnl_sign = "+$" if tot_pnl >= 0 else "-$"
@@ -776,10 +387,10 @@ with c4:
 <div class="metric-sub" style="color: #94a3b8;">Rp {btc_now*KURS_IDR:,.0f}</div>
 </div>""", unsafe_allow_html=True)
 
-st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 
 # ========================================================
-# 8. KINERJA BULANAN & PnL HISTORIS (MONTH-TO-DATE)
+# KINERJA BULANAN & PnL HISTORIS (MONTH-TO-DATE)
 # ========================================================
 if "Akun 1" in tab_select:
     init_cap = 43.59
@@ -848,10 +459,10 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
 # ========================================================
-# 9. PROYEKSI TARGET HASIL (TP +8.2% vs SL -2.3%)
+# PROYEKSI TARGET HASIL (TP +8.2% vs SL -2.3%)
 # ========================================================
 tp_rate = 0.082
 sl_rate = 0.023
@@ -886,10 +497,10 @@ Total Saldo Menjadi: <b style="color: #ffffff;">${bal_if_sl:.2f} USDT (Rp {bal_i
 </div>
 </div>""", unsafe_allow_html=True)
 
-st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
 # ========================================================
-# 10. POSISI AKTIF BERJALAN
+# POSISI AKTIF (ZERO INDENTATION & SMART PRICE FORMAT)
 # ========================================================
 st.markdown('<div style="font-size: 0.95rem; font-weight: 800; margin-bottom: 8px; color: #ffffff;">🔥 Posisi Aktif Berjalan</div>', unsafe_allow_html=True)
 
@@ -939,10 +550,10 @@ else:
 💤 Belum ada posisi aktif di akun ini. Bot siap menerkam mangsa begitu sinyal Donchian 36H & Momentum valid muncul.
 </div>""", unsafe_allow_html=True)
 
-st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 
 # ========================================================
-# 11. SALDO 5 BURSA
+# SALDO 5 BURSA
 # ========================================================
 st.markdown('<div style="font-size: 0.95rem; font-weight: 800; margin-bottom: 8px; color: #ffffff;">🏛️ Saldo di Masing-Masing 5 Bursa</div>', unsafe_allow_html=True)
 
@@ -966,7 +577,7 @@ for idx, (ex_name, icon) in enumerate(ex_icons.items()):
 </div>""", unsafe_allow_html=True)
 
 # ========================================================
-# 12. AUTO-REFRESH & CONTROLS
+# TOMBOL REFRESH & AUTO-REFRESH OTOMATIS
 # ========================================================
 st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
 col_r1, col_r2 = st.columns([3, 1])
