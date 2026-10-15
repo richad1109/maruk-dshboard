@@ -404,6 +404,78 @@ with c4:
 st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
 
 # ========================================================
+# KINERJA BULANAN & PnL HISTORIS (MONTH-TO-DATE)
+# ========================================================
+if "Akun 1" in tab_select:
+    init_cap = 43.59
+    cur_realized = round(tot_bal - init_cap, 2)
+    acc_label = "Akun 1 (Utama)"
+elif "Akun 2" in tab_select:
+    init_cap = 28.75
+    cur_realized = round(tot_bal - init_cap, 2)
+    acc_label = "Akun 2 (Keluarga 2)"
+elif "Akun 3" in tab_select:
+    init_cap = 19.70
+    cur_realized = round(tot_bal - init_cap, 2)
+    acc_label = "Akun 3 (Keluarga 3)"
+else:
+    init_cap = 92.04
+    cur_realized = round(tot_bal - init_cap, 2)
+    acc_label = "Total 3 Akun Keluarga"
+
+cur_floating = tot_pnl
+cur_net_pnl = round(cur_realized + cur_floating, 2)
+roi_mtd = (cur_net_pnl / init_cap * 100.0) if init_cap > 0 else 0.0
+
+st.markdown('<div style="font-size: 0.95rem; font-weight: 800; margin-bottom: 8px; color: #ffffff;">📅 Rekap Kinerja Bulanan (PnL Bulan Ini: Oktober 2026)</div>', unsafe_allow_html=True)
+
+col_m1, col_m2, col_m3 = st.columns(3)
+with col_m1:
+    st.markdown(f"""<div class="metric-card" style="border-left: 4px solid #3b82f6;">
+<div class="metric-title">Modal Awal ({acc_label})</div>
+<div class="metric-val">${init_cap:.2f}</div>
+<div class="metric-sub" style="color: #94a3b8;">Rp {init_cap*KURS_IDR:,.0f}</div>
+</div>""", unsafe_allow_html=True)
+
+with col_m2:
+    st.markdown(f"""<div class="metric-card" style="border-left: 4px solid #10b981;">
+<div class="metric-title">Realized Cuan Cair (Oktober)</div>
+<div class="metric-val" style="color: #34d399;">+${cur_realized:.2f}</div>
+<div class="metric-sub" style="color: #34d399;">+Rp {cur_realized*KURS_IDR:,.0f} (Masuk Kas)</div>
+</div>""", unsafe_allow_html=True)
+
+with col_m3:
+    st.markdown(f"""<div class="metric-card" style="border-left: 4px solid #ec4899;">
+<div class="metric-title">Total Net PnL & ROI (MTD)</div>
+<div class="metric-val" style="color: #f472b6;">+${cur_net_pnl:.2f}</div>
+<div class="metric-sub" style="color: #f472b6;">+{roi_mtd:.1f}% ROI (+Rp {cur_net_pnl*KURS_IDR:,.0f})</div>
+</div>""", unsafe_allow_html=True)
+
+pnl_color_str = '#34d399' if cur_floating >= 0 else '#f87171'
+pnl_sign_str = '+$' if cur_floating >= 0 else '-$'
+
+st.markdown(f"""
+<div style="background: rgba(15, 23, 42, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 10px 14px; margin-top: 8px; font-size: 0.76rem;">
+<div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 6px; font-weight: 700; color: #94a3b8;">
+  <span>BULAN / PERIODE</span>
+  <span>REALIZED CAIR</span>
+  <span>FLOATING LIVE</span>
+  <span>TOTAL NET PROFIT</span>
+  <span>ROI BULANAN</span>
+</div>
+<div style="display: flex; justify-content: space-between; align-items: center; padding-top: 6px; font-weight: 800; color: #ffffff;">
+  <span>🗓️ Oktober 2026 (1-16 Okt)</span>
+  <span style="color: #34d399;">+${cur_realized:.2f}</span>
+  <span style="color: {pnl_color_str};">{pnl_sign_str}{abs(cur_floating):.2f}</span>
+  <span style="color: #38bdf8;">+${cur_net_pnl:.2f} (+Rp {cur_net_pnl*KURS_IDR:,.0f})</span>
+  <span style="background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 2px 8px; border-radius: 6px;">+{roi_mtd:.1f}% ROI 🔥</span>
+</div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+
+# ========================================================
 # PROYEKSI TARGET HASIL (TP +8.2% vs SL -2.3%)
 # ========================================================
 tp_rate = 0.082
