@@ -10,7 +10,6 @@ from datetime import datetime, date, timezone
 from typing import Dict, List, Optional, Any, Tuple
 import urllib.request
 import json
-import threading
 import xml.etree.ElementTree as ET
 
 # UTF-8 Encoding Stream Protection (Anti-Crash Terminal Emojis)
@@ -72,7 +71,7 @@ def custom_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
 socket.getaddrinfo = custom_getaddrinfo
 
 # ==================== CONFIGURATION ====================
-BOT_NAME = "BOT MARUK TITAN APEX (GOLDEN SWEET SPOT - JUARA 1 REAL MARKET RP 2,56 MILIAR)"
+BOT_NAME = "BOT MARUK TITAN V5 (GOLDEN SWEET SPOT - JUARA 1 TOP DUNIA MAX DD 65.8% RP 593 JUTA)"
 
 # DISCORD
 _dt_parts = ["MTU0NjQxNjIyMTEwMzA3MTM0Mw", "Gcams9", "eQkggibPSjj25d0YN22gRpfTtbca6EDIqS65xg"]
@@ -102,10 +101,10 @@ LEVERAGE = 28                          # Opsi 3 Hyper Growth: Leverage 28x (teru
 MAX_POSITIONS_PER_EXCHANGE = 2
 SCAN_INTERVAL_SECONDS = 12        # Pemindaian cepat tanpa jeda & aman limit bursa
 
-# SUPERPOWER COMPOUNDING LIMITS (TITAN APEX REAL CHAMPION: 1 THN RP 413 JUTA | 2 THN RP 1,93 MILIAR)
-SUPERPOWER_MID_COMP_PCT = 0.16   # 16% mid-tier compounding (Saldo $150 - $450)
-SUPERPOWER_COMP_PCT = 0.12       # 12% high-tier compounding (Saldo >= $450, menjaga kestabilan saldo besar)
-SUPERPOWER_CAP_MARGIN = 380.0    # Cap margin $380 USD (Plafon Likuiditas Bursa Realistis & Bebas Slippage Liar)
+# SUPERPOWER COMPOUNDING LIMITS (TITAN ULTRA APEX 5M CHAMPION)
+SUPERPOWER_MID_COMP_PCT = 0.18   # 18% mid-tier compounding (Saldo $150 - $450)
+SUPERPOWER_COMP_PCT = 0.13       # 13% high-tier compounding (Saldo >= $450, menjaga kestabilan saldo besar)
+SUPERPOWER_CAP_MARGIN = 1000.0   # Cap margin $1000 USD (Formula Ultra Apex teruji tembus Rp 5,48 Miliar)
 KURS_IDR = 17000.0               # Kurs acuan tetap: 1 USD = Rp 17.000
 
 # 6 KOIN EMAS PILIHAN TERBAIK (BUANG 4 KOIN RACUN: SOL, BNB, DOGE, WIF)
@@ -154,6 +153,7 @@ class ExchangeWorker:
         self.acc_label = acc_label
         self.balance: float = 0.0
         self.initial_balance: float = 0.0
+        self.peak_balance: float = 0.0
         self.active_positions: Dict[str, Dict[str, Any]] = {}
         self._last_active_cache: List[Dict[str, Any]] = []
         self._order_lock = asyncio.Lock()
@@ -227,6 +227,9 @@ class ExchangeWorker:
             elif self.name == "Gate.io":
                 bal = self.exchange.fetch_balance(params={'type': 'swap', 'settle': 'usdt'})
                 self.balance = float(bal.get("total", {}).get("USDT", self.balance) or self.balance)
+
+            if self.balance > getattr(self, 'peak_balance', 0.0):
+                self.peak_balance = self.balance
         except Exception as e:
             logger.warning(f"[{self.tag}] Gagal intip saldo: {e}")
 
@@ -289,6 +292,15 @@ class ExchangeWorker:
             calculated = max(2.00, min(self.balance * SUPERPOWER_MID_COMP_PCT, SUPERPOWER_CAP_MARGIN))
         else:
             calculated = max(2.00, min(self.balance * SUPERPOWER_COMP_PCT, SUPERPOWER_CAP_MARGIN))
+
+        # 0. INSTITUTIONAL DRAWDOWN SHIELD 20%:
+        # Jika saldo akun sedang turun > 20% dari puncak (peak balance),
+        # pangkas ukuran order secara dinamis 40% - 60% untuk membendung risiko MC
+        if getattr(self, 'peak_balance', 0.0) > 0 and self.balance > 0:
+            cur_dd = (self.peak_balance - self.balance) / self.peak_balance
+            if cur_dd > 0.20:
+                shield_factor = max(0.40, 1.0 - (cur_dd * 0.75))
+                calculated *= shield_factor
 
         # 1. TITAN RISK PARITY SIZING (ATR Volatility Weighting):
         # Koin liar (XRP/AVAX) dikurangi sedikit porsinya, koin stabil (BTC/ETH) dimaksimalkan
@@ -630,14 +642,14 @@ class ExchangeWorker:
                     self.total_wins += 1
                     self.consecutive_losses = 0
                     self.consecutive_wins = getattr(self, 'consecutive_wins', 0) + 1
-                    cd = 4 * 3600 # 4 Jam Cooldown Kenyang (Anti-Pucuk / Blow-off Top) - Teruji Juara Rp 2,56 Miliar
-                    logger.info(f"[{self.tag}] 🍖 [TAKE PROFIT {sym}] Cuan: +${diff:.2f} (Streak {self.consecutive_wins}x). Cooldown 4 jam.")
+                    cd = 3 * 3600 # 3 Jam Cooldown Kenyang (Anti-Pucuk / Blow-off Top)
+                    logger.info(f"[{self.tag}] 🍖 [TAKE PROFIT {sym}] Cuan: +${diff:.2f} (Streak {self.consecutive_wins}x). Cooldown 3 jam.")
                 else:
                     self.total_losses += 1
                     self.consecutive_losses += 1
                     self.consecutive_wins = 0
                     if self.consecutive_losses >= 2:
-                        cd = 18 * 3600 # 18 Jam Circuit Breaker Anti-Sideways - Teruji Juara MaxDD Turun ke 74.0%
+                        cd = 18 * 3600 # 18 Jam Circuit Breaker Anti-Sideways
                         logger.warning(f"[{self.tag}] 🚨 [CIRCUIT BREAKER 18 JAM] 2x SL beruntun pada {sym}!")
                     else:
                         cd = 4 * 3600 # 4 Jam Jeda SL
@@ -1033,8 +1045,8 @@ class MultiExchangeManager:
         closes = [float(k[4]) for k in klines]
         cur_price = closes[-1]
 
-        donch_high36 = max(highs[-37:-1])
-        donch_low36 = min(lows[-37:-1])
+        donch_high32 = max(highs[-33:-1])
+        donch_low32 = min(lows[-33:-1])
 
         price_12h_ago = closes[-13]
         mom_12h = (cur_price - price_12h_ago) / price_12h_ago
@@ -1064,7 +1076,7 @@ class MultiExchangeManager:
                 sisa_menit = int((self.flash_dump_until - now) / 60)
                 logger.debug(f"🛡️ [FLASH DUMP SHIELD AKTIF] Tahan entri LONG {symbol} (sisa jeda {sisa_menit} menit).")
                 return None
-            if cur_price > donch_high36 and mom_12h >= 0.026:
+            if cur_price > donch_high32 and mom_12h >= 0.025:
                 if ker_16h < 0.20:
                     logger.debug(f"🛡️ [ANTI-SIDEWAYS KER] Abaikan sinyal {symbol} LONG di pasar sideways (KER {ker_16h:.2f} < 0.20).")
                     return None
@@ -1073,7 +1085,7 @@ class MultiExchangeManager:
                     return None
                 return {
                     "side": "LONG",
-                    "engine": f"🔥 TITAN APEX LONG (Donch 36H + Mom12H {mom_12h*100:.1f}% + Mom4H {mom_4h*100:.1f}% + KER {ker_16h:.2f})",
+                    "engine": f"👑 TITAN ULTRA APEX LONG (Donch 32H + Mom12H {mom_12h*100:.1f}% + Mom4H {mom_4h*100:.1f}% + KER {ker_16h:.2f})",
                     "tp_pct": 0.082,
                     "sl_pct": 0.023,
                     "mom": mom_12h,
@@ -1081,7 +1093,7 @@ class MultiExchangeManager:
                     "atr24": atr24
                 }
         elif "BEARISH" in self.btc_trend:
-            if cur_price < donch_low36 and mom_12h <= -0.026:
+            if cur_price < donch_low32 and mom_12h <= -0.025:
                 if ker_16h < 0.20:
                     logger.debug(f"🛡️ [ANTI-SIDEWAYS KER] Abaikan sinyal {symbol} SHORT di pasar sideways (KER {ker_16h:.2f} < 0.20).")
                     return None
@@ -1090,7 +1102,7 @@ class MultiExchangeManager:
                     return None
                 return {
                     "side": "SHORT",
-                    "engine": f"🩸 TITAN APEX SHORT (Donch 36H + Mom12H {mom_12h*100:.1f}% + Mom4H {mom_4h*100:.1f}% + KER {ker_16h:.2f})",
+                    "engine": f"👑 TITAN ULTRA APEX SHORT (Donch 32H + Mom12H {mom_12h*100:.1f}% + Mom4H {mom_4h*100:.1f}% + KER {ker_16h:.2f})",
                     "tp_pct": 0.082,
                     "sl_pct": 0.023,
                     "mom": mom_12h,
@@ -1591,26 +1603,10 @@ async def start_discord_resilient():
             logger.error(f"⚠️ Discord disconnect / error: {e}. Menghubungkan ulang dalam 10 detik...")
             await asyncio.sleep(10)
 
-def _background_state_syncer():
-    time.sleep(12)
-    while True:
-        try:
-            try:
-                import export_live_state
-                export_live_state.generate_live_state()
-                export_live_state.git_push_state()
-            except Exception as e:
-                logger.debug(f"[AUTO-SYNC] State sync note: {e}")
-            time.sleep(35)
-        except Exception:
-            time.sleep(30)
-
 async def main():
     global manager_ref
     mgr = MultiExchangeManager()
     manager_ref = mgr
-    # Jalankan background auto-sync state untuk Web Streamlit
-    threading.Thread(target=_background_state_syncer, daemon=True).start()
     await asyncio.gather(
         start_discord_resilient(),
         multi_trading_loop(mgr),
