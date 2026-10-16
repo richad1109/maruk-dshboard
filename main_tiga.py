@@ -102,8 +102,8 @@ MAX_POSITIONS_PER_EXCHANGE = 2
 SCAN_INTERVAL_SECONDS = 12        # Pemindaian cepat tanpa jeda & aman limit bursa
 
 # SUPERPOWER COMPOUNDING LIMITS (TITAN ULTRA APEX 5M CHAMPION)
-SUPERPOWER_MID_COMP_PCT = 0.18   # 18% mid-tier compounding (Saldo $150 - $450)
-SUPERPOWER_COMP_PCT = 0.13       # 13% high-tier compounding (Saldo >= $450, menjaga kestabilan saldo besar)
+SUPERPOWER_MID_COMP_PCT = 0.19   # 19% mid-tier compounding (Saldo $150 - $450)
+SUPERPOWER_COMP_PCT = 0.15       # 15% high-tier compounding (Saldo >= $450)
 SUPERPOWER_CAP_MARGIN = 1000.0   # Cap margin $1000 USD (Formula Ultra Apex teruji tembus Rp 5,48 Miliar)
 KURS_IDR = 17000.0               # Kurs acuan tetap: 1 USD = Rp 17.000
 
@@ -281,13 +281,13 @@ class ExchangeWorker:
     def calculate_safe_margin(self, symbol: str = None, cur_price: float = None, atr24: float = None, mom: float = None, ker: float = None) -> float:
         if self.is_standby:
             return 0.0
-        # SUPERPOWER 5-STAGE INSTITUTIONAL ANTI-DRAWDOWN ENGINE (TITAN APEX REAL CHAMPION)
+        # MODE 2: HYPER COMPOUNDING APEX 5M ENGINE
         if self.balance < 10.0:
-            calculated = max(0.60, round(self.balance * 0.06, 2))
+            calculated = max(0.60, round(self.balance * 0.10, 2))
         elif self.balance < 30.0:
-            calculated = max(1.00, min(self.balance * 0.055, 1.80))
+            calculated = max(1.00, round(self.balance * 0.14, 2))
         elif self.balance < 150.0:
-            calculated = max(1.50, min(self.balance * 0.08, 12.00))
+            calculated = max(1.50, round(self.balance * 0.16, 2))
         elif self.balance < 450.0:
             calculated = max(2.00, min(self.balance * SUPERPOWER_MID_COMP_PCT, SUPERPOWER_CAP_MARGIN))
         else:
