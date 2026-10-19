@@ -1,22 +1,59 @@
 {
   "akun_1": {
-    "total_bal": 57.87,
-    "total_pnl": 0.0,
-    "pos_list": [],
+    "total_bal": 54.99,
+    "total_pnl": 0.83,
+    "pos_list": [
+      {
+        "exchange": "Bitget",
+        "symbol": "BTC/USDT",
+        "side": "SHORT",
+        "entry": 83325.0,
+        "mark": 82785.0,
+        "margin": 1.773964285715,
+        "notional": 49.67099999999999,
+        "pnl": 0.324,
+        "roe": 18.2641782931617,
+        "leverage": 28
+      },
+      {
+        "exchange": "BingX",
+        "symbol": "TIA/USDT",
+        "side": "LONG",
+        "entry": 0.6091,
+        "mark": 0.6076,
+        "margin": 0.3367,
+        "notional": 6.71,
+        "pnl": -0.0167,
+        "roe": -4.95990495990496,
+        "leverage": 20
+      },
+      {
+        "exchange": "MEXC",
+        "symbol": "BTC/USDT",
+        "side": "SHORT",
+        "entry": 83310.2,
+        "mark": 82785.0,
+        "margin": 3.0300686865164552,
+        "notional": 83.3102,
+        "pnl": 0.51899,
+        "roe": 17.12799456690407,
+        "leverage": 28
+      }
+    ],
     "ex_details": {
       "Bitget": {
-        "total": 19.01,
-        "free": 18.34,
+        "total": 17.81,
+        "free": 17.49,
         "status": "ONLINE"
       },
       "MEXC": {
-        "total": 26.98,
-        "free": 22.85,
+        "total": 25.29,
+        "free": 21.74,
         "status": "ONLINE"
       },
       "BingX": {
-        "total": 11.87,
-        "free": 5.12,
+        "total": 11.89,
+        "free": 11.11,
         "status": "ONLINE"
       },
       "Bybit": {
@@ -30,26 +67,63 @@
         "status": "ONLINE"
       }
     },
-    "updated_at": "2026-10-16 14:54:42"
+    "updated_at": "2026-10-19 14:20:55"
   },
   "akun_2": {
-    "total_bal": 34.42,
-    "total_pnl": 0.0,
-    "pos_list": [],
+    "total_bal": 33.21,
+    "total_pnl": 2.08,
+    "pos_list": [
+      {
+        "exchange": "Bitget",
+        "symbol": "BTC/USDT",
+        "side": "SHORT",
+        "entry": 83114.5,
+        "mark": 82785.0,
+        "margin": 0.856396551725,
+        "notional": 24.835499999999996,
+        "pnl": 0.09885,
+        "roe": 11.542549978849285,
+        "leverage": 29
+      },
+      {
+        "exchange": "MEXC",
+        "symbol": "BTC/USDT",
+        "side": "SHORT",
+        "entry": 83035.6,
+        "mark": 82785.0,
+        "margin": 0.869196975550308,
+        "notional": 24.910680000000003,
+        "pnl": 0.07329,
+        "roe": 8.431920733916321,
+        "leverage": 29
+      },
+      {
+        "exchange": "MEXC",
+        "symbol": "ADA/USDT",
+        "side": "SHORT",
+        "entry": 0.2427,
+        "mark": 0.2211,
+        "margin": 0.7803992592532224,
+        "notional": 21.3576,
+        "pnl": 1.9096,
+        "roe": 244.6952604526213,
+        "leverage": 28
+      }
+    ],
     "ex_details": {
       "Bitget": {
-        "total": 12.2,
-        "free": 11.92,
+        "total": 11.2,
+        "free": 11.1,
         "status": "ONLINE"
       },
       "MEXC": {
-        "total": 11.29,
-        "free": 8.33,
+        "total": 11.98,
+        "free": 8.35,
         "status": "ONLINE"
       },
       "BingX": {
-        "total": 10.94,
-        "free": 9.93,
+        "total": 10.04,
+        "free": 10.04,
         "status": "ONLINE"
       },
       "Bybit": {
@@ -63,16 +137,29 @@
         "status": "STANDBY"
       }
     },
-    "updated_at": "2026-10-16 14:54:44"
+    "updated_at": "2026-10-19 14:20:57"
   },
   "akun_3": {
-    "total_bal": 23.36,
-    "total_pnl": 0.0,
-    "pos_list": [],
+    "total_bal": 21.35,
+    "total_pnl": 0.14,
+    "pos_list": [
+      {
+        "exchange": "Bitget",
+        "symbol": "BTC/USDT",
+        "side": "SHORT",
+        "entry": 83133.0,
+        "mark": 82785.0,
+        "margin": 1.141862068966,
+        "notional": 33.114000000000004,
+        "pnl": 0.1392,
+        "roe": 12.1906142417053,
+        "leverage": 29
+      }
+    ],
     "ex_details": {
       "Bitget": {
-        "total": 12.3,
-        "free": 11.93,
+        "total": 11.24,
+        "free": 11.1,
         "status": "ONLINE"
       },
       "MEXC": {
@@ -81,8 +168,8 @@
         "status": "STANDBY"
       },
       "BingX": {
-        "total": 11.06,
-        "free": 9.92,
+        "total": 10.11,
+        "free": 10.11,
         "status": "ONLINE"
       },
       "Bybit": {
@@ -96,6 +183,6 @@
         "status": "STANDBY"
       }
     },
-    "updated_at": "2026-10-16 14:54:44"
+    "updated_at": "2026-10-19 14:20:57"
   }
 }
