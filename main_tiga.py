@@ -113,6 +113,44 @@ def calc_rsi(closes: List[float], period: int = 14) -> float:
     rs = avg_gain / avg_loss
     return 100.0 - (100.0 / (1.0 + rs))
 
+STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bot_persistent_state.json")
+
+def load_persistent_worker_state(tag: str) -> dict:
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get(tag, {})
+        except Exception:
+            pass
+    return {}
+
+def save_persistent_worker_state(tag: str, state_dict: dict):
+    data = {}
+    if os.path.exists(STATE_FILE):
+        try:
+            with open(STATE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+    data[tag] = state_dict
+    try:
+        with open(STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+    except Exception:
+        pass
+
+def get_mexc_contract_vol(coin: str, qty: float) -> int:
+    """Konversi kuantitas koin nyata ke lembar kontrak MEXC Futures (Fix audit Astra)"""
+    if coin == "BTC":
+        return max(1, int(round(qty / 0.0001)))
+    elif coin == "ETH":
+        return max(1, int(round(qty / 0.01)))
+    elif coin in ["AVAX", "LINK"]:
+        return max(1, int(round(qty / 0.1)))
+    else:  # XRP, ADA
+        return max(1, int(round(qty)))
+
 # ==================== WORKER PER BURSA ====================
 class ExchangeWorker:
     def __init__(self, name: str, tag: str, exchange_obj: Optional[ccxt.Exchange], fee_rate: float, is_standby: bool = False, acc_id: str = "akun_1", acc_label: str = "Akun 1"):
@@ -135,6 +173,30 @@ class ExchangeWorker:
         self.cooldowns: Dict[str, float] = {}
         self.is_ready: bool = False
 
+    def load_state(self):
+        """Memuat state persisten (peak_balance, streaks, cooldowns) dari file lokal (Fix audit Astra)"""
+        saved = load_persistent_worker_state(self.tag)
+        if saved:
+            self.peak_balance = max(self.balance, float(saved.get('peak_balance', self.balance)))
+            self.consecutive_wins = int(saved.get('consecutive_wins', 0))
+            self.consecutive_losses = int(saved.get('consecutive_losses', 0))
+            self.total_wins = int(saved.get('total_wins', 0))
+            self.total_losses = int(saved.get('total_losses', 0))
+            now = time.time()
+            self.cooldowns = {k: float(v) for k, v in saved.get('cooldowns', {}).items() if float(v) > now}
+            logger.info(f"[{self.tag}] 💾 State persisten dimuat | Peak: ${self.peak_balance:.2f} | Streak: W{self.consecutive_wins}/L{self.consecutive_losses}")
+
+    def save_state(self):
+        """Menyimpan state worker ke file JSON persisten agar tahan restart Termux (Fix audit Astra)"""
+        save_persistent_worker_state(self.tag, {
+            'peak_balance': self.peak_balance,
+            'consecutive_wins': self.consecutive_wins,
+            'consecutive_losses': self.consecutive_losses,
+            'total_wins': self.total_wins,
+            'total_losses': self.total_losses,
+            'cooldowns': self.cooldowns
+        })
+
     def init_sync(self):
         if self.is_standby or not self.exchange:
             self.is_ready = False
@@ -142,29 +204,46 @@ class ExchangeWorker:
         try:
             self.refresh_balance()
             self.last_balance = self.balance
+            self.load_state()
+            if self.balance > self.peak_balance:
+                self.peak_balance = self.balance
+                self.save_state()
             self.set_exchange_leverage()
             self.is_ready = True
-            logger.info(f"[{self.tag}] ✅ Terhubung | Saldo: ${self.balance:.2f} USDT (~Rp {self.balance*KURS_IDR:,.0f})")
+            logger.info(f"[{self.tag}] ✅ Terhubung | Saldo: ${self.balance:.2f} USDT (~Rp {self.balance*KURS_IDR:,.0f}) | Peak: ${self.peak_balance:.2f}")
         except Exception as e:
             logger.warning(f"[{self.tag}] Gagal sync awal: {e}")
             self.is_ready = False
 
     def set_exchange_leverage(self):
-        """Kunci leverage 20x secara native di API bursa Bitget & BingX (Fix audit Astra)"""
+        """Kunci leverage 20x secara native di API bursa Bitget & BingX dengan verifikasi respons (Fix audit Astra)"""
         if self.is_standby or not self.exchange: return
-        for sym_raw in ["BTC", "ETH", "XRP", "ADA", "AVAX", "LINK"]:
+        symbols_to_set = ["BTC", "ETH", "XRP", "ADA", "AVAX", "LINK"]
+        success_count = 0
+        for sym_raw in symbols_to_set:
             try:
                 if self.name == "Bitget":
-                    self.exchange.privateMixPostV2MixAccountSetLeverage({
+                    res = self.exchange.privateMixPostV2MixAccountSetLeverage({
                         'symbol': f"{sym_raw}USDT", 'productType': 'USDT-FUTURES',
                         'marginCoin': 'USDT', 'leverage': str(LEVERAGE)
                     })
+                    if isinstance(res, dict) and str(res.get('code')) == '00000':
+                        success_count += 1
                 elif self.name == "BingX":
-                    self.exchange.swapV2PrivatePostTradeSetLeverage({
+                    res = self.exchange.swapV2PrivatePostTradeSetLeverage({
                         'symbol': f"{sym_raw}-USDT", 'leverage': LEVERAGE, 'side': 'BOTH'
                     })
-            except Exception:
-                pass
+                    if isinstance(res, dict) and str(res.get('code')) in ['0', '00000', 0]:
+                        success_count += 1
+                elif self.name == "MEXC":
+                    success_count += 1
+            except Exception as e_lev:
+                logger.debug(f"[{self.tag}] Setting leverage {sym_raw}: {e_lev}")
+        if self.name in ["Bitget", "BingX"]:
+            if success_count > 0:
+                logger.info(f"[{self.tag}] 🔒 Leverage {LEVERAGE}x berhasil diverifikasi di bursa ({success_count}/{len(symbols_to_set)} koin)")
+            else:
+                logger.warning(f"[{self.tag}] ⚠️ Verifikasi leverage bursa via API notice; pastikan leverage diatur manual ke {LEVERAGE}x di aplikasi bursa")
 
     def refresh_balance(self):
         if self.is_standby or not self.exchange: return
@@ -187,6 +266,7 @@ class ExchangeWorker:
                         break
             if self.balance > self.peak_balance:
                 self.peak_balance = self.balance
+                self.save_state()
         except Exception:
             pass
 
@@ -268,6 +348,8 @@ class ExchangeWorker:
                     logger.warning(f"[{self.tag}] 🛑 Posisi {coin} TERTUTUP LOSS. Loss streak: {self.consecutive_losses} | Cooldown 2 jam aktif.")
         for s in closed_syms:
             del self.active_positions[s]
+        if closed_syms:
+            self.save_state()
         self.last_balance = self.balance
 
     def is_in_drawdown_halt(self) -> bool:
@@ -291,7 +373,7 @@ class ExchangeWorker:
                     'marginMode': 'crossed', 'marginCoin': 'USDT'
                 })
             elif self.name == "MEXC":
-                mx_vol = max(1, int(round(qty)))
+                mx_vol = get_mexc_contract_vol(coin, qty)
                 self.exchange.contractPrivatePostOrderSubmit({
                     'symbol': f"{coin}_USDT",
                     'side': 4 if side == 'LONG' else 2,
@@ -303,24 +385,23 @@ class ExchangeWorker:
                     'side': 'SELL' if side == 'LONG' else 'BUY',
                     'positionSide': side, 'type': 'MARKET', 'quantity': float(qty)
                 })
-            logger.info(f"[{self.tag}] 🛑 Emergency close {symbol} {side} berhasil dieksekusi.")
+            logger.info(f"[{self.tag}] 🛑 Emergency close {symbol} {side} ({qty} {coin}) berhasil dikirim ke bursa.")
         except Exception as e_ec:
             logger.error(f"[{self.tag}] 🚨 Gagal emergency close {symbol}: {e_ec}")
 
     def calc_order_sizing(self, cur_price: float, sl_pct: float, risk_pct: float = 0.02) -> Tuple[float, float]:
         """
         Fixed Risk-Based Position Sizing (Fix audit Astra):
-        Maksimal kerugian dikunci pada 2.0% dari saldo saat Stop Loss tersambar!
+        Maksimal kerugian dikunci KETAT pada 2.0% dari saldo saat Stop Loss tersambar!
         Rumus Quant: Target Notional = (Saldo * Risk_Pct) / SL_Pct
         """
         b = self.balance
-        # 1. Hot-hand / loss brake adjustment
+        # 1. Loss brake adjustment: potong separuh jika 2 loss beruntun
         adjusted_risk = risk_pct
         if self.consecutive_losses >= 2:
-            adjusted_risk = risk_pct * 0.50  # Pangkas risiko separuh jika 2 loss beruntun
-        elif self.consecutive_wins >= 2:
-            adjusted_risk = min(0.03, risk_pct * 1.25)
+            adjusted_risk = risk_pct * 0.50  # Pangkas risiko jadi 1.0% jika 2 loss beruntun demi preservasi modal
 
+        # Strict 2.0% cap: tidak menaikkan risiko setelah win agar tidak terjadi over-risking
         max_risk_usd = b * adjusted_risk
         target_notional = max_risk_usd / max(0.01, sl_pct)
 
@@ -351,8 +432,22 @@ class ExchangeWorker:
             elif coin in ["AVAX", "LINK"]:
                 qty = max(0.1, round(raw_qty, 1))
             else: # XRP, ADA
-                qty = max(1, int(raw_qty))
+                qty = max(1, int(round(raw_qty)))
 
+            # AUDIT ASTRA FIX: Hard Risk Shield
+            # Jika lot minimum bursa memaksa ukuran posisi yang potensi rugi SL-nya melebihi 2.2% saldo, BATALKAN ORDER!
+            potential_sl_loss = qty * cur_price * sl_pct
+            max_allowed_loss = self.balance * 0.022  # 2.2% hard cap toleransi
+            if potential_sl_loss > max_allowed_loss:
+                logger.warning(
+                    f"[{self.tag}] 🛑 [RISK SHIELD] Reject {side} {coin}: "
+                    f"Lot minimum bursa ({qty} {coin} = ${qty*cur_price:.2f}) berpotensi rugi SL ${potential_sl_loss:.2f} "
+                    f"({potential_sl_loss/self.balance*100:.1f}%), melebihi batas risiko 2.0% saldo (${self.balance:.2f}). "
+                    f"Entri dibatalkan demi disiplin quant!"
+                )
+                return
+
+            mx_vol = get_mexc_contract_vol(coin, qty)
             tp_price = round(cur_price * (1.0 + tp_pct), 4) if side == "LONG" else round(cur_price * (1.0 - tp_pct), 4)
             sl_price = round(cur_price * (1.0 - sl_pct), 4) if side == "LONG" else round(cur_price * (1.0 + sl_pct), 4)
 
@@ -369,11 +464,6 @@ class ExchangeWorker:
                 })
             elif self.name == "MEXC":
                 sym_mx = f"{coin}_USDT"
-                if coin == "BTC": mx_vol = max(1, int(round(raw_qty / 0.0001)))
-                elif coin == "ETH": mx_vol = max(1, int(round(raw_qty / 0.01)))
-                elif coin in ["AVAX", "LINK"]: mx_vol = max(1, int(round(raw_qty / 0.1)))
-                else: mx_vol = max(1, int(round(raw_qty)))
-
                 self.exchange.contractPrivatePostOrderSubmit({
                     'symbol': sym_mx, 'side': 1 if side == 'LONG' else 3,
                     'type': 5, 'vol': mx_vol, 'openType': 2, 'leverage': LEVERAGE
@@ -385,39 +475,49 @@ class ExchangeWorker:
                     'positionSide': side, 'type': 'MARKET', 'quantity': float(qty)
                 })
 
-            # 2. Pasang STOP LOSS Native dengan Verifikasi & Retry (Fix audit Astra)
+            # 2. Pasang STOP LOSS Native dengan Verifikasi Riil (Fix audit Astra)
             sl_verified = False
-            for attempt in range(2):
+            for attempt in range(3):
                 try:
-                    time.sleep(0.3)
+                    time.sleep(0.4)
                     if self.name == "Bitget":
-                        self.exchange.privateMixPostV2MixOrderPlacePlanOrder({
+                        res_sl = self.exchange.privateMixPostV2MixOrderPlacePlanOrder({
                             'productType': 'USDT-FUTURES', 'symbol': sym_bg,
                             'planType': 'normal_plan', 'triggerPrice': str(sl_price), 'triggerType': 'mark_price',
                             'executePrice': '0', 'orderType': 'market', 'size': str(qty),
                             'side': 'sell' if side == 'LONG' else 'buy', 'tradeSide': 'close',
                             'marginMode': 'crossed', 'marginCoin': 'USDT'
                         })
+                        if isinstance(res_sl, dict) and str(res_sl.get('code')) == '00000':
+                            sl_verified = True
+                            logger.info(f"[{self.tag}] ✅ SL {coin} TERVERIFIKASI AKTIF di Bitget")
+                            break
                     elif self.name == "MEXC":
-                        self.exchange.contractPrivatePostPlanorderPlace({
+                        res_sl = self.exchange.contractPrivatePostPlanorderPlace({
                             'symbol': sym_mx, 'side': 4 if side == 'LONG' else 2, 'openType': 2,
                             'triggerPrice': sl_price, 'triggerType': 2 if side == 'LONG' else 1, 'trend': 1,
                             'orderType': 5, 'executeCycle': 1, 'vol': mx_vol
                         })
+                        if isinstance(res_sl, dict) and (res_sl.get('code') in [0, '0', 200, '200'] or 'data' in res_sl):
+                            sl_verified = True
+                            logger.info(f"[{self.tag}] ✅ SL {coin} TERVERIFIKASI AKTIF di MEXC")
+                            break
                     elif self.name == "BingX":
-                        self.exchange.swapV2PrivatePostTradeOrder({
+                        res_sl = self.exchange.swapV2PrivatePostTradeOrder({
                             'symbol': sym_bx, 'side': 'SELL' if side == 'LONG' else 'BUY', 'positionSide': side,
                             'type': 'STOP_MARKET', 'stopPrice': sl_price, 'quantity': float(qty)
                         })
-                    sl_verified = True
-                    break
+                        if isinstance(res_sl, dict) and (res_sl.get('code') in [0, '0'] or 'order' in res_sl.get('data', {})):
+                            sl_verified = True
+                            logger.info(f"[{self.tag}] ✅ SL {coin} TERVERIFIKASI AKTIF di BingX")
+                            break
                 except Exception as e_sl:
                     logger.warning(f"[{self.tag}] Percobaan {attempt+1} pasang SL gagal: {e_sl}")
-                    time.sleep(0.5)
+                    time.sleep(0.6)
 
             # Fail-Safe Emergency: Jika SL gagal terpasang, langsung tutup posisi demi keselamatan modal!
             if not sl_verified:
-                logger.critical(f"[{self.tag}] 🚨 STOP LOSS GAGAL TERPASANG DI BURSA! Menutup posisi darurat demi keselamatan modal...")
+                logger.critical(f"[{self.tag}] 🚨 STOP LOSS GAGAL TERVERIFIKASI DI BURSA! Menutup posisi darurat demi keselamatan modal...")
                 self.emergency_close(symbol, side, qty)
                 return
 
@@ -615,7 +715,7 @@ class MultiAccountMaster:
                     continue
                 tot_bal += w.balance
                 ex_details[w.name] = {'total': round(w.balance, 2), 'free': round(w.balance, 2), 'status': 'ONLINE'}
-                for p in w.get_active_positions():
+                for p in (w.get_active_positions() or []):
                     pos_list.append({
                         'exchange': w.name, 'symbol': p['symbol'], 'side': p['side'],
                         'entry': p['entry'], 'mark': p['mark'], 'margin': p['margin'],
