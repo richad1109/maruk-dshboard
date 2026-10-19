@@ -558,10 +558,10 @@ class MultiAccountMaster:
 
                 # Terminal Dashboard
                 t_now = datetime.now().strftime("%H:%M:%S")
-                print(f"[{t_now}] BTC: ${self.btc_price:,.1f} ({trend_emoji}) | Kas: ${tot_bal:.2f} (~Rp {tot_bal*KURS_IDR:,.0f}) | PnL: ${tot_pnl:+.2f} | Posisi: {len(all_active)}")
+                print(f"[{t_now}] BTC: ${self.btc_price:,.1f} ({trend_emoji}) | Kas: ${tot_bal:.2f} (~Rp {tot_bal*KURS_IDR:,.0f}) | PnL: ${tot_pnl:+.2f} | Posisi: {len(all_active)}", flush=True)
                 if all_active:
                     for w, p in all_active:
-                        print(f"   ├─ [{w.acc_label}] [{w.name}] {p['symbol']} {p['side']} {p['leverage']}x | PnL: ${p['pnl']:+.2f} | Entry: ${p['entry']:.4f}")
+                        print(f"   ├─ [{w.acc_label}] [{w.name}] {p['symbol']} {p['side']} {p['leverage']}x | PnL: ${p['pnl']:+.2f} | Entry: ${p['entry']:.4f}", flush=True)
 
                 # 2. Scanning Sinyal Koin Emas
                 ex_scan = next((w.exchange for w in active_workers if w.exchange), None)
@@ -577,8 +577,8 @@ class MultiAccountMaster:
                                     if len(w.get_active_positions()) < MAX_POSITIONS_PER_EXCHANGE:
                                         if symbol not in [p['symbol'] for p in w.get_active_positions()]:
                                             await asyncio.to_thread(w.open_order, symbol, sig['side'], cur_p, sig['mom'], sig['ker'], sig['atr24'])
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug(f"Scan error {symbol}: {e}")
 
                 # 3. Export data untuk Web Dashboard Streamlit
                 self.export_and_sync_web()
