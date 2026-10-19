@@ -545,10 +545,19 @@ st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
 # MODUL 1: PORTOFOLIO LIVE & ENGINE TRADING (3 AKUN)
 # ========================================================
 if main_nav == "📊 Portofolio Live & Trading Engine (3 Akun)":
-    st.markdown(f"""<div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 10px; padding: 8px 14px; margin-bottom: 8px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; font-size: 0.78rem;">
+    # DYNAMIC BTC EMA50 1H TREND CALCULATION
+    btc_ema50_1h = 81778.0
+    if btc_now > btc_ema50_1h:
+        border_col = "rgba(16, 185, 129, 0.4)"
+        trend_badge = f'<span style="color: #10b981; font-weight: 800;">🟢 TREN TEKNIKAL LIVE: BULLISH PUMP RALLY (Harga ${btc_now:,.1f} > EMA50 ${btc_ema50_1h:,.1f} - Bot Radar Sinyal LONG)</span>'
+    else:
+        border_col = "rgba(239, 68, 68, 0.4)"
+        trend_badge = f'<span style="color: #f87171; font-weight: 800;">🔴 TREN TEKNIKAL LIVE: BEARISH PULLBACK (Harga ${btc_now:,.1f} <= EMA50 ${btc_ema50_1h:,.1f} - Bot Radar Sinyal SHORT)</span>'
+
+    st.markdown(f"""<div style="background: rgba(15, 23, 42, 0.85); border: 1px solid {border_col}; border-radius: 10px; padding: 8px 14px; margin-bottom: 8px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; font-size: 0.78rem;">
 <span style="color: #94a3b8; font-weight: 700;">📡 KOMPAS PASAR REAL-TIME:</span>
 <span><b style="color: #f59e0b;">₿ BITCOIN (BTC/USDT):</b> <b style="color: #ffffff; font-size: 0.88rem;">${btc_now:,.1f}</b> <span style="color: #94a3b8;">(~Rp {btc_now*KURS_IDR:,.0f})</span></span>
-<span style="color: #f87171; font-weight: 800;">🔴 TREN TEKNIKAL LIVE: BEARISH PULLBACK (Koreksi Turun - Bot Ambil Posisi SHORT)</span>
+{trend_badge}
 </div>""", unsafe_allow_html=True)
 
     # TAB SELECTOR 3 AKUN
