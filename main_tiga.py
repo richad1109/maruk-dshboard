@@ -272,6 +272,26 @@ class ExchangeWorker:
                     'presetStopSurplusPrice': str(tp_price),
                     'presetStopLossPrice': str(sl_price)
                 })
+                # Native on-exchange plan order SL & TP (Bursa Bitget Native Bracket)
+                try:
+                    time.sleep(0.3)
+                    self.exchange.privateMixPostV2MixOrderPlacePlanOrder({
+                        'productType': 'USDT-FUTURES', 'symbol': sym_bg,
+                        'planType': 'normal_plan', 'triggerPrice': str(sl_price), 'triggerType': 'mark_price',
+                        'executePrice': '0', 'orderType': 'market', 'size': str(qty),
+                        'side': 'sell' if side == 'LONG' else 'buy', 'tradeSide': 'close',
+                        'marginMode': 'crossed', 'marginCoin': 'USDT'
+                    })
+                    self.exchange.privateMixPostV2MixOrderPlacePlanOrder({
+                        'productType': 'USDT-FUTURES', 'symbol': sym_bg,
+                        'planType': 'normal_plan', 'triggerPrice': str(tp_price), 'triggerType': 'mark_price',
+                        'executePrice': '0', 'orderType': 'market', 'size': str(qty),
+                        'side': 'sell' if side == 'LONG' else 'buy', 'tradeSide': 'close',
+                        'marginMode': 'crossed', 'marginCoin': 'USDT'
+                    })
+                except Exception:
+                    pass
+
             elif self.name == "MEXC":
                 sym_mx = f"{coin}_USDT"
                 self.exchange.contractPrivatePostOrderSubmit({
@@ -282,6 +302,22 @@ class ExchangeWorker:
                     'openType': 2,
                     'leverage': LEVERAGE
                 })
+                # Native on-exchange plan order SL & TP (Bursa MEXC Native Bracket)
+                try:
+                    time.sleep(0.3)
+                    self.exchange.contractPrivatePostPlanorderPlace({
+                        'symbol': sym_mx, 'side': 4 if side == 'LONG' else 2, 'openType': 2,
+                        'triggerPrice': sl_price, 'triggerType': 1, 'trend': 2 if side == 'LONG' else 1,
+                        'orderType': 1, 'price': sl_price, 'executeCycle': 1, 'vol': qty
+                    })
+                    self.exchange.contractPrivatePostPlanorderPlace({
+                        'symbol': sym_mx, 'side': 4 if side == 'LONG' else 2, 'openType': 2,
+                        'triggerPrice': tp_price, 'triggerType': 1, 'trend': 1 if side == 'LONG' else 2,
+                        'orderType': 1, 'price': tp_price, 'executeCycle': 1, 'vol': qty
+                    })
+                except Exception:
+                    pass
+
             elif self.name == "BingX":
                 sym_bx = f"{coin}-USDT"
                 self.exchange.swapV2PrivatePostTradeOrder({
@@ -291,6 +327,19 @@ class ExchangeWorker:
                     'type': 'MARKET',
                     'quantity': float(qty)
                 })
+                # Native on-exchange stop orders SL & TP (Bursa BingX Native Bracket)
+                try:
+                    time.sleep(0.3)
+                    self.exchange.swapV2PrivatePostTradeOrder({
+                        'symbol': sym_bx, 'side': 'SELL' if side == 'LONG' else 'BUY', 'positionSide': side,
+                        'type': 'STOP_MARKET', 'stopPrice': sl_price, 'quantity': float(qty)
+                    })
+                    self.exchange.swapV2PrivatePostTradeOrder({
+                        'symbol': sym_bx, 'side': 'SELL' if side == 'LONG' else 'BUY', 'positionSide': side,
+                        'type': 'TAKE_PROFIT_MARKET', 'stopPrice': tp_price, 'quantity': float(qty)
+                    })
+                except Exception:
+                    pass
 
             self.active_positions[symbol] = {
                 'side': side, 'margin': margin, 'entry': cur_price,
