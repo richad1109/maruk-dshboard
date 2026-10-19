@@ -307,13 +307,13 @@ class ExchangeWorker:
                     time.sleep(0.3)
                     self.exchange.contractPrivatePostPlanorderPlace({
                         'symbol': sym_mx, 'side': 4 if side == 'LONG' else 2, 'openType': 2,
-                        'triggerPrice': sl_price, 'triggerType': 1, 'trend': 2 if side == 'LONG' else 1,
-                        'orderType': 1, 'price': sl_price, 'executeCycle': 1, 'vol': qty
+                        'triggerPrice': sl_price, 'triggerType': 2 if side == 'LONG' else 1, 'trend': 1,
+                        'orderType': 5, 'executeCycle': 1, 'vol': qty
                     })
                     self.exchange.contractPrivatePostPlanorderPlace({
                         'symbol': sym_mx, 'side': 4 if side == 'LONG' else 2, 'openType': 2,
-                        'triggerPrice': tp_price, 'triggerType': 1, 'trend': 1 if side == 'LONG' else 2,
-                        'orderType': 1, 'price': tp_price, 'executeCycle': 1, 'vol': qty
+                        'triggerPrice': tp_price, 'triggerType': 1 if side == 'LONG' else 2, 'trend': 1,
+                        'orderType': 5, 'executeCycle': 1, 'vol': qty
                     })
                 except Exception:
                     pass
