@@ -2,80 +2,7 @@
   "akun_1": {
     "total_bal": 57.87,
     "total_pnl": 4.23,
-    "pos_list": [
-      {
-        "exchange": "Bitget",
-        "symbol": "BTC/USDT",
-        "side": "SHORT",
-        "entry": 83325.0,
-        "mark": 82209.1,
-        "margin": 1.761623571429,
-        "notional": 49.32546,
-        "pnl": 0.66954,
-        "roe": 38.006984628213175,
-        "leverage": 28
-      },
-      {
-        "exchange": "BingX",
-        "symbol": "ETH/USDT",
-        "side": "SHORT",
-        "entry": 2585.24,
-        "mark": 2453.57,
-        "margin": 0.9233,
-        "notional": 24.53,
-        "pnl": 1.3168,
-        "roe": 142.6188671071158,
-        "leverage": 28
-      },
-      {
-        "exchange": "BingX",
-        "symbol": "BTC/USDT",
-        "side": "SHORT",
-        "entry": 83302.4,
-        "mark": 82206.0,
-        "margin": 1.7851,
-        "notional": 49.32,
-        "pnl": 0.6578,
-        "roe": 36.84947621981962,
-        "leverage": 28
-      },
-      {
-        "exchange": "BingX",
-        "symbol": "SOL/USDT",
-        "side": "SHORT",
-        "entry": 107.893,
-        "mark": 106.232,
-        "margin": 0.971,
-        "notional": 28.68,
-        "pnl": 0.4484,
-        "roe": 46.17919670442843,
-        "leverage": 30
-      },
-      {
-        "exchange": "BingX",
-        "symbol": "XLM/USDT",
-        "side": "LONG",
-        "entry": 0.18203,
-        "mark": 0.18324,
-        "margin": 0.2275,
-        "notional": 4.58,
-        "pnl": 0.0303,
-        "roe": 13.31868131868132,
-        "leverage": 20
-      },
-      {
-        "exchange": "MEXC",
-        "symbol": "BTC/USDT",
-        "side": "SHORT",
-        "entry": 83310.2,
-        "mark": 82206.0,
-        "margin": 3.0300686865164552,
-        "notional": 83.3102,
-        "pnl": 1.10619,
-        "roe": 36.50709321945242,
-        "leverage": 28
-      }
-    ],
+    "pos_list": [],
     "ex_details": {
       "Bitget": {
         "total": 19.01,
@@ -108,56 +35,7 @@
   "akun_2": {
     "total_bal": 34.42,
     "total_pnl": 1.76,
-    "pos_list": [
-      {
-        "exchange": "Bitget",
-        "symbol": "BTC/USDT",
-        "side": "SHORT",
-        "entry": 83114.5,
-        "mark": 82209.1,
-        "margin": 0.850438965518,
-        "notional": 24.66273,
-        "pnl": 0.27162,
-        "roe": 31.938799962506064,
-        "leverage": 29
-      },
-      {
-        "exchange": "BingX",
-        "symbol": "BTC/USDT",
-        "side": "SHORT",
-        "entry": 83110.0,
-        "mark": 82205.9,
-        "margin": 0.8311,
-        "notional": 16.44,
-        "pnl": 0.1808,
-        "roe": 21.754301528095297,
-        "leverage": 20
-      },
-      {
-        "exchange": "MEXC",
-        "symbol": "BTC/USDT",
-        "side": "SHORT",
-        "entry": 83035.6,
-        "mark": 82205.9,
-        "margin": 0.869196975550308,
-        "notional": 24.910680000000003,
-        "pnl": 0.2496,
-        "roe": 28.71616066565035,
-        "leverage": 29
-      },
-      {
-        "exchange": "MEXC",
-        "symbol": "ADA/USDT",
-        "side": "SHORT",
-        "entry": 0.2427,
-        "mark": 0.2307,
-        "margin": 0.7803992592532224,
-        "notional": 21.3576,
-        "pnl": 1.056,
-        "roe": 135.31535140237122,
-        "leverage": 28
-      }
-    ],
+    "pos_list": [],
     "ex_details": {
       "Bitget": {
         "total": 12.2,
@@ -190,32 +68,7 @@
   "akun_3": {
     "total_bal": 23.36,
     "total_pnl": 0.64,
-    "pos_list": [
-      {
-        "exchange": "Bitget",
-        "symbol": "BTC/USDT",
-        "side": "SHORT",
-        "entry": 83133.0,
-        "mark": 82209.1,
-        "margin": 1.13391862069,
-        "notional": 32.88364000000001,
-        "pnl": 0.36956,
-        "roe": 32.591404114619735,
-        "leverage": 29
-      },
-      {
-        "exchange": "BingX",
-        "symbol": "BTC/USDT",
-        "side": "SHORT",
-        "entry": 83094.0,
-        "mark": 82206.0,
-        "margin": 0.8596,
-        "notional": 24.66,
-        "pnl": 0.2664,
-        "roe": 30.9911586784551,
-        "leverage": 29
-      }
-    ],
+    "pos_list": [],
     "ex_details": {
       "Bitget": {
         "total": 12.3,
