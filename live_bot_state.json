@@ -1,35 +1,71 @@
 {
   "akun_1": {
-    "total_bal": 54.9,
-    "total_pnl": 0.03,
+    "total_bal": 54.36,
+    "total_pnl": -0.34,
     "pos_list": [
+      {
+        "exchange": "Bitget",
+        "symbol": "XRP/USDT",
+        "side": "LONG",
+        "entry": 1.316823880598,
+        "mark": 1.3147,
+        "margin": 3.145889285715,
+        "notional": 88.0849,
+        "pnl": -0.142300000066,
+        "roe": -4.523363257320034,
+        "leverage": 28
+      },
       {
         "exchange": "BingX",
         "symbol": "TIA/USDT",
         "side": "LONG",
         "entry": 0.6091,
-        "mark": 0.6119,
+        "mark": 0.6144,
         "margin": 0.3367,
-        "notional": 6.76,
-        "pnl": 0.0309,
-        "roe": 9.177309177309176,
+        "notional": 6.79,
+        "pnl": 0.0589,
+        "roe": 17.49331749331749,
         "leverage": 20
+      },
+      {
+        "exchange": "BingX",
+        "symbol": "XRP/USDT",
+        "side": "LONG",
+        "entry": 1.3166,
+        "mark": 1.3145,
+        "margin": 2.3452,
+        "notional": 74.92,
+        "pnl": -0.1217,
+        "roe": -5.189322872249702,
+        "leverage": 32
+      },
+      {
+        "exchange": "MEXC",
+        "symbol": "XRP/USDT",
+        "side": "LONG",
+        "entry": 1.3164,
+        "mark": 1.3145,
+        "margin": 3.220727461688,
+        "notional": 88.1988,
+        "pnl": -0.13979999999999998,
+        "roe": -4.340634271697428,
+        "leverage": 28
       }
     ],
     "ex_details": {
       "Bitget": {
-        "total": 17.76,
-        "free": 17.76,
+        "total": 17.56,
+        "free": 17.71,
         "status": "ONLINE"
       },
       "MEXC": {
-        "total": 25.2,
-        "free": 25.2,
+        "total": 24.99,
+        "free": 21.91,
         "status": "ONLINE"
       },
       "BingX": {
-        "total": 11.94,
-        "free": 11.11,
+        "total": 11.8,
+        "free": 8.73,
         "status": "ONLINE"
       },
       "Bybit": {
@@ -43,26 +79,63 @@
         "status": "ONLINE"
       }
     },
-    "updated_at": "2026-10-19 14:28:32"
+    "updated_at": "2026-10-19 14:47:37"
   },
   "akun_2": {
-    "total_bal": 33.12,
-    "total_pnl": 0.0,
-    "pos_list": [],
+    "total_bal": 32.71,
+    "total_pnl": -0.27,
+    "pos_list": [
+      {
+        "exchange": "Bitget",
+        "symbol": "XRP/USDT",
+        "side": "LONG",
+        "entry": 1.31617254902,
+        "mark": 1.3148,
+        "margin": 2.394814285715,
+        "notional": 67.0548,
+        "pnl": -0.07000000002,
+        "roe": -2.922982397321915,
+        "leverage": 28
+      },
+      {
+        "exchange": "BingX",
+        "symbol": "XRP/USDT",
+        "side": "LONG",
+        "entry": 1.3164,
+        "mark": 1.3144,
+        "margin": 2.9621,
+        "notional": 82.8,
+        "pnl": -0.1293,
+        "roe": -4.365146348874109,
+        "leverage": 28
+      },
+      {
+        "exchange": "MEXC",
+        "symbol": "XRP/USDT",
+        "side": "LONG",
+        "entry": 1.3157,
+        "mark": 1.3144,
+        "margin": 2.45030901654,
+        "notional": 67.1007,
+        "pnl": -0.07109999999999997,
+        "roe": -2.9016748304015105,
+        "leverage": 28
+      }
+    ],
     "ex_details": {
       "Bitget": {
-        "total": 11.18,
-        "free": 11.18,
+        "total": 11.06,
+        "free": 11.13,
         "status": "ONLINE"
       },
       "MEXC": {
-        "total": 11.91,
-        "free": 11.91,
+        "total": 11.78,
+        "free": 9.4,
         "status": "ONLINE"
       },
       "BingX": {
-        "total": 10.04,
-        "free": 10.04,
+        "total": 9.86,
+        "free": 7.03,
         "status": "ONLINE"
       },
       "Bybit": {
@@ -76,16 +149,41 @@
         "status": "STANDBY"
       }
     },
-    "updated_at": "2026-10-19 14:28:33"
+    "updated_at": "2026-10-19 14:47:42"
   },
   "akun_3": {
-    "total_bal": 21.32,
-    "total_pnl": 0.0,
-    "pos_list": [],
+    "total_bal": 20.95,
+    "total_pnl": -0.26,
+    "pos_list": [
+      {
+        "exchange": "Bitget",
+        "symbol": "XRP/USDT",
+        "side": "LONG",
+        "entry": 1.316552054795,
+        "mark": 1.3148,
+        "margin": 3.427871428572,
+        "notional": 95.9804,
+        "pnl": -0.127900000035,
+        "roe": -3.7311784499537435,
+        "leverage": 28
+      },
+      {
+        "exchange": "BingX",
+        "symbol": "XRP/USDT",
+        "side": "LONG",
+        "entry": 1.3164,
+        "mark": 1.3145,
+        "margin": 2.9621,
+        "notional": 82.81,
+        "pnl": -0.128,
+        "roe": -4.32125856655751,
+        "leverage": 28
+      }
+    ],
     "ex_details": {
       "Bitget": {
-        "total": 11.21,
-        "free": 11.21,
+        "total": 11.03,
+        "free": 11.15,
         "status": "ONLINE"
       },
       "MEXC": {
@@ -94,8 +192,8 @@
         "status": "STANDBY"
       },
       "BingX": {
-        "total": 10.11,
-        "free": 10.11,
+        "total": 9.93,
+        "free": 7.1,
         "status": "ONLINE"
       },
       "Bybit": {
@@ -109,6 +207,6 @@
         "status": "STANDBY"
       }
     },
-    "updated_at": "2026-10-19 14:28:34"
+    "updated_at": "2026-10-19 14:47:43"
   }
 }
