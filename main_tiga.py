@@ -250,13 +250,22 @@ class ExchangeWorker:
 
             notional = margin * LEVERAGE
             raw_qty = notional / cur_price
-            qty = max(1, int(raw_qty)) if "BTC" not in symbol else round(raw_qty, 4)
+            coin = symbol.split('/')[0]
+
+            # Presisi Kuantitas Koin Nyata (Fix audit Astra)
+            if coin == "BTC":
+                qty = max(0.0001, round(raw_qty, 4))
+            elif coin == "ETH":
+                qty = max(0.01, round(raw_qty, 2))
+            elif coin in ["AVAX", "LINK"]:
+                qty = max(0.1, round(raw_qty, 1))
+            else: # XRP, ADA
+                qty = max(1, int(raw_qty))
 
             tp_price = round(cur_price * (1.0 + TP_PCT), 4) if side == "LONG" else round(cur_price * (1.0 - TP_PCT), 4)
             sl_price = round(cur_price * (1.0 - SL_PCT), 4) if side == "LONG" else round(cur_price * (1.0 + SL_PCT), 4)
 
-            coin = symbol.split('/')[0]
-            logger.info(f"[{self.tag}] 🎯 TERKAM {side} {coin} | Margin: ${margin:.2f} | Px: ${cur_price:.4f} | TP: ${tp_price} | SL: ${sl_price}")
+            logger.info(f"[{self.tag}] 🎯 TERKAM {side} {coin} | Margin: ${margin:.2f} (Qty: {qty}) | Px: ${cur_price:.4f} | TP: ${tp_price} | SL: ${sl_price}")
 
             if self.name == "Bitget":
                 sym_bg = f"{coin}USDT"
@@ -289,16 +298,22 @@ class ExchangeWorker:
                         'side': 'sell' if side == 'LONG' else 'buy', 'tradeSide': 'close',
                         'marginMode': 'crossed', 'marginCoin': 'USDT'
                     })
-                except Exception:
-                    pass
+                except Exception as e_sl:
+                    logger.warning(f"[{self.tag}] Info bracket plan order Bitget: {e_sl}")
 
             elif self.name == "MEXC":
                 sym_mx = f"{coin}_USDT"
+                # Hitung Volume Sheet MEXC sesuai Contract Size
+                if coin == "BTC": mx_vol = max(1, int(round(raw_qty / 0.0001)))
+                elif coin == "ETH": mx_vol = max(1, int(round(raw_qty / 0.01)))
+                elif coin in ["AVAX", "LINK"]: mx_vol = max(1, int(round(raw_qty / 0.1)))
+                else: mx_vol = max(1, int(round(raw_qty)))
+
                 self.exchange.contractPrivatePostOrderSubmit({
                     'symbol': sym_mx,
                     'side': 1 if side == 'LONG' else 3,
                     'type': 5,
-                    'vol': qty,
+                    'vol': mx_vol,
                     'openType': 2,
                     'leverage': LEVERAGE
                 })
@@ -308,15 +323,15 @@ class ExchangeWorker:
                     self.exchange.contractPrivatePostPlanorderPlace({
                         'symbol': sym_mx, 'side': 4 if side == 'LONG' else 2, 'openType': 2,
                         'triggerPrice': sl_price, 'triggerType': 2 if side == 'LONG' else 1, 'trend': 1,
-                        'orderType': 5, 'executeCycle': 1, 'vol': qty
+                        'orderType': 5, 'executeCycle': 1, 'vol': mx_vol
                     })
                     self.exchange.contractPrivatePostPlanorderPlace({
                         'symbol': sym_mx, 'side': 4 if side == 'LONG' else 2, 'openType': 2,
                         'triggerPrice': tp_price, 'triggerType': 1 if side == 'LONG' else 2, 'trend': 1,
-                        'orderType': 5, 'executeCycle': 1, 'vol': qty
+                        'orderType': 5, 'executeCycle': 1, 'vol': mx_vol
                     })
-                except Exception:
-                    pass
+                except Exception as e_sl:
+                    logger.warning(f"[{self.tag}] Info bracket plan order MEXC: {e_sl}")
 
             elif self.name == "BingX":
                 sym_bx = f"{coin}-USDT"
@@ -338,8 +353,8 @@ class ExchangeWorker:
                         'symbol': sym_bx, 'side': 'SELL' if side == 'LONG' else 'BUY', 'positionSide': side,
                         'type': 'TAKE_PROFIT_MARKET', 'stopPrice': tp_price, 'quantity': float(qty)
                     })
-                except Exception:
-                    pass
+                except Exception as e_sl:
+                    logger.warning(f"[{self.tag}] Info bracket order BingX: {e_sl}")
 
             self.active_positions[symbol] = {
                 'side': side, 'margin': margin, 'entry': cur_price,
@@ -572,10 +587,13 @@ class MultiAccountMaster:
                             sig = self.check_signals(symbol, kl)
                             if sig:
                                 cur_p = float(kl[-1][4])
-                                # Cari worker yang punya slot kosong (< 2 posisi)
+                                cur_coin = symbol.split('/')[0].split(':')[0].upper()
+                                # Cari worker yang punya slot kosong (< MAX_POSITIONS_PER_EXCHANGE)
                                 for w in active_workers:
-                                    if len(w.get_active_positions()) < MAX_POSITIONS_PER_EXCHANGE:
-                                        if symbol not in [p['symbol'] for p in w.get_active_positions()]:
+                                    w_positions = w.get_active_positions()
+                                    if len(w_positions) < MAX_POSITIONS_PER_EXCHANGE:
+                                        w_coins = [p['symbol'].split('/')[0].split(':')[0].upper() for p in w_positions]
+                                        if cur_coin not in w_coins:
                                             await asyncio.to_thread(w.open_order, symbol, sig['side'], cur_p, sig['mom'], sig['ker'], sig['atr24'])
                         except Exception as e:
                             logger.debug(f"Scan error {symbol}: {e}")
