@@ -344,7 +344,7 @@ def get_all_accounts_live_v6():
                 tot_pnl = calc_pnl
                 tot_bal = max(0.0, wallet_bal + tot_pnl)
             else:
-                tot_pnl = orig_pnl
+                tot_pnl = 0.0
                 
             results[acc_id] = (round(tot_bal, 2), round(tot_pnl, 2), pos_list, ex_details)
         return live_prices, results
@@ -576,9 +576,21 @@ if main_nav == "📊 Portofolio Live & Trading Engine (3 Akun)":
         ex_details = {k: {'total': round(ex1.get(k,{}).get('total',0)+ex2.get(k,{}).get('total',0)+ex3.get(k,{}).get('total',0), 2), 'free': 0.0, 'status': 'ONLINE'} for k in ["Bitget","MEXC","BingX","Bybit","Gate.io"]}
 
     # 4 KARTU UTAMA
-    pnl_color = "#34d399" if tot_pnl >= 0 else "#f87171"
-    pnl_sign = "+$" if tot_pnl >= 0 else "-$"
-    roe_total = (tot_pnl / tot_bal * 100) if tot_bal > 0 else 0.0
+    if not pos_list or tot_pnl == 0:
+        pnl_color = "#94a3b8"
+        pnl_sign = "$"
+        tot_pnl = 0.0
+        roe_sub_str = "0.0% ROE (Bersih)"
+    elif tot_pnl > 0:
+        pnl_color = "#34d399"
+        pnl_sign = "+$"
+        roe_total = (tot_pnl / tot_bal * 100) if tot_bal > 0 else 0.0
+        roe_sub_str = f"+{roe_total:.1f}% ROE"
+    else:
+        pnl_color = "#f87171"
+        pnl_sign = "-$"
+        roe_total = (tot_pnl / tot_bal * 100) if tot_bal > 0 else 0.0
+        roe_sub_str = f"{roe_total:.1f}% ROE"
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -592,7 +604,7 @@ if main_nav == "📊 Portofolio Live & Trading Engine (3 Akun)":
         st.markdown(f"""<div class="metric-card" style="border-color: {pnl_color}55;">
 <div class="metric-title">Floating PnL Live</div>
 <div class="metric-val" style="color: {pnl_color};">{pnl_sign}{abs(tot_pnl):.2f}</div>
-<div class="metric-sub" style="color: {pnl_color};">{'+' if tot_pnl >= 0 else ''}{roe_total:.1f}% ROE</div>
+<div class="metric-sub" style="color: {pnl_color};">{roe_sub_str}</div>
 </div>""", unsafe_allow_html=True)
 
     with c3:
