@@ -472,10 +472,10 @@ class MultiAccountMaster:
 
         if self.btc_trend == "BULLISH":
             if self.flash_dump_until > now: return None
-            if cur_p > donch_h32 and mom12 >= 0.025 and mom4 >= 0.005 and ker16 >= 0.20:
+            if cur_p > donch_h32 and mom12 >= 0.028 and mom4 >= 0.005 and ker16 >= 0.20:
                 return {"side": "LONG", "mom": mom12, "ker": ker16, "atr24": atr24}
         elif self.btc_trend == "BEARISH":
-            if cur_p < donch_l32 and mom12 <= -0.025 and mom4 <= -0.005 and ker16 >= 0.20:
+            if cur_p < donch_l32 and mom12 <= -0.028 and mom4 <= -0.005 and ker16 >= 0.20:
                 return {"side": "SHORT", "mom": mom12, "ker": ker16, "atr24": atr24}
         return None
 

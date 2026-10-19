@@ -8,6 +8,42 @@ import streamlit as st
 import requests
 import ccxt
 
+# ==================== CLOUDFLARE DoH DNS FALLBACK ====================
+_orig_getaddrinfo = socket.getaddrinfo
+_dns_cache = {}
+
+def doh_resolve(host: str):
+    if host in _dns_cache:
+        return _dns_cache[host]
+    for url in ['https://dns.google/resolve', 'https://1.1.1.1/dns-query']:
+        try:
+            r = requests.get(url, params={'name': host, 'type': 'A'}, headers={'accept': 'application/dns-json'}, timeout=2.0)
+            data = r.json()
+            ips = [ans.get('data') for ans in data.get('Answer', []) if ans.get('type') == 1]
+            if ips:
+                _dns_cache[host] = ips
+                return ips
+        except Exception:
+            pass
+    return []
+
+def custom_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    targets = ['bybit', 'bytick', 'gateio', 'gate.io', 'bingx', 'bitget', 'mexc']
+    if any(t in host.lower() for t in targets):
+        ips = doh_resolve(host)
+        if ips:
+            res = []
+            for ip in ips:
+                try:
+                    res.extend(_orig_getaddrinfo(ip, port, family, type, proto, flags))
+                except Exception:
+                    pass
+            if res:
+                return res
+    return _orig_getaddrinfo(host, port, family, type, proto, flags)
+
+socket.getaddrinfo = custom_getaddrinfo
+
 # ========================================================
 # STREAMLIT PAGE CONFIG & ULTRA CLEAN STYLING
 # ========================================================
