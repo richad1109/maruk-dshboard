@@ -70,12 +70,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger("BotMarukTermux")
 
-# ==================== PARAMETER STRATEGI (MODE 2 HYPER COMPOUNDING ULTRA APEX) ====================
+# ==================== PARAMETER STRATEGI (DUAL-ENGINE ASYMMETRIC APEX) ====================
 TIMEFRAME = "1h"
-LEVERAGE = 28
-TP_PCT = 0.082          # TP +8.2% (ROE +229.6% di 28x)
-SL_PCT = 0.023          # SL -2.3% (ROE -64.4% di 28x)
-MAX_POSITIONS_PER_EXCHANGE = 2
+LEVERAGE = 20
+TP_PCT = 0.082          # Default fallback TP
+SL_PCT = 0.023          # Default fallback SL
+MAX_POSITIONS_PER_EXCHANGE = 1  # 1 Slot per bursa: memangkas fee churn hingga -60% & cadangan margin tebal
 SCAN_INTERVAL_SECONDS = 12
 KURS_IDR = 17000.0
 
@@ -97,6 +97,21 @@ def calc_ema(values: List[float], period: int) -> float:
     for price in values[period:]:
         ema = (price * k) + (ema * (1.0 - k))
     return ema
+
+def calc_rsi(closes: List[float], period: int = 14) -> float:
+    if len(closes) < period + 1:
+        return 50.0
+    gains, losses = [], []
+    for i in range(len(closes) - period, len(closes)):
+        chg = closes[i] - closes[i - 1]
+        gains.append(max(0.0, chg))
+        losses.append(max(0.0, -chg))
+    avg_gain = sum(gains) / float(period)
+    avg_loss = sum(losses) / float(period)
+    if avg_loss == 0:
+        return 100.0
+    rs = avg_gain / avg_loss
+    return 100.0 - (100.0 / (1.0 + rs))
 
 # ==================== WORKER PER BURSA ====================
 class ExchangeWorker:
@@ -211,12 +226,13 @@ class ExchangeWorker:
 
     def calc_margin(self, cur_price: float, mom12: float, ker_val: float, atr24: float) -> float:
         b = self.balance
-        # EXACT MODE 2 APEX COMPOUNDING TIERS
-        if b < 10.0: calc = max(0.60, round(b * 0.10, 2))
-        elif b < 30.0: calc = max(1.00, round(b * 0.14, 2))
-        elif b < 150.0: calc = max(1.50, round(b * 0.16, 2))
-        elif b < 450.0: calc = max(2.00, min(b * 0.19, 1000.0))
-        else: calc = max(2.00, min(b * 0.15, 1000.0))
+        # DUAL-ENGINE APEX COMPOUNDING TIERS (Otomatis menyesuaikan modal dari $10 s.d $50,000+)
+        if b < 15.0: calc = max(0.80, round(b * 0.15, 2))
+        elif b < 50.0: calc = max(1.50, round(b * 0.18, 2))
+        elif b < 250.0: calc = max(3.00, round(b * 0.20, 2))
+        elif b < 1000.0: calc = max(10.0, min(b * 0.22, 250.0))
+        elif b < 5000.0: calc = max(50.0, min(b * 0.20, 1000.0))
+        else: calc = max(100.0, min(b * 0.18, 2500.0))
 
         # 0. Drawdown Shield 20%
         if self.peak_balance > 0 and b > 0:
@@ -236,12 +252,12 @@ class ExchangeWorker:
 
         # 3. Hot-Hand Streak Booster
         if self.consecutive_wins >= 2 and self.consecutive_losses == 0: calc *= 1.15
-        if self.consecutive_losses >= 2: calc = max(0.60, calc * 0.30)
+        if self.consecutive_losses >= 2: calc = max(0.80, calc * 0.35)
 
-        max_allowed = (b * 0.45) / 2.0
-        return round(max(min(calc, max_allowed), 0.60), 2)
+        max_allowed = b * 0.40
+        return round(max(min(calc, max_allowed), 0.80), 2)
 
-    def open_order(self, symbol: str, side: str, cur_price: float, mom12: float, ker_val: float, atr24: float):
+    def open_order(self, symbol: str, side: str, cur_price: float, mom12: float, ker_val: float, atr24: float, tp_pct: float = 0.082, sl_pct: float = 0.023, strategy_label: str = "NORMAL"):
         if self.is_standby or not self.exchange: return
         try:
             margin = self.calc_margin(cur_price, mom12, ker_val, atr24)
@@ -262,10 +278,10 @@ class ExchangeWorker:
             else: # XRP, ADA
                 qty = max(1, int(raw_qty))
 
-            tp_price = round(cur_price * (1.0 + TP_PCT), 4) if side == "LONG" else round(cur_price * (1.0 - TP_PCT), 4)
-            sl_price = round(cur_price * (1.0 - SL_PCT), 4) if side == "LONG" else round(cur_price * (1.0 + SL_PCT), 4)
+            tp_price = round(cur_price * (1.0 + tp_pct), 4) if side == "LONG" else round(cur_price * (1.0 - tp_pct), 4)
+            sl_price = round(cur_price * (1.0 - sl_pct), 4) if side == "LONG" else round(cur_price * (1.0 + sl_pct), 4)
 
-            logger.info(f"[{self.tag}] 🎯 TERKAM {side} {coin} | Margin: ${margin:.2f} (Qty: {qty}) | Px: ${cur_price:.4f} | TP: ${tp_price} | SL: ${sl_price}")
+            logger.info(f"[{self.tag}] 🎯 TERKAM [{strategy_label}] {side} {coin} | Margin: ${margin:.2f} (Qty: {qty}) | Px: ${cur_price:.4f} | TP: ${tp_price} | SL: ${sl_price}")
 
             if self.name == "Bitget":
                 sym_bg = f"{coin}USDT"
@@ -485,14 +501,28 @@ class MultiAccountMaster:
             atrs.append(max(h - l, abs(h - cp), abs(l - cp)))
         atr24 = sum(atrs) / len(atrs) if atrs else 0.0
 
-        if self.btc_trend == "BULLISH":
-            if self.flash_dump_until > now: return None
-            if cur_p > donch_h32 and mom12 >= 0.028 and mom4 >= 0.005 and ker16 >= 0.20:
-                return {"side": "LONG", "mom": mom12, "ker": ker16, "atr24": atr24}
-        elif self.btc_trend == "BEARISH":
-            if cur_p < donch_l32 and mom12 <= -0.028 and mom4 <= -0.005 and ker16 >= 0.20:
-                return {"side": "SHORT", "mom": mom12, "ker": ker16, "atr24": atr24}
-        return None
+        coin = symbol.split('/')[0].split(':')[0].upper()
+        if coin in ["BTC", "ETH"]:
+            # DUAL-ENGINE 1: Institutional Dip-Buyer Sniper (BTC & ETH)
+            rsi14 = calc_rsi(closes, 14)
+            if self.btc_trend == "BULLISH":
+                if self.flash_dump_until > now: return None
+                if rsi14 <= 30.0:
+                    return {"side": "LONG", "mom": mom12, "ker": ker16, "atr24": atr24, "tp_pct": 0.055, "sl_pct": 0.020, "strategy": "BTC_DIP_SNIPER"}
+            elif self.btc_trend == "BEARISH":
+                if rsi14 >= 70.0:
+                    return {"side": "SHORT", "mom": mom12, "ker": ker16, "atr24": atr24, "tp_pct": 0.055, "sl_pct": 0.020, "strategy": "BTC_DIP_SNIPER"}
+            return None
+        else:
+            # DUAL-ENGINE 2: Momentum Trend-Surfer (XRP, ADA, AVAX, LINK)
+            if self.btc_trend == "BULLISH":
+                if self.flash_dump_until > now: return None
+                if cur_p > donch_h32 and mom12 >= 0.028 and mom4 >= 0.005 and ker16 >= 0.20:
+                    return {"side": "LONG", "mom": mom12, "ker": ker16, "atr24": atr24, "tp_pct": 0.140, "sl_pct": 0.028, "strategy": "TREND_SURFER"}
+            elif self.btc_trend == "BEARISH":
+                if cur_p < donch_l32 and mom12 <= -0.028 and mom4 <= -0.005 and ker16 >= 0.20:
+                    return {"side": "SHORT", "mom": mom12, "ker": ker16, "atr24": atr24, "tp_pct": 0.140, "sl_pct": 0.028, "strategy": "TREND_SURFER"}
+            return None
 
     def export_and_sync_web(self):
         """Export live state ke live_bot_state.json untuk dashboard Streamlit"""
@@ -594,7 +624,10 @@ class MultiAccountMaster:
                                     if len(w_positions) < MAX_POSITIONS_PER_EXCHANGE:
                                         w_coins = [p['symbol'].split('/')[0].split(':')[0].upper() for p in w_positions]
                                         if cur_coin not in w_coins:
-                                            await asyncio.to_thread(w.open_order, symbol, sig['side'], cur_p, sig['mom'], sig['ker'], sig['atr24'])
+                                            await asyncio.to_thread(
+                                                w.open_order, symbol, sig['side'], cur_p, sig['mom'], sig['ker'], sig['atr24'],
+                                                sig.get('tp_pct', TP_PCT), sig.get('sl_pct', SL_PCT), sig.get('strategy', 'NORMAL')
+                                            )
                         except Exception as e:
                             logger.debug(f"Scan error {symbol}: {e}")
 
