@@ -15,6 +15,7 @@ import requests
 import streamlit as st
 import maruk_data as data
 import sakti_monitor
+import btc_research
 
 ROOT=Path(__file__).resolve().parent
 WIB=timezone(timedelta(hours=7))
@@ -24,6 +25,8 @@ PAGE={"Ringkasan":("Semua akun. Satu pandangan.","Pantau portofolio, pergerakan 
       "Bot Sakti":("Satu sistem. Setiap langkah terpantau.","Jurnal, peringatan proteksi, dan parameter Health25–20×."),
       "Kantor 3D":("Welcome to your trading floor.","Tiga meja. Delapan wallet. Satu ruang untuk melihat semuanya."),
       "Studio Animasi":("Tiga suasana. Pilih kantormu.","Bandingkan tiga konsep bergerak sebelum memilih tampilan utama."),
+      "Analisis BTC":("Baca kondisi. Siapkan skenario.","Tren, momentum, sentimen, dan level konfirmasi dari data pasar publik."),
+      "Riset Quantum":("Riset di balik istilahnya.","Apa yang diteliti, apa yang tersedia, dan batas penggunaannya dalam trading."),
       "Market Intel":("Konteks sebelum keputusan.","Pergerakan pasar dan asisten untuk membaca konteks makro.")}
 
 
@@ -286,6 +289,69 @@ def intel_page(info,base,settings):
             st.caption("Jawaban tidak mengeksekusi trade dan tidak memiliki akses data makro terbaru secara otomatis.")
 
 
+@st.cache_data(ttl=60,show_spinner=False)
+def btc_context():return btc_research.fetch()
+
+
+def btc_desk():
+    if st.button('↻ Perbarui analisis BTC'):btc_context.clear()
+    @st.fragment(run_every=60)
+    def panel():
+        with st.spinner('Mengambil candle BTC dan indeks sentimen…'):result=btc_context()
+        tech=result['technical'];sentiment=result['sentiment']
+        if tech:
+            html(f'<div class="concept-card"><span>BTC / USDT · SKENARIO 4–24 JAM · ATURAN TEKNIKAL</span><h2>{escape(tech["bias"])}</h2><p>EMA20/100 dan posisi terhadap EMA50 pada 4H, dikonfirmasi RSI 1H. Ini pembacaan kondisi, bukan probabilitas atau kepastian harga mendatang.</p></div>')
+            cols=st.columns(4)
+            with cols[0]:kpi('Close BTC 1H',price(tech['close']),'Candle tertutup · BingX','chart')
+            with cols[1]:kpi('Momentum RSI14 · 1H',f"{tech['rsi']:.1f}",'0–100 · Wilder smoothing','activity')
+            with cols[2]:kpi('ATR14 · 1H',f"{tech['atr_pct']:.2f}%",'Volatilitas · bukan target harga','layers')
+            with cols[3]:kpi('Efisiensi arah · 4H',f"{tech['ker']:.2f}",'KER20 · lebih dekat 1: lebih terarah','scan')
+            st.caption('Sumber candle: BingX USDT perpetual. Close 1H: '+datetime.fromtimestamp(tech['closed_at'],WIB).strftime('%d %b %Y %H:%M WIB')+' · Close 4H: '+datetime.fromtimestamp(tech['four_closed_at'],WIB).strftime('%d %b %Y %H:%M WIB')+'. Hanya candle tertutup; agregasi 4H memakai batas UTC.')
+            if tech['ker']<.25:st.info('KER di bawah 0,25: pergerakan 4H kurang efisien dan rentan bolak-balik. Bias arah tetap perlu konfirmasi; jangan dibaca sebagai tren kuat.')
+            chart({'candles':tech['candles'],'tickers':[{'coin':'BTC','price':tech['close'],'change':tech['change24']}],'source':'BingX','fetched':result['fetched']},'BTC')
+            st.caption('Posisi close terakhir terhadap rentang sebelumnya: '+tech['range_break']+'. Retest tidak dikonfirmasi otomatis oleh panel ini.')
+            heading('Tiga skenario berikutnya','Konfirmasi pada close 1H; level diperbarui setiap pembacaan')
+            st.dataframe(pd.DataFrame([
+                {'Skenario':'Naik / breakout','Konfirmasi':f"Close 1H di atas {price(tech['resistance'])}, lalu retest bertahan",'Batal jika':f"Close kembali di bawah {price(tech['resistance'])}",'Cara membaca':'Breakout bisa palsu; jangan menyamakan sentuhan harga dengan konfirmasi.'},
+                {'Skenario':'Turun / breakdown','Konfirmasi':f"Close 1H di bawah {price(tech['support'])}, lalu retest gagal naik",'Batal jika':f"Close kembali di atas {price(tech['support'])}",'Cara membaca':'Perhatikan pantulan tajam dan perbedaan kondisi 1H/4H.'},
+                {'Skenario':'Sideways / tunggu','Konfirmasi':f"Harga tetap di {price(tech['support'])}–{price(tech['resistance'])}",'Batal jika':'Close keluar rentang dan retest bertahan','Cara membaca':'Rentang berasal dari high/low 24 candle sebelum candle terakhir.'}]),hide_index=True,width='stretch')
+            st.dataframe(pd.DataFrame([{'Indikator 4H':f'EMA{n}','Nilai':price(tech['ema'+str(n)])} for n in (20,50,100)]),hide_index=True,width='stretch')
+        else:st.warning('Analisis BTC belum tersedia: candle tidak berhasil dibaca, kurang lengkap, atau usang. Tidak mengisi arah dengan tebakan.')
+        heading('Fear & Greed','Indeks sentimen harian; bukan sinyal entry tunggal')
+        if sentiment:
+            latest=sentiment['latest']
+            gauge=go.Figure(go.Indicator(mode='gauge+number',value=latest['value'],title={'text':escape(latest['label'])},gauge={'axis':{'range':[0,100]},'bar':{'color':'#f0eddb'},'steps':[{'range':[0,25],'color':'#a64d59'},{'range':[25,45],'color':'#ba8459'},{'range':[45,55],'color':'#7d8490'},{'range':[55,75],'color':'#62876c'},{'range':[75,100],'color':'#4a8d75'}]}))
+            gauge.update_layout(height=250,margin=dict(l=25,r=25,t=45,b=5),paper_bgcolor='rgba(0,0,0,0)',font_color='#d9e1e9')
+            st.plotly_chart(gauge,width='stretch',config={'displayModeBar':False})
+            st.markdown('Sumber: [Alternative.me · Crypto Fear & Greed Index](https://alternative.me/crypto/fear-and-greed-index/). Tanggal indeks: **'+datetime.fromtimestamp(latest['time'],WIB).strftime('%d %b %Y %H:%M WIB')+'**. Indeks harian, bukan data setiap tick.')
+            if sentiment['stale']:st.warning('Indeks sentimen lebih dari 48 jam; jangan dianggap kondisi terkini.')
+            if tech and latest['value']>=55 and tech['bias']=='Condong turun':st.caption('Sentimen harian masih Greed, tetapi pembacaan harga condong turun. Horizon dan input keduanya berbeda; sentimen tidak mengalahkan konfirmasi harga.')
+            st.line_chart(pd.DataFrame([{'Tanggal':datetime.fromtimestamp(r['time'],WIB),'Indeks':r['value']} for r in sentiment['history']]).set_index('Tanggal'),height=160)
+        else:st.info('Sumber Fear & Greed belum berhasil dibaca. Tidak ada skor pengganti.')
+        heading('Meja strategi','Perbandingan pendekatan; belum dibacktest sebagai kombinasi baru')
+        st.dataframe(pd.DataFrame([
+            {'Pendekatan':'Trend following','Analogi':'Ikut arus sungai','Cocok ketika':'Arah 4H selaras dan tren cukup efisien','Kelemahan':'Whipsaw saat arah bolak-balik','Metode':'EMA / filter arah / trailing'},
+            {'Pendekatan':'Breakout + retest','Analogi':'Tunggu pintu terbuka, lalu cek pijakannya','Cocok ketika':'Harga keluar rentang dan mampu bertahan','Kelemahan':'False breakout; retest kadang tidak terjadi','Metode':'High/low historis + close + retest'},
+            {'Pendekatan':'Mean reversion','Analogi':'Karet yang meregang kembali ke tengah','Cocok ketika':'Pasar relatif mendatar; jangan melawan tren kuat','Kelemahan':'Ekstrem bisa bertahan lama','Metode':'Bollinger Bands / RSI sebagai konteks'}]),hide_index=True,width='stretch')
+        st.markdown('Metode: [EMA · Fidelity](https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/ema), [RSI · TradingView](https://www.tradingview.com/support/solutions/43000502338-relative-strength-index-rsi/), [Bollinger Bands · Fidelity](https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/bollinger-bands).')
+        st.caption('Panel deterministik dari harga historis, bukan keluaran AI atau komputer quantum. Belum memasukkan berita, agenda makro, funding, depth order book, atau biaya transaksi. Tidak mengubah Bot Sakti atau mengirim order. Arah belum dikalibrasi menjadi peluang menang; level tetap bisa ditembus.')
+    panel()
+
+
+def quantum_desk():
+    html('<div class="concept-card"><span>RESEARCH LIBRARY · SUMBER PRIMER</span><h2>Quantum punya peran yang spesifik.</h2><p>Optimasi portofolio, estimasi risiko, dan eksperimen model eksekusi adalah area riset yang berbeda dari meramalkan arah BTC.</p></div>')
+    st.dataframe(pd.DataFrame([
+        {'Area':'Optimasi portofolio','Yang dikerjakan':'Mencari alokasi aset di bawah batas return/risiko dan turnover','Contoh':'IBM / Global Data Quantum Portfolio Optimizer','Status di web ini':'Referensi riset; tidak ada job QPU dijalankan'},
+        {'Area':'Model eksekusi','Yang dikerjakan':'Mengestimasi peluang order obligasi terisi pada harga tertentu','Contoh':'Eksperimen hybrid HSBC–IBM','Status di web ini':'Tidak dipakai untuk prediksi harga BTC'},
+        {'Area':'Estimasi risiko','Yang dikerjakan':'Quantum amplitude estimation untuk VaR/CVaR dan valuasi','Contoh':'IBM Research · Quantum Risk Analysis','Status di web ini':'Referensi metode; bukan kalkulasi risiko quantum live'}]),hide_index=True,width='stretch')
+    st.markdown('**Optimasi:** [Dokumentasi IBM Quantum Portfolio Optimizer](https://quantum.cloud.ibm.com/docs/en/guides/global-data-quantum-optimizer) menjelaskan optimasi alokasi dinamis dan backtesting. Akses Qiskit Functions ini bersifat eksperimental dan terkait paket layanan tertentu.')
+    st.markdown('**Eksekusi:** [HSBC–IBM](https://www.hsbc.com/news-and-views/news/media-releases/2025/hsbc-demonstrates-worlds-first-known-quantum-enabled-algorithmic-trading-with-ibm) melaporkan peningkatan hingga 34% pada prediksi peluang order obligasi terisi dalam eksperimen mereka. Itu bukan tambahan profit 34% dan bukan akurasi arah BTC.')
+    st.markdown('**Risiko:** [IBM Research · Quantum Risk Analysis](https://research.ibm.com/publications/quantum-risk-analysis) meneliti amplitude estimation untuk ukuran risiko dan valuasi. [Paper algoritma optimasi portofolio](https://arxiv.org/abs/1811.03975) merupakan rujukan lain untuk mempelajari metode quantum dalam keuangan.')
+    st.info('Kantor Rakus saat ini memakai komputasi klasik. Tidak ada koneksi IBM Quantum, akun quantum, biaya komputasi, atau klaim quantum advantage pada bot ini.')
+    heading('Yang masih perlu diuji','Sebelum menghubungkan metode baru ke trading')
+    st.write('Bandingkan dengan baseline klasik, pisahkan periode pelatihan dan pengujian, hitung fee/funding/slippage, lalu uji kestabilan pada tanggal mulai lain. Studi obligasi tidak otomatis berlaku pada kripto.')
+
+
 def animation_studio():
     concepts=[('01 · Noir Exchange','noir','Hitam, kaca, dan cahaya emas.','Paling cocok untuk dashboard saat ini.','Rekomendasi'),
         ('02 · Orbit Control','control','Ruang kendali biru dengan orbit holografik.','Paling futuristis dan terasa seperti terminal quant.','Futuristis'),
@@ -311,6 +377,12 @@ def main():
     html(f'<div class="page-intro"><div><div class="eyebrow">KANTOR RAKUS / {escape(nav.upper())}</div><h1>{title}</h1><p>{description}</p></div><div class="page-count">03 ACCOUNTS<br><span style="color:#bac9d7;display:block;margin-top:6px">08 WALLETS / 03 EXCHANGES</span></div></div>')
     if nav=='Studio Animasi':
         animation_studio()
+        return
+    if nav=='Analisis BTC':
+        btc_desk()
+        return
+    if nav=='Riset Quantum':
+        quantum_desk()
         return
     controls=st.columns([1.3,1,1.2,.7])
     with controls[0]:account_label=st.selectbox("Tampilan akun",["Semua akun","Akun 1","Akun 2","Akun 3"],key="account_filter")

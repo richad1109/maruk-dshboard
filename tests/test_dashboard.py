@@ -80,6 +80,7 @@ class DataTests(unittest.TestCase):
 
 class AppTests(unittest.TestCase):
     def setUp(self):
+        p=patch('btc_research.fetch',return_value=dict(technical=None,sentiment=None,technical_error='test',sentiment_error='test',fetched=0));p.start();self.addCleanup(p.stop)
         p=patch.object(data,'credentials',return_value={});p.start();self.addCleanup(p.stop)
         p=patch.object(data,'market_data',return_value=dict(tickers=[],candles=[],source='BingX',fetched=None,error=None));p.start();self.addCleanup(p.stop)
     @classmethod
@@ -101,7 +102,7 @@ class AppTests(unittest.TestCase):
         app=self.app()
         self.assertEqual(len(app.exception),0)
         self.assertFalse(any("MODE PRATINJAU" in r.value for r in app.markdown))
-        for nav in ["Posisi & Bursa","Bot Sakti","Kantor 3D","Studio Animasi","Market Intel","Ringkasan"]:
+        for nav in ["Posisi & Bursa","Bot Sakti","Kantor 3D","Studio Animasi","Analisis BTC","Riset Quantum","Market Intel","Ringkasan"]:
             app.radio(key="navigation").set_value(nav).run()
             self.assertEqual(len(app.exception),0,nav)
 
