@@ -222,6 +222,9 @@ def strategy_page(snapshot):
         st.caption("Untuk sinkronisasi file di server, gunakan SAKTI_STATE_PATH. Tidak ada tombol close/cancel pada dashboard ini.")
     if runtime:
         metrics=sakti_monitor.metrics(runtime)
+        if runtime.get('failures'):
+            st.warning('Riwayat gangguan API / operasi bot dari jurnal. Status belum pasti tidak berarti order ditolak; periksa bursa sebelum mengulang.')
+            st.dataframe(pd.DataFrame(runtime['failures']).rename(columns={'time':'Waktu UTC (epoch ms)','status':'Status','wallet':'Wallet','symbol':'Koin','operation':'Operasi','error_type':'Jenis error','code':'Kode bursa'}),hide_index=True,width='stretch')
         phase={'c8':'Health25','cashout':'Menutup posisi bot untuk target','stopped':'Target stop · entry berhenti'}.get(runtime.get('phase'),'Fase belum dikenal')
         html('<div class="data-notice">JURNAL TERSINKRON · '+escape(phase)+' · status dari snapshot, bukan bukti proses HP sedang hidup.</div>')
         cols=st.columns(3)
