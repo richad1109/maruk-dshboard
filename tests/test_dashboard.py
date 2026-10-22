@@ -101,7 +101,7 @@ class AppTests(unittest.TestCase):
         app=self.app()
         self.assertEqual(len(app.exception),0)
         self.assertFalse(any("MODE PRATINJAU" in r.value for r in app.markdown))
-        for nav in ["Posisi & Bursa","Bot Sakti","Kantor 3D","Market Intel","Ringkasan"]:
+        for nav in ["Posisi & Bursa","Bot Sakti","Kantor 3D","Studio Animasi","Market Intel","Ringkasan"]:
             app.radio(key="navigation").set_value(nav).run()
             self.assertEqual(len(app.exception),0,nav)
 

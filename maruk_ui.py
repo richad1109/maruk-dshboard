@@ -23,6 +23,7 @@ PAGE={"Ringkasan":("Semua akun. Satu pandangan.","Pantau portofolio, pergerakan 
       "Posisi & Bursa":("Setiap posisi, lebih jelas.","Detail eksposur dan koneksi delapan wallet di tiga bursa."),
       "Bot Sakti":("Satu sistem. Setiap langkah terpantau.","Jurnal, peringatan proteksi, dan parameter Health25–20×."),
       "Kantor 3D":("Welcome to your trading floor.","Tiga meja. Delapan wallet. Satu ruang untuk melihat semuanya."),
+      "Studio Animasi":("Tiga suasana. Pilih kantormu.","Bandingkan tiga konsep bergerak sebelum memilih tampilan utama."),
       "Market Intel":("Konteks sebelum keputusan.","Pergerakan pasar dan asisten untuk membaca konteks makro.")}
 
 
@@ -285,15 +286,32 @@ def intel_page(info,base,settings):
             st.caption("Jawaban tidak mengeksekusi trade dan tidak memiliki akses data makro terbaru secara otomatis.")
 
 
+def animation_studio():
+    concepts=[('01 · Noir Exchange','noir','Hitam, kaca, dan cahaya emas.','Paling cocok untuk dashboard saat ini.','Rekomendasi'),
+        ('02 · Orbit Control','control','Ruang kendali biru dengan orbit holografik.','Paling futuristis dan terasa seperti terminal quant.','Futuristis'),
+        ('03 · Rakus Penthouse','penthouse','Kayu, tanaman, dan cahaya pagi.','Paling hangat untuk dipantau dalam waktu lama.','Daylight')]
+    cols=st.columns(3)
+    for col,(label,key,description,note,badge) in zip(cols,concepts):
+        with col:
+            html(f'<div class="concept-card"><span>{badge}</span><h3>{label}</h3><p>{description}</p><small>{note}</small></div>')
+    selected=st.radio('Pilih preview animasi',[r[0] for r in concepts],horizontal=True,key='animation_concept')
+    item=next(r for r in concepts if r[0]==selected)
+    st.iframe(ROOT/'assets/concepts'/f'{item[1]}.html',height=635,tab_index=0,alt=f'Preview interaktif {item[0]}')
+    st.caption('Geser ruang untuk mengubah sudut. Tombol panah, jeda, dan reset tersedia di dalam preview. Animasi ini ilustrasi ruangan; angka akun tetap berasal dari halaman monitoring. Pilihan preview tidak mengubah bot atau tampilan utama.')
+
+
 def main():
     st.set_page_config(page_title="Kantor Rakus | Bot Sakti",page_icon="◈",layout="wide",initial_sidebar_state="collapsed")
     html("<style>"+(ROOT/"assets/terminal.css").read_text(encoding="utf8")+"</style>")
     settings=secrets();stamp=datetime.now(WIB).strftime("%d %b %Y · %H:%M WIB")
     html(f'<div class="masthead"><div class="brand-wrap"><div class="brand-symbol"><svg viewBox="0 0 32 32"><path d="M6 6v20m0-10L24 6M12 13l13 13M21 7h5v7"/></svg></div><div><div class="brand">KANTOR<span>rakus.</span></div><div class="brand-sub">BOT SAKTI / PERSONAL TRADING FLOOR</div></div></div><div class="top-meta"><span>{stamp}</span><span class="chip neutral"><span class="dot"></span>REAL ACCOUNT MONITOR</span></div></div>')
-    nav=st.radio("Navigasi",list(PAGE),horizontal=True,key="navigation")
+    nav=st.radio("Navigasi",list(PAGE),index=list(PAGE).index('Studio Animasi') if st.query_params.get('studio')=='1' else 0,horizontal=True,key="navigation")
     html('<div class="nav-line"></div>')
     title,description=PAGE[nav]
     html(f'<div class="page-intro"><div><div class="eyebrow">KANTOR RAKUS / {escape(nav.upper())}</div><h1>{title}</h1><p>{description}</p></div><div class="page-count">03 ACCOUNTS<br><span style="color:#bac9d7;display:block;margin-top:6px">08 WALLETS / 03 EXCHANGES</span></div></div>')
+    if nav=='Studio Animasi':
+        animation_studio()
+        return
     controls=st.columns([1.3,1,1.2,.7])
     with controls[0]:account_label=st.selectbox("Tampilan akun",["Semua akun","Akun 1","Akun 2","Akun 3"],key="account_filter")
     st.session_state['account']='all' if account_label=='Semua akun' else 'akun_'+account_label[-1]
