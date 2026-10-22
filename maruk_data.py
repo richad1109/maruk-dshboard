@@ -143,6 +143,35 @@ def mexc_specs(bucket):
         return {}
 
 
+def check_protection(client, venue, position):
+    """Read exchange trigger orders; presence is not a fill/coverage guarantee."""
+    unified = position['symbol'].split(':')[0]+':USDT'
+    orders = client.fetch_open_orders(unified)
+    if venue == 'Bitget':
+        orders += client.fetch_open_orders(unified, params={'trigger':True,'planType':'profit_loss'})
+    elif venue == 'MEXC':
+        response = client.contractPrivateGetStoporderOpenOrders({'symbol':client.market(unified)['id']})
+        payload = checked(response, venue)
+        entries = payload if isinstance(payload,list) else (payload or {}).get('resultList',[])
+        orders += [{'info':item,**item} for item in entries]
+    if len(orders)>=100:
+        raise ValueError('Protection pagination required')
+    sl, tp = position.get('stop'), position.get('take')
+    for order in orders:
+        info=order.get('info') or {}
+        if str(order.get('status','')).lower() in ('closed','canceled','cancelled'):continue
+        # Reject an explicit opposite position side. Unknown coverage stays unverified.
+        side=str(info.get('positionSide') or '').upper()
+        if side in ('LONG','SHORT') and side != position['side'].upper():continue
+        sl=sl or first(order,'stopLossPrice') or first(info,'stopLossPrice')
+        tp=tp or first(order,'takeProfitPrice') or first(info,'takeProfitPrice')
+        kind=str(info.get('planType') or order.get('type') or info.get('type') or '').lower()
+        trigger=first(order,'triggerPrice','stopPrice') or first(info,'triggerPrice','stopPrice')
+        if kind in ('pos_loss','loss_plan','stop_market','stop'):sl=sl or trigger
+        if kind in ('pos_profit','profit_plan','take_profit_market','take_profit'):tp=tp or trigger
+    return {'sl':sl,'tp':tp,'status':'detected' if sl and tp else 'unverified'}
+
+
 def query_ledger(account, venue, config, specs=None, client_factory=None):
     row = empty_ledger(account, venue)
     values = config.get(account, {}).get(venue, {})
@@ -174,6 +203,14 @@ def query_ledger(account, venue, config, specs=None, client_factory=None):
             raise ValueError("Missing account balance")
         parsed = [normalize_position(venue,p,specs) for p in positions or []]
         row["positions"] = [{**p,"account":account} for p in parsed if p is not None]
+        for position in row['positions']:
+            base=position['symbol'].split('/')[0]
+            if base in sakti_monitor.MANUAL.get(account+'/'+venue.lower(),set()):
+                continue
+            try:
+                position['protection_check']=check_protection(client,venue,position)
+            except Exception as error:
+                position['protection_check']={'status':'read_failed','error':type(error).__name__}
         if floating is None and all(p["pnl"] is not None for p in row["positions"]):
             floating = sum(p["pnl"] for p in row["positions"])
         row.update(status="live",equity=equity,free=free,floating=floating,updated=time.time())

@@ -307,6 +307,14 @@ def main():
         if st.session_state.get('sakti_upload'):
             snapshot={**snapshot,**data.state_metadata(st.session_state['sakti_upload'])}
         summary=data.totals(snapshot,st.session_state['account'])
+        for row in summary['rows']:
+            for position in row.get('positions',[]):
+                protection=position.get('protection_check',{})
+                if protection.get('status')=='unverified':
+                    st.error(f"⚠ {row['account']} / {row['exchange']} · {position['symbol']}: TP/SL belum lengkap terbaca di bursa. Periksa dan pasang manual. Dashboard tidak menutup posisi.")
+                elif protection.get('status')=='read_failed':
+                    st.warning(f"{row['account']} / {row['exchange']} · {position['symbol']}: pemeriksaan TP/SL gagal dibaca. Status proteksi belum diketahui; periksa aplikasi bursa.")
+        st.caption('Proteksi diperiksa otomatis saat refresh untuk posisi di luar daftar manual. Order yang terdeteksi belum menjamin kecocokan ukuran, arah penutupan, atau eksekusi. Peringatan ini berasal dari bursa, bukan sinkronisasi log Termux.')
         if summary['live']<summary['expected']:
             count=sum(r['status']=='snapshot' for r in summary['rows'])
             html(f'<div class="data-notice">{summary["live"]}/{summary["expected"]} koneksi LIVE · {count} snapshot tersimpan. Data yang tidak terbaca ditandai —, bukan saldo nol.</div>')
