@@ -3,3 +3,16 @@ __pycache__/
 .env
 .streamlit/secrets.toml
 check_all_balances.py
+accounts_config.json
+riset8_live_state.json
+riset8_paper_state.json
+*.log
+.pytest_cache/
+secrets-copy.txt
+
+akun_privat.json
+sakti_live_state.json
+sakti_paper_state.json
+sakti_monitor.json
+*.lock
+*.zip

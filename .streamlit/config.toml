@@ -1,15 +1,15 @@
 [theme]
-primaryColor = "#10b981"
-backgroundColor = "#080c14"
-secondaryBackgroundColor = "#0f172a"
-textColor = "#f1f5f9"
+primaryColor = "#b9df8a"
+backgroundColor = "#090d13"
+secondaryBackgroundColor = "#10161f"
+textColor = "#f0f3f8"
 font = "sans serif"
 
 [server]
 headless = true
 runOnSave = true
-enableCORS = false
-enableXsrfProtection = false
+enableCORS = true
+enableXsrfProtection = true
 
 [client]
 toolbarMode = "minimal"

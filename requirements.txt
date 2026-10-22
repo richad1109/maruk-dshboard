@@ -1,6 +1,6 @@
-streamlit>=1.35.0
-ccxt>=4.3.0
-requests>=2.31.0
-urllib3>=2.0.0
-pandas>=2.0.0
-plotly>=5.20.0
+streamlit>=1.65.0,<1.67
+ccxt==4.5.77
+requests>=2.32,<3
+urllib3>=2,<3
+pandas>=2,<4
+plotly>=5.20,<7
