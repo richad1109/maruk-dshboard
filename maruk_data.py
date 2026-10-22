@@ -13,6 +13,11 @@ import time
 import ccxt
 import requests
 import sakti_monitor
+import exchange_network
+
+# Process-local resolution of official API hosts only; HTTPS verification stays on.
+# Resolvers receive hostnames, never signed requests or exchange credentials.
+exchange_network.install_dns()
 
 ROOT = Path(__file__).resolve().parent
 ACCOUNTS = ("akun_1", "akun_2", "akun_3")
