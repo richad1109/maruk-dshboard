@@ -1,0 +1,177 @@
+{
+  "akun_1": {
+    "total_bal": 48.06,
+    "total_pnl": 1.98,
+    "pos_list": [
+      {
+        "exchange": "Bitget",
+        "symbol": "XRP/USDT",
+        "side": "LONG",
+        "entry": 1.316823880598,
+        "mark": 1.3244,
+        "margin": 1.1825,
+        "notional": 33.11,
+        "pnl": 0.18940298505,
+        "roe": 16.01716575475687,
+        "leverage": 28
+      },
+      {
+        "exchange": "BingX",
+        "symbol": "ETH/USDT",
+        "side": "LONG",
+        "entry": 2384.81,
+        "mark": 2404.79,
+        "margin": 1.5899,
+        "notional": 48.09,
+        "pnl": 0.3994,
+        "roe": 25.121076797282843,
+        "leverage": 30
+      },
+      {
+        "exchange": "BingX",
+        "symbol": "BTC/USDT",
+        "side": "LONG",
+        "entry": 82835.9,
+        "mark": 81758.0,
+        "margin": 1.6567,
+        "notional": 49.05,
+        "pnl": -0.6468,
+        "roe": -39.0414679785115,
+        "leverage": 30
+      },
+      {
+        "exchange": "BingX",
+        "symbol": "BR/USDT",
+        "side": "LONG",
+        "entry": 0.4514,
+        "mark": 0.4991,
+        "margin": 0.6912,
+        "notional": 19.1,
+        "pnl": 1.8259,
+        "roe": 264.16377314814815,
+        "leverage": 25
+      },
+      {
+        "exchange": "BingX",
+        "symbol": "SOL/USDT",
+        "side": "LONG",
+        "entry": 103.636,
+        "mark": 104.445,
+        "margin": 1.14,
+        "notional": 34.46,
+        "pnl": 0.2666,
+        "roe": 23.385964912280706,
+        "leverage": 30
+      },
+      {
+        "exchange": "BingX",
+        "symbol": "ZEC/USDT",
+        "side": "LONG",
+        "entry": 1209.46,
+        "mark": 1230.01,
+        "margin": 1.0885,
+        "notional": 22.14,
+        "pnl": 0.3699,
+        "roe": 33.98254478640331,
+        "leverage": 20
+      },
+      {
+        "exchange": "BingX",
+        "symbol": "INJ/USDT",
+        "side": "LONG",
+        "entry": 8.299,
+        "mark": 8.085,
+        "margin": 0.8299,
+        "notional": 16.16,
+        "pnl": -0.428,
+        "roe": -51.572478611880946,
+        "leverage": 20
+      }
+    ],
+    "ex_details": {
+      "Bitget": {
+        "total": 16.51,
+        "free": 15.14,
+        "status": "ONLINE"
+      },
+      "MEXC": {
+        "total": 23.13,
+        "free": 23.13,
+        "status": "ONLINE"
+      },
+      "BingX": {
+        "total": 8.41,
+        "free": 1.46,
+        "status": "ONLINE"
+      }
+    },
+    "updated_at": "python-requests/2.34.2"
+  },
+  "akun_2": {
+    "total_bal": 28.77,
+    "total_pnl": 0.16,
+    "pos_list": [
+      {
+        "exchange": "Bitget",
+        "symbol": "XRP/USDT",
+        "side": "LONG",
+        "entry": 1.31617254902,
+        "mark": 1.3244,
+        "margin": 0.946,
+        "notional": 26.488,
+        "pnl": 0.1645490196,
+        "roe": 17.394188118393235,
+        "leverage": 28
+      }
+    ],
+    "ex_details": {
+      "Bitget": {
+        "total": 10.29,
+        "free": 9.18,
+        "status": "ONLINE"
+      },
+      "MEXC": {
+        "total": 10.43,
+        "free": 10.43,
+        "status": "ONLINE"
+      },
+      "BingX": {
+        "total": 8.05,
+        "free": 8.05,
+        "status": "ONLINE"
+      }
+    },
+    "updated_at": "python-requests/2.34.2"
+  },
+  "akun_3": {
+    "total_bal": 17.78,
+    "total_pnl": 0.15,
+    "pos_list": [
+      {
+        "exchange": "Bitget",
+        "symbol": "XRP/USDT",
+        "side": "LONG",
+        "entry": 1.316552054795,
+        "mark": 1.3243,
+        "margin": 0.945928571429,
+        "notional": 26.486,
+        "pnl": 0.1549589041,
+        "roe": 16.38167074982268,
+        "leverage": 28
+      }
+    ],
+    "ex_details": {
+      "Bitget": {
+        "total": 9.66,
+        "free": 8.56,
+        "status": "ONLINE"
+      },
+      "BingX": {
+        "total": 8.12,
+        "free": 8.12,
+        "status": "ONLINE"
+      }
+    },
+    "updated_at": "python-requests/2.34.2"
+  }
+}
