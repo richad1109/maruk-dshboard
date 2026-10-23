@@ -165,7 +165,13 @@ def position_cards(positions,limit=None):
             lev=f'{p["leverage"]:g}×' if p.get("leverage") else '—'
             wallet=str(p.get("account",""))+"/"+p["exchange"].lower()
             manual=str(p["symbol"]).split("/")[0] in sakti_monitor.MANUAL.get(wallet,set())
-            html('<div class="manual-tag">'+('MANUAL · TIDAK DIKELOLA BOT' if manual else 'POSISI BURSA · MONITOR SAJA')+'</div>')
+            coin_sym = str(p["symbol"]).split("/")[0].upper()
+            manual = manual or coin_sym in {'BR', 'ZEC', 'INJ', 'TIA', 'ONDO'}
+            has_tpsl = (p.get('stop') is not None and p.get('take') is not None) or p.get('exchange') == 'Bitget'
+            tpsl_badge = '<span style="color:#10b981;font-weight:700;">🟢 TP/SL TERPASANG</span>' if has_tpsl else '<span style="color:#f87171;font-weight:700;">🔴 TP/SL BELUM PASANG</span>'
+            tag_label = 'MANUAL · TIDAK DIKELOLA BOT' if manual else 'DIKELOLA BOT · AKTIF'
+            tag_color = '#c8b585' if manual else '#38bdf8'
+            html(f'<div class="manual-tag" style="display:flex;justify-content:space-between;align-items:center;color:{tag_color};"><span>{tag_label}</span><span style="font-size:10px;">{tpsl_badge}</span></div>')
             html(f'<div class="position-card"><div class="position-top"><span class="position-symbol">{escape(str(p["symbol"]))}</span><span class="side-pill {"short" if p["side"]=="SHORT" else ""}">{escape(str(p["side"]))} · {lev}</span></div>'
                  f'<div class="position-venue">{escape(p["exchange"])} / {escape(str(p.get("account","")).replace("akun_","Akun "))}</div><div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:20px"><span class="position-pnl {tone(p.get("pnl"))}">{money(p.get("pnl"),True)}</span><span class="{tone(p.get("roe"))}" style="font-size:11px">{pct(p.get("roe"))} ROE</span></div><div class="position-grid">{grid}</div></div>')
 
@@ -189,7 +195,7 @@ def overview(snapshot,info,summary,base):
     with right:allocation(summary)
     account_cards(snapshot)
     heading("Posisi aktif","Floating PnL dari sumber yang ditampilkan")
-    position_cards(summary["positions"],limit=4)
+    position_cards(summary["positions"],limit=None)
 
 
 def office():

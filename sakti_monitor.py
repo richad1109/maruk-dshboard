@@ -5,7 +5,7 @@ import math
 import time
 from pathlib import Path
 
-MANUAL={'akun_1/bingx':{'BTC','ETH','TIA','ONDO','BR'},
+MANUAL={'akun_1/bingx':{'BTC','ETH','TIA','ONDO','BR','SOL','ZEC','INJ'},
         **{f'akun_{n}/bitget':{'XRP'} for n in (1,2,3)}}
 
 
