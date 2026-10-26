@@ -272,7 +272,13 @@ def state_metadata(state):
 
 
 def fetch_portfolio(config, state=None):
-    state = read_state() if state is None else state
+    feed_error=None
+    if state is None:
+        try:
+            import final_feed
+            state=final_feed.fetch(config) or read_state()
+        except Exception as e:
+            state=read_state();feed_error=type(e).__name__
     specs = mexc_specs(int(time.time()//3600)) if any(config.get(a,{}).get("MEXC",{}).get("apiKey") for a in ACCOUNTS[:2]) else {}
     rows = []
     with ThreadPoolExecutor(max_workers=8) as pool:
@@ -285,7 +291,7 @@ def fetch_portfolio(config, state=None):
             rows[i] = {**cached[row["account"],row["exchange"]],"error":row.get("error")}
     rows.sort(key=lambda r:ACTIVE.index((r["account"],r["exchange"])))
     return dict(mode="live" if all(r["status"] == "live" for r in rows) else "partial",
-                fetched=time.time(),ledgers=rows,**state_metadata(state))
+                fetched=time.time(),ledgers=rows,monitor_feed_error=feed_error,**state_metadata(state))
 
 
 def totals(snapshot, account="all"):
