@@ -167,9 +167,9 @@ def position_cards(positions,limit=None):
             manual=str(p["symbol"]).split("/")[0] in sakti_monitor.MANUAL.get(wallet,set())
             coin_sym = str(p["symbol"]).split("/")[0].upper()
             manual = manual or coin_sym in {'BR', 'ZEC', 'INJ', 'TIA', 'ONDO'}
-            has_tpsl = (p.get('stop') is not None and p.get('take') is not None) or p.get('exchange') == 'Bitget'
-            tpsl_badge = '<span style="color:#10b981;font-weight:700;">🟢 TP/SL TERPASANG</span>' if has_tpsl else '<span style="color:#f87171;font-weight:700;">🔴 TP/SL BELUM PASANG</span>'
-            tag_label = 'MANUAL · TIDAK DIKELOLA BOT' if manual else 'DIKELOLA BOT · AKTIF'
+            has_tpsl = p.get('protection_check', {}).get('status') == 'detected'
+            tpsl_badge = '<span style="color:#10b981;font-weight:700;">TP/SL TERDETEKSI · CEK CAKUPAN</span>' if has_tpsl else '<span style="color:#f87171;font-weight:700;">TP/SL BELUM TERVERIFIKASI</span>'
+            tag_label = 'MANUAL · TIDAK DIKELOLA BOT' if manual else 'POSISI BURSA · MONITOR SAJA'
             tag_color = '#c8b585' if manual else '#38bdf8'
             html(f'<div class="manual-tag" style="display:flex;justify-content:space-between;align-items:center;color:{tag_color};"><span>{tag_label}</span><span style="font-size:10px;">{tpsl_badge}</span></div>')
             html(f'<div class="position-card"><div class="position-top"><span class="position-symbol">{escape(str(p["symbol"]))}</span><span class="side-pill {"short" if p["side"]=="SHORT" else ""}">{escape(str(p["side"]))} · {lev}</span></div>'
@@ -411,7 +411,7 @@ def main():
         fingerprint=hashlib.sha256(json.dumps(config,sort_keys=True).encode()).hexdigest()
         with st.spinner('Membaca delapan wallet riil…'):
             snapshot=portfolio(config,fingerprint);info=market(base)
-        if st.session_state.get('sakti_upload'):
+        if st.session_state.get('sakti_upload') and not snapshot.get('runtime'):
             snapshot={**snapshot,**data.state_metadata(st.session_state['sakti_upload'])}
         summary=data.totals(snapshot,st.session_state['account'])
         for row in summary['rows']:
@@ -432,5 +432,5 @@ def main():
             office();account_cards(snapshot)
             st.caption('Kantor 3D adalah visual ruang kerja. Saldo dan status akun di bawahnya berasal dari koneksi bursa yang ditampilkan. Geser ruang atau gunakan tombol panah; animasi dapat dijeda.')
         else:intel_page(info,base,settings)
-        html(f'<div class="footnote"><span>KANTOR RAKUS · BOT SAKTI / HEALTH25</span><span>MONITOR SAJA · TANPA ORDER / CANCEL · {datetime.now(WIB).strftime("%H:%M:%S WIB")}</span></div>')
+        html(f'<div class="footnote"><span>KANTOR RAKUS · BOT FINAL / BTC H96</span><span>MONITOR SAJA · TANPA ORDER / CANCEL · {datetime.now(WIB).strftime("%H:%M:%S WIB")}</span></div>')
     body()
