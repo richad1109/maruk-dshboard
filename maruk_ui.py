@@ -241,10 +241,14 @@ def strategy_page(snapshot):
         html('<div class="data-notice">JURNAL TERSINKRON · '+escape(phase)+' · status dari snapshot, bukan bukti proses HP sedang hidup.</div>')
         heartbeat=(runtime.get('updated_at') or 0)/1000
         age_seconds=max(0,time.time()-heartbeat)
-        if age_seconds>600:
+        if not runtime.get('live'):
+            st.info('Jurnal verifikasi laptop tersambung. Bot belum dijalankan LIVE di Termux; ini bukan heartbeat proses HP.')
+        elif age_seconds>600:
             st.error(f"Heartbeat terlambat {int(age_seconds//60)} menit. Proses HP belum bisa dipastikan aktif; periksa Termux.")
         else:
             st.caption(f"Heartbeat jurnal {int(age_seconds)} detik lalu · mode {'LIVE' if runtime.get('live') else 'CEK / belum live'} · sinkronisasi sekitar 5 menit.")
+        if runtime.get('manual_exclusions'):
+            st.info('BTC dikecualikan untuk melindungi manual: '+', '.join(runtime['manual_exclusions']))
         cols=st.columns(3)
         with cols[0]:kpi('Realized PnL bot',money(metrics['realized'],True),'Fee/funding sesuai jurnal','activity',tone(metrics['realized']))
         with cols[1]:kpi('Win rate jurnal',f"{metrics['win_rate']:.1f}%" if metrics['win_rate'] is not None else '—',f"{metrics['trades']} trade selesai",'chart')
