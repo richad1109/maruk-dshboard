@@ -12,7 +12,7 @@ def decrypt(content,accounts):
     c=accounts['akun_1']['Bitget']
     key=base64.urlsafe_b64encode(hashlib.sha256(('bot-final-monitor-v1|'+c['apiKey']+'|'+c['secret']).encode()).digest())
     result=json.loads(Fernet(key).decrypt(content))
-    if result.get('schema')!='sakti-monitor-v1' or result.get('version')!='bot-final-btc-h96-t3-r1':
+    if result.get('schema')!='sakti-monitor-v1' or result.get('version') not in ('bot-final-btc-h96-t3-r1','bot-final-bds-h96-t3-r2'):
         raise ValueError('Telemetry schema/version mismatch')
     if not isinstance(result.get('wallets'),dict) or float(result.get('updated_at',0))>time.time()*1000+60000:
         raise ValueError('Invalid heartbeat')

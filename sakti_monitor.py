@@ -5,8 +5,7 @@ import math
 import time
 from pathlib import Path
 
-MANUAL={'akun_1/bingx':{'BTC','ETH','TIA','ONDO','BR','SOL','ZEC','INJ'},
-        **{f'akun_{n}/bitget':{'XRP'} for n in (1,2,3)}}
+MANUAL={f'akun_{n}/bitget':{'XRP'} for n in (1,2,3)}
 
 
 def numeric(value):
@@ -43,7 +42,7 @@ def sanitize(state):
                 result['alerts'].append(dict(wallet=alert['wallet'],symbol=str(alert.get('symbol',''))[:40],
                     reason=str(alert.get('reason',''))[:180],sl=numeric(alert.get('sl')),tp=numeric(alert.get('tp'))))
     result['failures']=[]
-    result['manual_exclusions']=[k for k in state.get('manual_exclusions',[]) if k in result['wallets']]
+    result['manual_exclusions']=[k for k in state.get('manual_exclusions',[]) if isinstance(k,str) and k.split(' / ',1)[0] in result['wallets']]
     allowed_status={'api_read_failed','order_status_unknown','operation_failed'}
     for failure in state.get('failures',[])[-100:]:
         if not isinstance(failure,dict) or failure.get('status') not in allowed_status:continue

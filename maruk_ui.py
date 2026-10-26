@@ -217,8 +217,9 @@ def positions_page(snapshot,summary):
 
 
 def strategy_page(snapshot):
-    heading("Bot Final / BTC H96", "30× isolated · maksimum 1 posisi BTC per wallet")
     runtime=snapshot.get("runtime") or st.session_state.get("sakti_upload")
+    is_bds=bool(runtime and runtime.get("version")=="bot-final-bds-h96-t3-r2")
+    heading("Bot Final / BTC + SOL + DOGE" if is_bds else "Bot Final / BTC H96", "30× isolated · maksimum 2 posisi per wallet" if is_bds else "30× isolated · maksimum 1 posisi BTC per wallet")
     if snapshot.get("monitor_feed_error"):
         st.warning("Jurnal otomatis belum dapat dibaca: "+snapshot["monitor_feed_error"]+". Saldo bursa diperiksa terpisah.")
     with st.expander("Hubungkan jurnal dari Termux",expanded=not bool(runtime)):
@@ -237,7 +238,7 @@ def strategy_page(snapshot):
         if runtime.get('failures'):
             st.warning('Riwayat gangguan API / operasi bot dari jurnal. Status belum pasti tidak berarti order ditolak; periksa bursa sebelum mengulang.')
             st.dataframe(pd.DataFrame(runtime['failures']).rename(columns={'time':'Waktu UTC (epoch ms)','status':'Status','wallet':'Wallet','symbol':'Koin','operation':'Operasi','error_type':'Jenis error','code':'Kode bursa'}),hide_index=True,width='stretch')
-        phase={'c8':'Health25','cashout':'Menutup posisi bot untuk target','stopped':'Target stop · entry berhenti','BTC-H96-T3':'BTC H96 / trailing 3 ATR'}.get(runtime.get('phase'),'Fase belum dikenal')
+        phase={'c8':'Health25','cashout':'Menutup posisi bot untuk target','stopped':'Target stop · entry berhenti','BTC-H96-T3':'BTC H96 / trailing 3 ATR','BDS-H96-T3-R10':'BTC + SOL + DOGE / TP 10R'}.get(runtime.get('phase'),'Fase belum dikenal')
         html('<div class="data-notice">JURNAL TERSINKRON · '+escape(phase)+' · status dari snapshot, bukan bukti proses HP sedang hidup.</div>')
         heartbeat=(runtime.get('updated_at') or 0)/1000
         age_seconds=max(0,time.time()-heartbeat)
@@ -248,7 +249,7 @@ def strategy_page(snapshot):
         else:
             st.caption(f"Heartbeat jurnal {int(age_seconds)} detik lalu · mode {'LIVE' if runtime.get('live') else 'CEK / belum live'} · sinkronisasi sekitar 5 menit.")
         if runtime.get('manual_exclusions'):
-            st.info('BTC dikecualikan untuk melindungi manual: '+', '.join(runtime['manual_exclusions']))
+            st.info('Simbol eksternal dikecualikan: '+', '.join(runtime['manual_exclusions']))
         cols=st.columns(3)
         with cols[0]:kpi('Realized PnL bot',money(metrics['realized'],True),'Fee/funding sesuai jurnal','activity',tone(metrics['realized']))
         with cols[1]:kpi('Win rate jurnal',f"{metrics['win_rate']:.1f}%" if metrics['win_rate'] is not None else '—',f"{metrics['trades']} trade selesai",'chart')
@@ -261,15 +262,17 @@ def strategy_page(snapshot):
         rows=[{'Wallet':r['wallet'],'Budget saat ini':("Dinamis / batas bursa" if runtime.get("version", "").startswith("bot-final") else f"{r['scale']:.0%}"),'Trade matang':r['known'],'Posisi bot':r['positions'],'Intent belum selesai':r['pending']} for r in metrics['wallets']]
         st.dataframe(pd.DataFrame(rows),hide_index=True,width='stretch')
     else:empty("Jurnal Termux belum tersinkron", "Saldo bursa tetap live. Net PnL bot, win rate dan peringatan tidak diisi dengan angka contoh.")
-    heading("Aturan eksekusi", "Bot Final · kandidat BTC 96 jam")
+    heading("Aturan eksekusi", "Bot Final · BTC + SOL + DOGE 96 jam" if is_bds else "Bot Final · kandidat BTC 96 jam")
     left,right=st.columns([1.2,1])
     with left:
-        html('<div class="rail"><small>01 / SIGNAL</small><h4>Momentum BTC.</h4><p>Candle UTC 4H tertutup; momentum 12 jam minimal ±2,5%, KER20 ≥0,35. LONG dan SHORT. Entry dekat awal jam sinyal.</p></div><div class="rail"><small>02 / SIZE</small><h4>Compounding agresif.</h4><p>Ukuran mengikuti saldo tersedia, minimum lot, kapasitas order dan tier leverage bursa. Tidak ada plafon tetap US$250. Margin bisa mendekati seluruh saldo bebas.</p></div><div class="rail"><small>03 / VERIFY</small><h4>Proteksi diperiksa.</h4><p>TP/SL diminta saat entry lalu diperiksa pada server. Kegagalan ditampilkan; tidak ada penutupan darurat hanya karena proteksi gagal. Exit strategi tetap berjalan.</p></div>')
+        html('<div class="rail"><small>01 / SIGNAL</small><h4>Momentum dan tren BTC.</h4><p>Candle UTC 4H tertutup; momentum 12 jam minimal ±2,5%, KER20 ≥0,35. LONG dan SHORT. Entry dekat awal jam sinyal. Versi tiga koin juga memfilter SOL/DOGE berdasarkan korelasi dan tren BTC.</p></div><div class="rail"><small>02 / SIZE</small><h4>Compounding agresif.</h4><p>Ukuran mengikuti saldo tersedia, minimum lot, kapasitas order dan tier leverage bursa. Tidak ada plafon tetap US$250. Margin bisa mendekati seluruh saldo bebas.</p></div><div class="rail"><small>03 / VERIFY</small><h4>Proteksi diperiksa.</h4><p>TP/SL diminta saat entry lalu diperiksa pada server. Kegagalan ditampilkan; tidak ada penutupan darurat hanya karena proteksi gagal. Exit strategi tetap berjalan.</p></div>')
     with right:
-        html('<div class="rule-grid"><div class="rule"><span>Leverage / mode</span><strong>30× / isolated</strong></div><div class="rule"><span>Posisi / wallet</span><strong>Maksimal 1 BTC</strong></div><div class="rule"><span>SL / TP</span><strong>2 ATR / 8R</strong></div><div class="rule"><span>Trailing</span><strong>3 ATR · per jam</strong></div><div class="rule"><span>Cooldown</span><strong>12 jam</strong></div><div class="rule"><span>Durasi maksimum</span><strong>96 jam</strong></div></div>')
+        rule_html='<div class="rule-grid"><div class="rule"><span>Leverage / mode</span><strong>30× / isolated</strong></div><div class="rule"><span>Posisi / wallet</span><strong>Maksimal 1 BTC</strong></div><div class="rule"><span>SL / TP</span><strong>2 ATR / 8R</strong></div><div class="rule"><span>Trailing</span><strong>3 ATR · per jam</strong></div><div class="rule"><span>Cooldown</span><strong>12 jam</strong></div><div class="rule"><span>Durasi maksimum</span><strong>96 jam</strong></div></div>'
+        if is_bds:rule_html=rule_html.replace('Maksimal 1 BTC','Maksimal 2 / wallet').replace('2 ATR / 8R','2 ATR / 10R')
+        html(rule_html)
         st.caption("DCA hanya dana yang benar-benar masuk. Tidak ada janji US$50K atau bebas likuidasi. Saldo live, pengecualian manual, latensi dan batas bursa berbeda dari simulasi.")
     heading("Posisi manual dilindungi", "Monitor saja · tidak ada eksekusi dari web")
-    st.write("BingX akun 1: ETH, BTC, TIA, ONDO, BR, SOL, ZEC, INJ. Bitget akun 1–3: XRP. Semua tetap milikmu; dashboard tidak mengirim order atau pembatalan.")
+    st.write("Pengecualian tetap: XRP di Bitget akun 1–3. BingX tidak lagi dikecualikan secara tetap. Posisi/order yang tidak terbukti milik bot tetap tidak diadopsi atau dibatalkan.")
     heading("Jurnal penutupan", "PnL dari catatan bot, bukan kenaikan saldo akibat DCA")
     if snapshot['trades']:
         frame=pd.DataFrame(snapshot['trades']);frame['Waktu WIB']=pd.to_datetime(frame['closed'],unit='s',utc=True).dt.tz_convert('Asia/Jakarta')
@@ -436,5 +439,5 @@ def main():
             office();account_cards(snapshot)
             st.caption('Kantor 3D adalah visual ruang kerja. Saldo dan status akun di bawahnya berasal dari koneksi bursa yang ditampilkan. Geser ruang atau gunakan tombol panah; animasi dapat dijeda.')
         else:intel_page(info,base,settings)
-        html(f'<div class="footnote"><span>KANTOR RAKUS · BOT FINAL / BTC H96</span><span>MONITOR SAJA · TANPA ORDER / CANCEL · {datetime.now(WIB).strftime("%H:%M:%S WIB")}</span></div>')
+        html(f'<div class="footnote"><span>KANTOR RAKUS · BOT FINAL</span><span>MONITOR SAJA · TANPA ORDER / CANCEL · {datetime.now(WIB).strftime("%H:%M:%S WIB")}</span></div>')
     body()

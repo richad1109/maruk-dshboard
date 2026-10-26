@@ -22,3 +22,11 @@ class FinalFeedTests(unittest.TestCase):
         self.state['updated_at']+=3600000
         data=Fernet(self.key).encrypt(json.dumps(self.state).encode())
         with self.assertRaises(ValueError):final_feed.decrypt(data,self.accounts)
+    def test_three_coin_version_accepted(self):
+        self.state['version']='bot-final-bds-h96-t3-r2'
+        data=Fernet(self.key).encrypt(json.dumps(self.state).encode())
+        self.assertEqual(final_feed.decrypt(data,self.accounts)['version'],self.state['version'])
+    def test_unknown_version_rejected(self):
+        self.state['version']='unknown'
+        data=Fernet(self.key).encrypt(json.dumps(self.state).encode())
+        with self.assertRaises(ValueError):final_feed.decrypt(data,self.accounts)
