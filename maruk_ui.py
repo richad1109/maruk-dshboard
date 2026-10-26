@@ -22,7 +22,7 @@ WIB=timezone(timedelta(hours=7))
 PALETTE=["#b9df8a","#91b4c8","#d8bb87"]
 PAGE={"Ringkasan":("Semua akun. Satu pandangan.","Pantau portofolio, pergerakan pasar, dan posisi dalam satu ruang."),
       "Posisi & Bursa":("Setiap posisi, lebih jelas.","Detail eksposur dan koneksi delapan wallet di tiga bursa."),
-      "Bot Sakti":("Satu sistem. Setiap langkah terpantau.","Jurnal, peringatan proteksi, dan parameter Health25–20×."),
+      "Bot Sakti":("Satu sistem. Setiap langkah terpantau.","Jurnal Termux terenkripsi, peringatan proteksi, dan status Bot Final."),
       "Kantor 3D":("Welcome to your trading floor.","Tiga meja. Delapan wallet. Satu ruang untuk melihat semuanya."),
       "Studio Animasi":("Tiga suasana. Pilih kantormu.","Bandingkan tiga konsep bergerak sebelum memilih tampilan utama."),
       "Analisis BTC":("Baca kondisi. Siapkan skenario.","Tren, momentum, sentimen, dan level konfirmasi dari data pasar publik."),
@@ -217,11 +217,13 @@ def positions_page(snapshot,summary):
 
 
 def strategy_page(snapshot):
-    heading("Bot Sakti / Health25", "20× isolated · maksimum 2 posisi per wallet")
-    runtime=st.session_state.get("sakti_upload") or snapshot.get("runtime")
+    heading("Bot Final / BTC H96", "30× isolated · maksimum 1 posisi BTC per wallet")
+    runtime=snapshot.get("runtime") or st.session_state.get("sakti_upload")
+    if snapshot.get("monitor_feed_error"):
+        st.warning("Jurnal otomatis belum dapat dibaca: "+snapshot["monitor_feed_error"]+". Saldo bursa diperiksa terpisah.")
     with st.expander("Hubungkan jurnal dari Termux",expanded=not bool(runtime)):
-        st.write("Saldo dan posisi dibaca langsung dari bursa. Jurnal hasil trade, target dan peringatan bot memerlukan state Bot Sakti dari HP.")
-        uploaded=st.file_uploader("Unggah sakti_monitor.json atau sakti_live_state.json",type=['json'],key='sakti_file')
+        st.write("Saldo dan posisi dibaca langsung dari bursa. Bot Final mengirim jurnal terenkripsi setiap sekitar 5 menit saat HP dan koneksi aktif. Unggahan file tersedia sebagai cadangan.")
+        uploaded=st.file_uploader("Unggah bot_final_monitor.json atau jurnal Sakti lama",type=['json'],key='sakti_file')
         if uploaded:
             try:
                 if uploaded.size>2_000_000:raise ValueError('File terlalu besar')
@@ -235,8 +237,14 @@ def strategy_page(snapshot):
         if runtime.get('failures'):
             st.warning('Riwayat gangguan API / operasi bot dari jurnal. Status belum pasti tidak berarti order ditolak; periksa bursa sebelum mengulang.')
             st.dataframe(pd.DataFrame(runtime['failures']).rename(columns={'time':'Waktu UTC (epoch ms)','status':'Status','wallet':'Wallet','symbol':'Koin','operation':'Operasi','error_type':'Jenis error','code':'Kode bursa'}),hide_index=True,width='stretch')
-        phase={'c8':'Health25','cashout':'Menutup posisi bot untuk target','stopped':'Target stop · entry berhenti'}.get(runtime.get('phase'),'Fase belum dikenal')
+        phase={'c8':'Health25','cashout':'Menutup posisi bot untuk target','stopped':'Target stop · entry berhenti','BTC-H96-T3':'BTC H96 / trailing 3 ATR'}.get(runtime.get('phase'),'Fase belum dikenal')
         html('<div class="data-notice">JURNAL TERSINKRON · '+escape(phase)+' · status dari snapshot, bukan bukti proses HP sedang hidup.</div>')
+        heartbeat=(runtime.get('updated_at') or 0)/1000
+        age_seconds=max(0,time.time()-heartbeat)
+        if age_seconds>600:
+            st.error(f"Heartbeat terlambat {int(age_seconds//60)} menit. Proses HP belum bisa dipastikan aktif; periksa Termux.")
+        else:
+            st.caption(f"Heartbeat jurnal {int(age_seconds)} detik lalu · mode {'LIVE' if runtime.get('live') else 'CEK / belum live'} · sinkronisasi sekitar 5 menit.")
         cols=st.columns(3)
         with cols[0]:kpi('Realized PnL bot',money(metrics['realized'],True),'Fee/funding sesuai jurnal','activity',tone(metrics['realized']))
         with cols[1]:kpi('Win rate jurnal',f"{metrics['win_rate']:.1f}%" if metrics['win_rate'] is not None else '—',f"{metrics['trades']} trade selesai",'chart')
@@ -246,18 +254,18 @@ def strategy_page(snapshot):
             st.error(f"{len(metrics['alerts'])} peringatan proteksi. Periksa posisi pada aplikasi bursa; dashboard tidak menutupnya.")
             st.dataframe(pd.DataFrame(metrics['alerts']).rename(columns={'wallet':'Wallet','symbol':'Koin','reason':'Peringatan','sl':'SL diminta','tp':'TP diminta'}),hide_index=True,width='stretch')
         else:st.info("Tidak ada peringatan aktif di snapshot jurnal. Ini bukan pemeriksaan order TP/SL langsung oleh dashboard.")
-        rows=[{'Wallet':r['wallet'],'Budget saat ini':f"{r['scale']:.0%}",'Trade matang':r['known'],'Posisi bot':r['positions'],'Intent belum selesai':r['pending']} for r in metrics['wallets']]
+        rows=[{'Wallet':r['wallet'],'Budget saat ini':("Dinamis / batas bursa" if runtime.get("version", "").startswith("bot-final") else f"{r['scale']:.0%}"),'Trade matang':r['known'],'Posisi bot':r['positions'],'Intent belum selesai':r['pending']} for r in metrics['wallets']]
         st.dataframe(pd.DataFrame(rows),hide_index=True,width='stretch')
     else:empty("Jurnal Termux belum tersinkron", "Saldo bursa tetap live. Net PnL bot, win rate dan peringatan tidak diisi dengan angka contoh.")
-    heading("Aturan eksekusi", "Parameter Bot Sakti R2")
+    heading("Aturan eksekusi", "Bot Final · kandidat BTC 96 jam")
     left,right=st.columns([1.2,1])
     with left:
-        html('<div class="rail"><small>01 / SIGNAL</small><h4>Trend, confirmed.</h4><p>EMA20/100 pada candle UTC4H tertutup, KER ≥0,25. Arah entry harus sejalan dengan BTC terhadap EMA50. Exit berlawanan tetap aktif.</p></div><div class="rail"><small>02 / ADAPT</small><h4>Exposure mengikuti hasil.</h4><p>Budget margin 25% sebelum empat trade matang atau rata-rata delapan net-R terakhir tidak positif. Pulih ke budget penuh saat syarat terpenuhi. Trade baru dihitung setelah satu jam.</p></div><div class="rail"><small>03 / LOCK</small><h4>Net US$50.000 → stop.</h4><p>Estimasi target pada penutupan jam memicu close posisi bot. Sesudah flat, entry berhenti dan kas tetap di futures. Tidak ada transfer otomatis atau mode Growth.</p></div>')
+        html('<div class="rail"><small>01 / SIGNAL</small><h4>Momentum BTC.</h4><p>Candle UTC 4H tertutup; momentum 12 jam minimal ±2,5%, KER20 ≥0,35. LONG dan SHORT. Entry dekat awal jam sinyal.</p></div><div class="rail"><small>02 / SIZE</small><h4>Compounding agresif.</h4><p>Ukuran mengikuti saldo tersedia, minimum lot, kapasitas order dan tier leverage bursa. Tidak ada plafon tetap US$250. Margin bisa mendekati seluruh saldo bebas.</p></div><div class="rail"><small>03 / VERIFY</small><h4>Proteksi diperiksa.</h4><p>TP/SL diminta saat entry lalu diperiksa pada server. Kegagalan ditampilkan; tidak ada penutupan darurat hanya karena proteksi gagal. Exit strategi tetap berjalan.</p></div>')
     with right:
-        html('<div class="rule-grid"><div class="rule"><span>Leverage / mode</span><strong>20× / isolated</strong></div><div class="rule"><span>Posisi / wallet</span><strong>Maksimal 2</strong></div><div class="rule"><span>SL / TP</span><strong>1 ATR / 3R</strong></div><div class="rule"><span>Trailing</span><strong>2 ATR · per jam</strong></div><div class="rule"><span>Cooldown</span><strong>6 jam / koin</strong></div><div class="rule"><span>Durasi maksimum</span><strong>168 jam</strong></div></div>')
-        st.caption("Margin mengikuti equity dan dipotong batas bursa serta collateral tersedia. Budget bukan fixed risk 2%. Hasil backtest tidak menjamin target atau DD LIVE.")
+        html('<div class="rule-grid"><div class="rule"><span>Leverage / mode</span><strong>30× / isolated</strong></div><div class="rule"><span>Posisi / wallet</span><strong>Maksimal 1 BTC</strong></div><div class="rule"><span>SL / TP</span><strong>2 ATR / 8R</strong></div><div class="rule"><span>Trailing</span><strong>3 ATR · per jam</strong></div><div class="rule"><span>Cooldown</span><strong>12 jam</strong></div><div class="rule"><span>Durasi maksimum</span><strong>96 jam</strong></div></div>')
+        st.caption("DCA hanya dana yang benar-benar masuk. Tidak ada janji US$50K atau bebas likuidasi. Saldo live, pengecualian manual, latensi dan batas bursa berbeda dari simulasi.")
     heading("Posisi manual dilindungi", "Monitor saja · tidak ada eksekusi dari web")
-    st.write("BingX akun 1: ETH, BTC, TIA, ONDO, BR. Bitget akun 1–3: XRP. Semua tetap milikmu; dashboard tidak mengirim order atau pembatalan.")
+    st.write("BingX akun 1: ETH, BTC, TIA, ONDO, BR, SOL, ZEC, INJ. Bitget akun 1–3: XRP. Semua tetap milikmu; dashboard tidak mengirim order atau pembatalan.")
     heading("Jurnal penutupan", "PnL dari catatan bot, bukan kenaikan saldo akibat DCA")
     if snapshot['trades']:
         frame=pd.DataFrame(snapshot['trades']);frame['Waktu WIB']=pd.to_datetime(frame['closed'],unit='s',utc=True).dt.tz_convert('Asia/Jakarta')
