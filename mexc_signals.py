@@ -143,7 +143,7 @@ def market_bias(rows,now=None):
     votes=[1 if close>a['e50']>a['e100'] else -1 if close<a['e50']<a['e100'] else 0,
         1 if mom>.3 else -1 if mom<-.3 else 0,1 if a['rsi']>55 else -1 if a['rsi']<45 else 0]
     direction=1 if sum(votes)>=2 else -1 if sum(votes)<=-2 else 0
-    return dict(side=direction,close=close,momentum=mom,rsi=a['rsi'],ema50=a['e50'],atr=a['atr'],
+    return dict(side=direction,close=close,momentum=mom,rsi=a['rsi'],ema20=a['e20'],ema50=a['e50'],atr=a['atr'],
         support=min(r['low'] for r in rows[-24:]),resistance=max(r['high'] for r in rows[-24:]),closed=rows[-1]['time']+3600)
 
 def bias_snapshot():
@@ -155,10 +155,21 @@ def bias_snapshot():
 
 
 def bias_plan(observation,side):
-    """Conditional breakout levels; no execution or accuracy claim."""
-    atr=observation['atr']
+    """Unvalidated limit pullback plan from closed-candle technical levels."""
+    atr=observation['atr'];close=observation['close'];rsi=observation.get('rsi',50)
     if side not in (-1,1) or not math.isfinite(atr) or atr<=0:raise ValueError('Rencana tidak valid')
-    entry=observation['resistance']+.1*atr if side==1 else observation['support']-.1*atr
-    sl=entry-side*2*atr;tp=entry+side*4*atr
+    if (side==1 and rsi>75) or (side==-1 and rsi<25):raise ValueError('Momentum terlalu ekstrem; tunggu normalisasi')
+    levels=[('EMA20',observation.get('ema20')),('EMA50',observation.get('ema50')),
+            ('support 24H' if side==1 else 'resistance 24H',observation['support'] if side==1 else observation['resistance'])]
+    levels=[(name,value) for name,value in levels if value is not None and .1*atr<=side*(close-value)<=3*atr]
+    if not levels:raise ValueError('Belum ada area pullback dekat harga yang layak')
+    name,entry=min(levels,key=lambda item:abs(close-item[1]))
+    confluence=sum(abs(value-entry)<=.5*atr for _,value in levels)
+    sl=entry-side*1.5*atr
+    target=observation['resistance']-.1*atr if side==1 else observation['support']+.1*atr
+    risk=abs(entry-sl);rr=side*(target-entry)/risk
+    if rr<1.5:raise ValueError('Ruang ke support/resistance belum memberi reward minimal 1,5R')
+    tp=entry+side*min(2,rr)*risk
     if min(entry,sl,tp)<=0:raise ValueError('Level di luar rentang harga valid')
-    return dict(side=side,entry=entry,sl=sl,tp=tp,expires=observation['closed']+3600)
+    return dict(side=side,entry=entry,sl=sl,tp=tp,expires=observation['closed']+3600,
+        reason=f'Retest {name}'+(' · beberapa level berdekatan' if confluence>=2 else ''),rr=side*(tp-entry)/risk)

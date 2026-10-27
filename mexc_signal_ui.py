@@ -45,7 +45,7 @@ def touch(signal):return engine.observe_touch(signal)
 
 @st.cache_data(ttl=60,show_spinner=False)
 def bias_data():
-    # Top 20 crypto with ATR and conditional plans, schema v3.
+    # Top 20 crypto with ATR and conditional plans, schema v4: EMA limit pullback plans.
     return engine.bias_snapshot()
 
 def bias_cards():
@@ -74,15 +74,18 @@ def bias_cards():
                 if not 0<=time.time()-r['closed']<3600:
                     st.caption('Level rencana kedaluwarsa; menunggu candle terbaru.')
                     continue
-                st.markdown('**Rencana entry bersyarat**')
+                st.markdown('**Rencana LIMIT · tunggu retest**')
                 for direction in ([r['side']] if r['side'] else [1,-1]):
                     try:plan=engine.bias_plan(r,direction)
-                    except (ValueError,KeyError):continue
+                    except (ValueError,KeyError) as error:
+                        st.caption(('LONG' if direction==1 else 'SHORT')+' · tunggu: '+str(error))
+                        continue
                     name='LONG' if direction==1 else 'SHORT'
-                    st.caption(name+' · tunggu candle 1H close '+('di atas' if direction==1 else 'di bawah')+' level entry')
+                    st.caption(name+' LIMIT · '+plan['reason'])
+                    st.caption(f"R:R {plan['rr']:.2f} · {'beli di bawah' if direction==1 else 'jual di atas'} close referensi")
                     level_row(plan['entry'],plan['tp'],plan['sl'])
                 st.caption('WR 90%: BELUM TERBUKTI untuk rencana ini. Bukan sinyal entry tervalidasi. Level dihitung ulang saat candle berganti.')
-    st.caption('Bias mengikuti keselarasan tren EMA50/100, momentum 12 jam, dan RSI. Rencana memakai breakout rentang 24H + buffer 0,1 ATR, SL 2 ATR dan TP 4 ATR (2R). Berlaku sampai candle berikutnya; bukan order bursa. Konfirmasi tidak menjamin harga fill atau WR 90%.')
+    st.caption('Bias mengikuti keselarasan tren EMA50/100, momentum 12 jam, dan RSI. Limit menunggu retest EMA20/50 atau support/resistance terdekat, SL 1,5 ATR; target dibatasi level lawan dengan R:R minimal 1,5 dan maksimal 2. Rencana dilewati jika ruang target sempit atau RSI ekstrem. Harga mengacu candle tertutup; limit tidak menjamin fill. Berlaku sampai candle berikutnya; bukan order bursa atau bukti WR 90%.')
 
 @st.fragment(run_every=60)
 def render():
@@ -136,4 +139,5 @@ def render():
         st.caption('Kartu dipantau sejak diterbitkan dalam sesi browser ini; riwayat sesi dapat hilang saat browser/server dimulai ulang. Pemeriksaan memakai candle 1 menit penuh setelah penerbitan, sehingga sentuhan pada menit pertama dapat terlewat. Jika TP/SL kena di menit yang sama, urutannya tidak diasumsikan.')
         st.write('Sinyal hanya tampil jika data masih berlaku, likuiditas lolos, minimal 100 transaksi uji, WR ≥90%, batas bawah Wilson 95% ≥80%, PF >1, dan ekspektasi bersih positif. Hasil terakhir yang kedaluwarsa disembunyikan. Arah yang bertentangan tidak diterbitkan.')
         st.write('Uji kronologis 70% awal / 30% akhir dari sekitar 83 hari candle 1H. Fee memakai katalog saat ini; slippage 0,05% per sisi dan funding adverse 0,01%/8 jam adalah asumsi, bukan riwayat biaya aktual lengkap. SL didahulukan bila TP/SL tersentuh pada candle yang sama. Uji forward dan validasi 1–2 tahun belum tersedia; pemilihan banyak koin/metode dapat menimbulkan bias seleksi.')
+        st.markdown('[Referensi EMA](https://www.tradingview.com/support/solutions/43000592270-exponential-moving-average/) · [Referensi ATR](https://www.tradingview.com/support/solutions/43000501823-average-true-range-atr/)')
         st.caption('Sumber: API publik MEXC. Tidak memakai kredensial trading pribadi untuk analisis ini.')

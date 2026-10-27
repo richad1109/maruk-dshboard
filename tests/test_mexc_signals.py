@@ -47,7 +47,7 @@ class CompactBoardTests(unittest.TestCase):
             published=120,closed=100,expires=400,qualified=True,liquid=True,target90=True,
             test=dict(n=110,wr=92,lower=85,pf=2,mean_r=.3))
     def test_conditional_plans_are_directional_not_accuracy_claims(self):
-        obs=dict(atr=2,support=90,resistance=110,closed=100)
+        obs=dict(atr=2,close=100,ema20=98,ema50=102,support=90,resistance=110,closed=100)
         long=m.bias_plan(obs,1);short=m.bias_plan(obs,-1)
         self.assertLess(long['sl'],long['entry']);self.assertLess(long['entry'],long['tp'])
         self.assertGreater(short['sl'],short['entry']);self.assertGreater(short['entry'],short['tp'])
