@@ -5,12 +5,13 @@ sniper_limit_engine.py
 -----------------------
 Engine Sinyal Kripto Limit Order Sniper 20 Koin (Fibonacci 50% Golden Pullback + Trend Filter EMA 50).
 100% Data Riil & Persistent Locked Levels:
-1. Level Entry (Limit), TP (+35% ROE), dan SL (-20% ROE) DIKUNCI MATI (PERSISTENT LOCKED) selama order belum selesai.
-2. Ketika harga menyentuh limit -> status beralih ke 'TOUCHED' (posisi aktif mantul), floating profit bergerak real-time.
-3. Begitu target TP (+35% ROE) atau Stop Loss (-20% ROE) tercapai:
-   - Hasil trade LANGSUNG dicatat ke riwayat persisten '_HISTORY_TRADES' (Realized PnL terakumulasi akurat).
+1. Level Entry (Limit), TP (+35% ROE), dan SL (-20% ROE) DIKUNCI MATI (PERSISTENT LOCKED).
+2. Level limit buy selalu berada di bawah harga pasar (diskon), dan limit sell selalu di atas harga pasar (premium).
+3. Hanya harga real-time candle berjalan yang dapat menjemput limit (anti-ghost trigger dari masa lalu).
+4. Ketika TP atau SL tersentuh:
+   - Hasil trade LANGSUNG dicatat ke riwayat persisten '_HISTORY_TRADES'.
    - Sistem SEGERA memindai dan menerbitkan SETUP LIMIT BARU ('WAITING') dari struktur pasar terkini.
-   - Tidak ada jeda atau kebekuan status (kalau sudah ya sudah, langsung pindai baru).
+   - Menggunakan cabang 'elif' sehingga tidak ada loop trigger ganda di scan tick yang sama.
 """
 
 import os
@@ -102,7 +103,7 @@ def load_persistent_history():
     return []
 
 def record_closed_trade(coin, sym, outcome, exit_p, closed_ts):
-    """Mencatat hasil trade (TP / SL) ke riwayat persisten agar tidak hilang saat setup baru dipindai."""
+    """Mencatat trade selesai ke riwayat persisten (anti-duplikasi)."""
     global _PERSISTENT_SETUPS
     with _STATE_LOCK:
         if "_HISTORY_TRADES" not in _PERSISTENT_SETUPS or not isinstance(_PERSISTENT_SETUPS["_HISTORY_TRADES"], list):
@@ -120,11 +121,10 @@ def record_closed_trade(coin, sym, outcome, exit_p, closed_ts):
             "closed_at": float(closed_ts)
         }
         
-        # Hindari duplikasi jika trade baru saja dicatat dalam 15 detik terakhir
         history = _PERSISTENT_SETUPS["_HISTORY_TRADES"]
         is_dup = False
-        for h in history[-10:]:
-            if h.get("coin") == coin and h.get("outcome") == outcome and abs(closed_ts - h.get("closed_at", 0)) < 15:
+        for h in history[-20:]:
+            if h.get("coin") == coin and h.get("outcome") == outcome and abs(closed_ts - h.get("closed_at", 0)) < 60:
                 is_dup = True
                 break
         if not is_dup:
@@ -162,13 +162,15 @@ def scan_single_coin(sym_tuple):
             if not closes:
                 continue
             cur_p = closes[-1]
+            cur_low = lows[-1]
+            cur_high = highs[-1]
             now_ts = time.time()
             
             with _STATE_LOCK:
                 setup = _PERSISTENT_SETUPS.get(coin)
             
             def create_new_setup(last_out=None):
-                """Membuat dan mengunci level limit baru dari candle yang tertutup."""
+                """Membuat level limit order baru yang segar (fresh) dan selalu diskon/premium sejati."""
                 ema50 = calc_ema(closes[:-1], 50)
                 is_long = closes[-1] >= ema50
                 sw_low = min(lows[-33:-1])
@@ -182,13 +184,23 @@ def scan_single_coin(sym_tuple):
                 if is_long:
                     potensi = "POTENSI LONG (BUY)"
                     side = "LONG"
-                    limit_p = sw_high - retrace * range_span
+                    fibo_p = sw_high - retrace * range_span
+                    # Pastikan limit buy selalu di bawah harga pasar saat ini (minimal diskon 0.5%)
+                    if fibo_p >= cur_p * 0.998:
+                        limit_p = max(sw_low + 0.15 * range_span, cur_p * 0.990)
+                    else:
+                        limit_p = fibo_p
                     tp_p = limit_p * (1.0 + tp_ratio)
                     sl_p = limit_p * (1.0 - sl_ratio)
                 else:
                     potensi = "POTENSI SHORT (SELL)"
                     side = "SHORT"
-                    limit_p = sw_low + retrace * range_span
+                    fibo_p = sw_low + retrace * range_span
+                    # Pastikan limit sell selalu di atas harga pasar saat ini (minimal premium 0.5%)
+                    if fibo_p <= cur_p * 1.002:
+                        limit_p = min(sw_high - 0.15 * range_span, cur_p * 1.010)
+                    else:
+                        limit_p = fibo_p
                     tp_p = limit_p * (1.0 - tp_ratio)
                     sl_p = limit_p * (1.0 + sl_ratio)
                     
@@ -217,7 +229,7 @@ def scan_single_coin(sym_tuple):
             if setup is None or not isinstance(setup, dict):
                 setup = create_new_setup()
 
-            # 2. Jika ada status legacy TP_HIT / SL_HIT, langsung selesaikan dan pindai baru
+            # 2. Jika ada status legacy TP_HIT / SL_HIT, langsung selesaikan dan buat setup fresh
             if setup.get('status') in ('TP_HIT', 'SL_HIT'):
                 outcome = "TP" if setup.get('status') == 'TP_HIT' else "SL"
                 record_closed_trade(coin, sym, outcome, cur_p, setup.get('closed_at', now_ts))
@@ -233,7 +245,6 @@ def scan_single_coin(sym_tuple):
             elif setup.get('status') == 'WAITING' and (now_ts - setup.get('created_at', now_ts) > 43200):
                 setup = create_new_setup(last_out=setup.get('last_outcome'))
 
-            # Ambil nilai level TERKUNCI dari state persisten
             limit_p = setup["limit_p"]
             tp_p = setup["tp_p"]
             sl_p = setup["sl_p"]
@@ -243,19 +254,35 @@ def scan_single_coin(sym_tuple):
             status = setup.get("status", "WAITING")
             last_outcome = setup.get("last_outcome")
             
-            # Hitung jarak real-time ke harga limit
-            if is_long:
-                diff_pct = ((cur_p - limit_p) / cur_p) * 100
-            else:
-                diff_pct = ((limit_p - cur_p) / cur_p) * 100
+            # Evaluasi Transisi Status (HANYA BERDASARKAN CANDLE BERJALAN SAAT INI):
+            # JIKA TOUCHED: Posisi sedang aktif! Cek apakah mencapai TP atau SL
+            if status == "TOUCHED":
+                hit_tp = (cur_high >= tp_p) if is_long else (cur_low <= tp_p)
+                hit_sl = (cur_low <= sl_p) if is_long else (cur_high >= sl_p)
                 
-            recent_lows = lows[-4:]
-            recent_highs = highs[-4:]
-            
-            # 4. Evaluasi Transisi Status:
-            # JIKA WAITING: Cek apakah wick candle terkini menyentuh limit entry
-            if status == "WAITING":
-                touched = (min(recent_lows) <= limit_p) if is_long else (max(recent_highs) >= limit_p)
+                if hit_tp or hit_sl:
+                    outcome = "TP" if hit_tp else "SL"
+                    exit_p = tp_p if hit_tp else sl_p
+                    record_closed_trade(coin, sym, outcome, exit_p, now_ts)
+                    last_out = {
+                        "outcome": outcome,
+                        "roe": 35.0 if hit_tp else -20.0,
+                        "pnl_usd": 0.70 if hit_tp else -0.40,
+                        "closed_at": now_ts
+                    }
+                    setup = create_new_setup(last_out=last_out)
+                    limit_p = setup["limit_p"]
+                    tp_p = setup["tp_p"]
+                    sl_p = setup["sl_p"]
+                    side = setup["side"]
+                    is_long = (side == "LONG")
+                    potensi = setup["potensi"]
+                    status = "WAITING"
+                    last_outcome = last_out
+
+            # JIKA WAITING: Cek apakah wick candle saat ini menjemput level limit
+            elif status == "WAITING":
+                touched = (cur_low <= limit_p) if is_long else (cur_high >= limit_p)
                 if touched:
                     status = "TOUCHED"
                     setup["status"] = "TOUCHED"
@@ -263,57 +290,17 @@ def scan_single_coin(sym_tuple):
                     with _STATE_LOCK:
                         _PERSISTENT_SETUPS[coin] = setup
                     save_persistent_state()
-                    
-            # JIKA TOUCHED: Posisi sedang aktif! Cek apakah mencapai TP atau SL
-            if status == "TOUCHED":
-                hit_tp = (max(recent_highs) >= tp_p) if is_long else (min(recent_lows) <= tp_p)
-                hit_sl = (min(recent_lows) <= sl_p) if is_long else (max(recent_highs) >= sl_p)
+                    # Menunggu scan berikutnya untuk evaluasi TP/SL (anti-loop)
+
+            # Hitung jarak real-time ke harga limit
+            if is_long:
+                diff_pct = ((cur_p - limit_p) / cur_p) * 100
+            else:
+                diff_pct = ((limit_p - cur_p) / cur_p) * 100
                 
-                if hit_tp:
-                    # Posisi sukses TP! Catat ke riwayat persisten, lalu SEGERA pindai setup baru
-                    record_closed_trade(coin, sym, "TP", tp_p, now_ts)
-                    last_out = {
-                        "outcome": "TP",
-                        "roe": 35.0,
-                        "pnl_usd": 0.70,
-                        "closed_at": now_ts
-                    }
-                    setup = create_new_setup(last_out=last_out)
-                    limit_p = setup["limit_p"]
-                    tp_p = setup["tp_p"]
-                    sl_p = setup["sl_p"]
-                    side = setup["side"]
-                    is_long = (side == "LONG")
-                    potensi = setup["potensi"]
-                    status = "WAITING"
-                    last_outcome = last_out
-                    diff_pct = ((cur_p - limit_p) / cur_p) * 100 if is_long else ((limit_p - cur_p) / cur_p) * 100
-
-                elif hit_sl:
-                    # Posisi kena SL! Catat ke riwayat persisten, lalu SEGERA pindai setup baru
-                    record_closed_trade(coin, sym, "SL", sl_p, now_ts)
-                    last_out = {
-                        "outcome": "SL",
-                        "roe": -20.0,
-                        "pnl_usd": -0.40,
-                        "closed_at": now_ts
-                    }
-                    setup = create_new_setup(last_out=last_out)
-                    limit_p = setup["limit_p"]
-                    tp_p = setup["tp_p"]
-                    sl_p = setup["sl_p"]
-                    side = setup["side"]
-                    is_long = (side == "LONG")
-                    potensi = setup["potensi"]
-                    status = "WAITING"
-                    last_outcome = last_out
-                    diff_pct = ((cur_p - limit_p) / cur_p) * 100 if is_long else ((limit_p - cur_p) / cur_p) * 100
-
-            # 5. Format tampilan output kartu (JELAS, BEBAS KONFLIK)
             wr_val = COIN_WIN_RATES.get(coin, 67.0)
             
             if status == "TOUCHED":
-                # Posisi aktif mantul
                 if is_long:
                     float_roe = ((cur_p - limit_p) / limit_p) * lev * 100
                 else:
@@ -325,7 +312,6 @@ def scan_single_coin(sym_tuple):
                 valid_label = "⚡ POSISI AKTIF"
                 is_touched = True
             else:
-                # Siaga menunggu jemputan
                 float_roe = 0.0
                 float_usd = 0.0
                 sign_d = "-" if is_long else "+"

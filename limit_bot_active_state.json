@@ -341,8 +341,8 @@
       "outcome": "SL",
       "pnl_usd": -0.4,
       "roe": -20.0,
-      "exit_price": 0.16824,
-      "closed_at": 1793137572.1873577
+      "exit_price": 0.1658,
+      "closed_at": 1793137572
     },
     {
       "coin": "RENDER",
@@ -351,7 +351,7 @@
       "pnl_usd": 0.7,
       "roe": 35.0,
       "exit_price": 1.703,
-      "closed_at": 1793137019.029752
+      "closed_at": 1793137019
     },
     {
       "coin": "INJ",
@@ -359,8 +359,8 @@
       "outcome": "SL",
       "pnl_usd": -0.4,
       "roe": -20.0,
-      "exit_price": 8.069,
-      "closed_at": 1793137572.1846764
+      "exit_price": 7.996,
+      "closed_at": 1793137572
     }
   ]
 }
