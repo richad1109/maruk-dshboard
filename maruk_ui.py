@@ -25,7 +25,7 @@ PAGE={"Ringkasan":("Semua akun. Satu pandangan.","Pantau portofolio, pergerakan 
       "Bot Sakti":("Satu sistem. Setiap langkah terpantau.","Jurnal Termux terenkripsi, peringatan proteksi, dan status Bot Final."),
       "Kantor 3D":("Welcome to your trading floor.","Tiga meja. Delapan wallet. Satu ruang untuk melihat semuanya."),
       "Studio Animasi":("Tiga suasana. Pilih kantormu.","Bandingkan tiga konsep bergerak sebelum memilih tampilan utama."),
-      "Analisis BTC":("Baca kondisi. Siapkan skenario.","Tren, momentum, sentimen, dan level konfirmasi dari data pasar publik."),
+      "Sinyal & Skenario":("Baca kondisi. Siapkan rencana.","BTC, SOL, DOGE · skenario harga, TP/SL dan konteks pasar dari data publik."),
       "Riset Quantum":("Riset di balik istilahnya.","Apa yang diteliti, apa yang tersedia, dan batas penggunaannya dalam trading."),
       "Market Intel":("Konteks sebelum keputusan.","Pergerakan pasar dan asisten untuk membaca konteks makro.")}
 
@@ -392,15 +392,16 @@ def main():
     html("<style>"+(ROOT/"assets/terminal.css").read_text(encoding="utf8")+"</style>")
     settings=secrets();stamp=datetime.now(WIB).strftime("%d %b %Y · %H:%M WIB")
     html(f'<div class="masthead"><div class="brand-wrap"><div class="brand-symbol"><svg viewBox="0 0 32 32"><path d="M6 6v20m0-10L24 6M12 13l13 13M21 7h5v7"/></svg></div><div><div class="brand">KANTOR<span>rakus.</span></div><div class="brand-sub">BOT SAKTI / PERSONAL TRADING FLOOR</div></div></div><div class="top-meta"><span>{stamp}</span><span class="chip neutral"><span class="dot"></span>REAL ACCOUNT MONITOR</span></div></div>')
-    nav=st.radio("Navigasi",list(PAGE),index=list(PAGE).index('Studio Animasi') if st.query_params.get('studio')=='1' else 0,horizontal=True,key="navigation")
+    nav=st.radio("Navigasi",list(PAGE),index=list(PAGE).index('Sinyal & Skenario') if st.query_params.get('view')=='sinyal-auto' else list(PAGE).index('Studio Animasi') if st.query_params.get('studio')=='1' else 0,horizontal=True,key="navigation")
     html('<div class="nav-line"></div>')
     title,description=PAGE[nav]
     html(f'<div class="page-intro"><div><div class="eyebrow">KANTOR RAKUS / {escape(nav.upper())}</div><h1>{title}</h1><p>{description}</p></div><div class="page-count">03 ACCOUNTS<br><span style="color:#bac9d7;display:block;margin-top:6px">08 WALLETS / 03 EXCHANGES</span></div></div>')
     if nav=='Studio Animasi':
         animation_studio()
         return
-    if nav=='Analisis BTC':
-        btc_desk()
+    if nav=='Sinyal & Skenario':
+        import signal_ui
+        signal_ui.render()
         return
     if nav=='Riset Quantum':
         quantum_desk()
