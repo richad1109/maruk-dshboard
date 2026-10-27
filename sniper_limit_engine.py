@@ -3,13 +3,13 @@
 """
 sniper_limit_engine.py
 -----------------------
-Engine Sinyal Kripto Limit Order Sniper 20 Koin (Whale Wick - Realistis Tanpa Ilusi).
-Logika Penguncian Siklus Mantul & Pembaruan Kontinu:
-1. Posisi yang sudah terjemput (mantul) DIKUNCI statusnya sebagai TERISI MANTUL dengan live Floating Profit.
-2. Posisi TIDAK AKAN PERNAH kembali ke 'menunggu jemputan' selama posisi aktif.
-3. Begitu menyentuh Target TP (+35% ROE) atau Stop Loss (-36% ROE):
-   - Hasil keuntungan/kerugian dikunci ke riwayat portofolio.
-   - Sistem OTOMATIS memindai struktur pasar terkini dan MENERBITKAN SETUP LIMIT BARU agar pengguna selalu siap pasang limit berikutnya.
+Engine Sinyal Kripto Limit Order Sniper 20 Koin (Fibonacci 50% Pullback Reversion).
+100% Data Riil & Transparan:
+- Mendeteksi level pantulan 50% Golden Pullback dari struktur swing pasar 8 jam terakhir.
+- Status 'SEDANG MANTUL' HANYA aktif jika jarum harga dalam 3 candle terakhir (45 menit) benar-benar menyentuh titik limit.
+- Jika belum tersentuh, status adalah 'MENUNGGU JEMPUTAN' dengan jarak riil dalam persen.
+- Stop Loss diperketat ke -20% ROE (R:R Asimetris 1 : 1.75).
+- Tidak ada penghitungan laba masa lalu yang direkayasa.
 """
 
 import sys
@@ -57,13 +57,13 @@ TOP_20_COINS = [
 
 def scan_single_coin(sym_tuple):
     coin, sym, full_name, lev, tier_label = sym_tuple
-    url = f"https://open-api.bingx.com/openApi/swap/v3/quote/klines?symbol={sym}&interval=15m&limit=48"
+    url = f"https://open-api.bingx.com/openApi/swap/v3/quote/klines?symbol={sym}&interval=15m&limit=32"
     
     for attempt in range(3):
         try:
             r = requests.get(url, verify=False, timeout=5.0).json()
             raw = r.get('data', [])
-            if not raw or len(raw) < 32:
+            if not raw or len(raw) < 20:
                 time.sleep(0.2)
                 continue
             if raw[0]['time'] > raw[-1]['time']:
@@ -76,14 +76,14 @@ def scan_single_coin(sym_tuple):
             cur_p = closes[-1]
             n = len(raw)
             
-            # Base Swing S/R dari 32 candle awal
-            sw_low = min(lows[:32])
-            sw_high = max(highs[:32])
+            # Base Swing S/R 32 bar terakhir (8 jam)
+            sw_low = min(lows)
+            sw_high = max(highs)
             range_span = sw_high - sw_low if sw_high > sw_low else 1.0
             pos_in_range = (cur_p - sw_low) / range_span
             
             tp_ratio = 0.35 / lev # Target TP +35% ROE
-            sl_ratio = 0.20 / lev # Stop Loss Diperketat -20% ROE (R:R 1 : 1.75 Asymmetric Edge)
+            sl_ratio = 0.20 / lev # Stop Loss Diperketat -20% ROE (R:R 1 : 1.75)
             retrace = 0.50        # Fibonacci 50% Golden Pullback
             
             wr_val = COIN_WIN_RATES.get(coin, 67.0)
@@ -96,64 +96,25 @@ def scan_single_coin(sym_tuple):
                 sl_p = limit_p * (1.0 - sl_ratio)
                 diff_pct = ((cur_p - limit_p) / cur_p) * 100
                 
-                # Cek dari candle 20 ke depan apakah ada wick yang menyentuh limit
-                fill_idx = -1
-                for idx in range(20, n):
-                    if lows[idx] <= limit_p:
-                        fill_idx = idx
-                        break
-                        
-                if fill_idx != -1:
-                    # KUNCI POSISI TERISI / MANTUL!
-                    sub_highs = highs[fill_idx:]
-                    sub_lows = lows[fill_idx:]
-                    hit_tp = max(sub_highs) >= tp_p
-                    hit_sl = min(sub_lows) <= sl_p
-                    
-                    if hit_tp:
-                        # Kena TP! Kunci profit +35% ROE & segera terbitkan setup limit baru
-                        fresh_limit = cur_p * 0.995
-                        fresh_diff = ((cur_p - fresh_limit) / cur_p) * 100
-                        is_touched = True
-                        touch_status = "🎯 SUDAH HIT TP"
-                        valid_label = "🎯 SUDAH TP (PINDAI SETUP BARU)"
-                        float_roe = 35.0
-                        float_usd = 0.70
-                        float_str = "🎯 HIT TP! (+35.0% ROE | +$0.70 USD) 🏆"
-                        limit_p = fresh_limit
-                        tp_p = limit_p * (1.0 + tp_ratio)
-                        sl_p = limit_p * (1.0 - sl_ratio)
-                        diff_pct = fresh_diff
-                    elif hit_sl:
-                        # Kena SL! Kunci rugi -20% ROE & segera terbitkan setup limit baru
-                        fresh_limit = cur_p * 0.995
-                        fresh_diff = ((cur_p - fresh_limit) / cur_p) * 100
-                        is_touched = True
-                        touch_status = "🛑 SUDAH HIT SL"
-                        valid_label = "🛑 HIT SL (PINDAI SETUP BARU)"
-                        float_roe = -20.0
-                        float_usd = -0.40
-                        float_str = "🛑 HIT SL! (-20.0% ROE | -$0.40 USD)"
-                        limit_p = fresh_limit
-                        tp_p = limit_p * (1.0 + tp_ratio)
-                        sl_p = limit_p * (1.0 - sl_ratio)
-                        diff_pct = fresh_diff
-                    else:
-                        # SEDANG MANTUL AKTIF - JANGAN UBAH KE MENUNGGU!
-                        is_touched = True
-                        touch_status = "⚡ SUDAH KESENTUH (TERISI)"
-                        valid_label = "✅ VALID (SEDANG MANTUL)"
-                        float_roe = ((cur_p - limit_p) / limit_p) * lev * 100
-                        float_usd = (float_roe / 100.0) * 2.0
-                        sign = "+" if float_roe >= 0 else ""
-                        float_str = f"Floating: {sign}${float_usd:.2f} ({sign}{float_roe:.1f}% ROE)"
+                # Cek HANYA 3 candle terakhir (45 menit) apakah ada wick yang menyentuh limit
+                recent_lows = lows[-3:]
+                touched_recent = min(recent_lows) <= limit_p
+                
+                if touched_recent:
+                    is_touched = True
+                    touch_status = "⚡ SEDANG MANTUL (TERISI)"
+                    valid_label = "✅ VALID (SEDANG MANTUL)"
+                    float_roe = ((cur_p - limit_p) / limit_p) * lev * 100
+                    float_usd = (float_roe / 100.0) * 2.0
+                    sign = "+" if float_roe >= 0 else ""
+                    float_str = f"Floating: {sign}${float_usd:.2f} ({sign}{float_roe:.1f}% ROE)"
                 else:
                     is_touched = False
-                    touch_status = "⏳ BELUM KESENTUH"
+                    touch_status = "⏳ MENUNGGU JEMPUTAN"
                     float_roe = 0.0
                     float_usd = 0.0
-                    float_str = f"Jarak: -{diff_pct:.2f}% (Menunggu jemputan)"
-                    valid_label = "✅ SETUP VALID" if diff_pct <= 2.0 else "🔍 MEMINDAI (BELUM VALID)"
+                    float_str = f"Jarak: -{abs(diff_pct):.2f}% (Menunggu jemputan)"
+                    valid_label = "✅ SETUP VALID" if abs(diff_pct) <= 2.0 else "🔍 MEMINDAI (BELUM VALID)"
             else:
                 potensi = "POTENSI SHORT (SELL)"
                 limit_p = sw_low + retrace * range_span
@@ -161,60 +122,24 @@ def scan_single_coin(sym_tuple):
                 sl_p = limit_p * (1.0 + sl_ratio)
                 diff_pct = ((limit_p - cur_p) / cur_p) * 100
                 
-                fill_idx = -1
-                for idx in range(20, n):
-                    if highs[idx] >= limit_p:
-                        fill_idx = idx
-                        break
-                        
-                if fill_idx != -1:
-                    # KUNCI POSISI TERISI / MANTUL!
-                    sub_highs = highs[fill_idx:]
-                    sub_lows = lows[fill_idx:]
-                    hit_tp = min(sub_lows) <= tp_p
-                    hit_sl = max(sub_highs) >= sl_p
-                    
-                    if hit_tp:
-                        fresh_limit = cur_p * 1.005
-                        fresh_diff = ((fresh_limit - cur_p) / cur_p) * 100
-                        is_touched = True
-                        touch_status = "🎯 SUDAH HIT TP"
-                        valid_label = "🎯 SUDAH TP (PINDAI SETUP BARU)"
-                        float_roe = 35.0
-                        float_usd = 0.70
-                        float_str = "🎯 HIT TP! (+35.0% ROE | +$0.70 USD) 🏆"
-                        limit_p = fresh_limit
-                        tp_p = limit_p * (1.0 - tp_ratio)
-                        sl_p = limit_p * (1.0 + sl_ratio)
-                        diff_pct = fresh_diff
-                    elif hit_sl:
-                        fresh_limit = cur_p * 1.005
-                        fresh_diff = ((fresh_limit - cur_p) / cur_p) * 100
-                        is_touched = True
-                        touch_status = "🛑 SUDAH HIT SL"
-                        valid_label = "🛑 HIT SL (PINDAI SETUP BARU)"
-                        float_roe = -20.0
-                        float_usd = -0.40
-                        float_str = "🛑 HIT SL! (-20.0% ROE | -$0.40 USD)"
-                        limit_p = fresh_limit
-                        tp_p = limit_p * (1.0 - tp_ratio)
-                        sl_p = limit_p * (1.0 + sl_ratio)
-                        diff_pct = fresh_diff
-                    else:
-                        is_touched = True
-                        touch_status = "⚡ SUDAH KESENTUH (TERISI)"
-                        valid_label = "✅ VALID (SEDANG MANTUL)"
-                        float_roe = ((limit_p - cur_p) / limit_p) * lev * 100
-                        float_usd = (float_roe / 100.0) * 2.0
-                        sign = "+" if float_roe >= 0 else ""
-                        float_str = f"Floating: {sign}${float_usd:.2f} ({sign}{float_roe:.1f}% ROE)"
+                recent_highs = highs[-3:]
+                touched_recent = max(recent_highs) >= limit_p
+                
+                if touched_recent:
+                    is_touched = True
+                    touch_status = "⚡ SEDANG MANTUL (TERISI)"
+                    valid_label = "✅ VALID (SEDANG MANTUL)"
+                    float_roe = ((limit_p - cur_p) / limit_p) * lev * 100
+                    float_usd = (float_roe / 100.0) * 2.0
+                    sign = "+" if float_roe >= 0 else ""
+                    float_str = f"Floating: {sign}${float_usd:.2f} ({sign}{float_roe:.1f}% ROE)"
                 else:
                     is_touched = False
-                    touch_status = "⏳ BELUM KESENTUH"
+                    touch_status = "⏳ MENUNGGU JEMPUTAN"
                     float_roe = 0.0
                     float_usd = 0.0
-                    float_str = f"Jarak: +{diff_pct:.2f}% (Menunggu jemputan)"
-                    valid_label = "✅ SETUP VALID" if diff_pct <= 2.0 else "🔍 MEMINDAI (BELUM VALID)"
+                    float_str = f"Jarak: +{abs(diff_pct):.2f}% (Menunggu jemputan)"
+                    valid_label = "✅ SETUP VALID" if abs(diff_pct) <= 2.0 else "🔍 MEMINDAI (BELUM VALID)"
             
             return {
                 "coin": coin,
