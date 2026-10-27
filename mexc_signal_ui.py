@@ -78,16 +78,27 @@ def bias_cards():
         st.warning('Radar limit order sedang menyinkronkan data bursa…')
         return
 
-    # HITUNG TOTAL STATISTIK FLOATING PROFIT SE-PORTOFOLIO 20 KOIN
-    total_floating_usd = sum(r['float_usd'] for r in observations if r['is_touched'])
-    total_floating_roe = sum(r['float_roe'] for r in observations if r['is_touched'])
+    # HITUNG TOTAL STATISTIK FLOATING & REALIZED PROFIT SE-PORTOFOLIO 20 KOIN
+    total_floating_usd = sum(r['float_usd'] for r in observations if "SEDANG MANTUL" in r['valid_label'])
+    total_floating_roe = sum(r['float_roe'] for r in observations if "SEDANG MANTUL" in r['valid_label'])
     active_floating_count = sum(1 for r in observations if "SEDANG MANTUL" in r['valid_label'])
+    
     tp_count = sum(1 for r in observations if "TP" in r['touch_status'])
     sl_count = sum(1 for r in observations if "SL" in r['touch_status'])
     valid_count = sum(1 for r in observations if "SETUP VALID" in r['valid_label'] or "PINDAI" in r['valid_label'])
     memindai_count = sum(1 for r in observations if "MEMINDAI" in r['valid_label'])
     longs = sum(1 for r in observations if "LONG" in r['potensi'])
     shorts = sum(1 for r in observations if "SHORT" in r['potensi'])
+    
+    # Perhitungan Realized PnL dari Setup Selesai (Hit TP: +$0.70 | Hit SL: -$0.72)
+    realized_usd = (tp_count * 0.70) - (sl_count * 0.72)
+    realized_roe = (tp_count * 35.0) - (sl_count * 36.0)
+    realized_idr = realized_usd * 16300
+    
+    # Win Rate Realisasi & Historis
+    total_closed = tp_count + sl_count
+    realized_wr = (tp_count / total_closed * 100) if total_closed > 0 else 0.0
+    avg_portfolio_wr = sum(r['wr'] for r in observations) / len(observations) if observations else 67.0
     
     label = 'DOMINAN LONG' if longs > shorts else 'DOMINAN SHORT' if shorts > longs else 'CAMPURAN / NETRAL'
     
@@ -96,7 +107,7 @@ def bias_cards():
         st.caption(f'Top 20 Likuiditas Kripto · Margin $2.00 USD Isolated per Posisi · Leverage 20x-30x')
 
     # =========================================================================
-    # BANNER UTAMA: TOTAL FLOATING PROFIT DARI SEMUA 20 KOIN
+    # BANNER UTAMA: TOTAL FLOATING, REALIZED PnL & WIN RATE PORTOFOLIO
     # =========================================================================
     sign_tot = "+" if total_floating_usd >= 0 else ""
     tot_bg = "rgba(16, 185, 129, 0.16)" if total_floating_usd >= 0 else "rgba(239, 68, 68, 0.16)"
@@ -104,37 +115,70 @@ def bias_cards():
     tot_col = "#34d399" if total_floating_usd >= 0 else "#f87171"
     tot_idr = total_floating_usd * 16300
 
+    sign_real = "+" if realized_usd >= 0 else ""
+    real_col = "#34d399" if realized_usd >= 0 else "#f87171"
+
     st.markdown(f'''
-    <div style="background: {tot_bg}; border: 2px solid {tot_border}; border-radius: 12px; padding: 14px 20px; margin-bottom: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-            <div>
-                <div style="font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: #94a3b8; font-weight: 700;">
-                    💰 TOTAL FLOATING PROFIT PORTOFOLIO (20 KOIN LIMIT)
+    <div style="background: rgba(15, 23, 42, 0.75); border: 2px solid #334155; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 14px;">
+            <!-- 1. FLOATING PROFIT -->
+            <div style="background: {tot_bg}; border: 1.5px solid {tot_border}; border-radius: 10px; padding: 12px 16px;">
+                <div style="font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: #94a3b8; font-weight: 700;">
+                    💰 FLOATING PROFIT (BERJALAN)
                 </div>
-                <div style="font-size: 30px; font-weight: 900; color: {tot_col}; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">
-                    {sign_tot}${total_floating_usd:,.2f} USD <span style="font-size: 18px; font-weight: 700;">({sign_tot}{total_floating_roe:,.1f}% ROE)</span>
+                <div style="font-size: 24px; font-weight: 900; color: {tot_col}; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">
+                    {sign_tot}${total_floating_usd:,.2f} USD <span style="font-size: 15px; font-weight: 700;">({sign_tot}{total_floating_roe:,.1f}%)</span>
                 </div>
-                <div style="font-size: 12px; color: #cbd5e1; margin-top: 3px;">
-                    Estimasi Rupiah: <strong style="color: {tot_col};">{sign_tot}Rp {tot_idr:,.0f}</strong> (Dari posisi limit yang sedang mantul aktif)
+                <div style="font-size: 11.5px; color: #cbd5e1; margin-top: 2px;">
+                    Estimasi: <strong style="color: {tot_col};">{sign_tot}Rp {tot_idr:,.0f}</strong> ({active_floating_count} koin mantul)
                 </div>
             </div>
-            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                <div style="background: rgba(16, 185, 129, 0.25); border: 1px solid #10b981; border-radius: 8px; padding: 8px 14px; text-align: center;">
-                    <div style="font-size: 10px; color: #a7f3d0; font-weight: 700;">⚡ SEDANG MANTUL</div>
-                    <div style="font-size: 18px; font-weight: 800; color: #34d399;">{active_floating_count} Koin</div>
+
+            <!-- 2. REALIZED PnL -->
+            <div style="background: rgba(59, 130, 246, 0.14); border: 1.5px solid #3b82f6; border-radius: 10px; padding: 12px 16px;">
+                <div style="font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: #93c5fd; font-weight: 700;">
+                    💎 REALIZED PnL (SELESAI TP/SL)
                 </div>
-                <div style="background: rgba(59, 130, 246, 0.20); border: 1px solid #3b82f6; border-radius: 8px; padding: 8px 14px; text-align: center;">
-                    <div style="font-size: 10px; color: #bfdbfe; font-weight: 700;">🎯 SUKSES HIT TP</div>
-                    <div style="font-size: 18px; font-weight: 800; color: #60a5fa;">{tp_count} Setup</div>
+                <div style="font-size: 24px; font-weight: 900; color: {real_col}; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">
+                    {sign_real}${realized_usd:,.2f} USD <span style="font-size: 15px; font-weight: 700;">({sign_real}{realized_roe:,.1f}%)</span>
                 </div>
-                <div style="background: rgba(239, 68, 68, 0.20); border: 1px solid #ef4444; border-radius: 8px; padding: 8px 14px; text-align: center;">
-                    <div style="font-size: 10px; color: #fecaca; font-weight: 700;">🛑 HIT STOP LOSS</div>
-                    <div style="font-size: 18px; font-weight: 800; color: #f87171;">{sl_count} Setup</div>
+                <div style="font-size: 11.5px; color: #cbd5e1; margin-top: 2px;">
+                    Total Selesai: <strong style="color: {real_col};">{sign_real}Rp {realized_idr:,.0f}</strong> ({total_closed} setup selesai)
                 </div>
-                <div style="background: rgba(245, 158, 11, 0.20); border: 1px solid #f59e0b; border-radius: 8px; padding: 8px 14px; text-align: center;">
-                    <div style="font-size: 10px; color: #fde68a; font-weight: 700;">⏳ SIAGA PASANG</div>
-                    <div style="font-size: 18px; font-weight: 800; color: #f59e0b;">{valid_count} Koin</div>
+            </div>
+
+            <!-- 3. WIN RATE PORTOFOLIO -->
+            <div style="background: rgba(245, 158, 11, 0.14); border: 1.5px solid #f59e0b; border-radius: 10px; padding: 12px 16px;">
+                <div style="font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: #fde68a; font-weight: 700;">
+                    🏆 WIN RATE (WR) PORTOFOLIO
                 </div>
+                <div style="font-size: 24px; font-weight: 900; color: #fbbf24; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">
+                    {avg_portfolio_wr:.1f}% <span style="font-size: 13px; font-weight: 700; color: #94a3b8;">(Historis)</span>
+                </div>
+                <div style="font-size: 11.5px; color: #cbd5e1; margin-top: 2px;">
+                    WR Sesi Selesai: <strong style="color: #60a5fa;">{realized_wr:.1f}%</strong> ({tp_count} TP / {sl_count} SL)
+                </div>
+            </div>
+        </div>
+
+        <!-- BARIS KEDUA: COUNTER STATUS -->
+        <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; border-top: 1px solid #1e293b; padding-top: 12px;">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <span style="background: rgba(16, 185, 129, 0.22); border: 1px solid #10b981; color: #34d399; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">
+                    ⚡ {active_floating_count} Koin Mantul
+                </span>
+                <span style="background: rgba(59, 130, 246, 0.22); border: 1px solid #3b82f6; color: #60a5fa; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">
+                    🎯 {tp_count} Sukses Hit TP
+                </span>
+                <span style="background: rgba(239, 68, 68, 0.22); border: 1px solid #ef4444; color: #f87171; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">
+                    🛑 {sl_count} Hit Stop Loss
+                </span>
+                <span style="background: rgba(245, 158, 11, 0.22); border: 1px solid #f59e0b; color: #f59e0b; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">
+                    ⏳ {valid_count} Siaga Limit Baru
+                </span>
+            </div>
+            <div style="font-size: 11px; color: #64748b;">
+                *Margin \$2.00 per posisi isolated · TP +35% ROE · SL -36% ROE
             </div>
         </div>
     </div>

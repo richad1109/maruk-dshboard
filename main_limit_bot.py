@@ -36,24 +36,35 @@ def run_once():
         print(f"[{now_str}] ⚠️ Gagal mengambil data bursa, mencoba lagi...")
         return
         
-    # Akumulasi Total Floating Profit Portofolio 20 Koin
-    total_floating_usd = sum(r['float_usd'] for r in results if r['is_touched'])
-    total_floating_roe = sum(r['float_roe'] for r in results if r['is_touched'])
+    # Akumulasi Total Floating & Realized Profit Portofolio 20 Koin
+    total_floating_usd = sum(r['float_usd'] for r in results if "SEDANG MANTUL" in r['valid_label'])
+    total_floating_roe = sum(r['float_roe'] for r in results if "SEDANG MANTUL" in r['valid_label'])
     active_floating_count = sum(1 for r in results if "SEDANG MANTUL" in r['valid_label'])
     tp_count = sum(1 for r in results if "TP" in r['touch_status'])
     sl_count = sum(1 for r in results if "SL" in r['touch_status'])
     valid_count = sum(1 for r in results if "SETUP VALID" in r['valid_label'] or "PINDAI" in r['valid_label'])
     memindai_count = sum(1 for r in results if "MEMINDAI" in r['valid_label'])
     
+    # Realized PnL & Win Rate
+    realized_usd = (tp_count * 0.70) - (sl_count * 0.72)
+    realized_roe = (tp_count * 35.0) - (sl_count * 36.0)
+    realized_idr = realized_usd * 16300
+    total_closed = tp_count + sl_count
+    realized_wr = (tp_count / total_closed * 100) if total_closed > 0 else 0.0
+    avg_portfolio_wr = sum(r['wr'] for r in results) / len(results) if results else 67.0
+    
     sign_tot = "+" if total_floating_usd >= 0 else ""
     tot_idr = total_floating_usd * 16300
+    sign_real = "+" if realized_usd >= 0 else ""
     
     print("=" * 125)
     print(f"🎯 BOT LIMIT ORDER SNIPER 20 KOIN - LIVE HUD TERMUX - {now_str}")
     print(f"Status Kemitraan: 100% TERPISAH dari Astra (Astra Tab 1 Aman & Independen)")
     print("=" * 125)
-    print(f"💰 TOTAL FLOATING PROFIT PORTOFOLIO : {sign_tot}${total_floating_usd:,.2f} USD ({sign_tot}{total_floating_roe:,.1f}% ROE) ~ {sign_tot}Rp {tot_idr:,.0f}")
-    print(f"📊 Ringkasan Status                   : ⚡ {active_floating_count} Koin Mantul Floating | 🎯 {tp_count} Sukses TP | 🛑 {sl_count} Kena SL | ⏳ {valid_count} Siaga Limit Baru")
+    print(f"💰 FLOATING PROFIT (AKTIF) : {sign_tot}${total_floating_usd:,.2f} USD ({sign_tot}{total_floating_roe:,.1f}% ROE) ~ {sign_tot}Rp {tot_idr:,.0f} [{active_floating_count} Koin Mantul]")
+    print(f"💎 REALIZED PnL (SELESAI)  : {sign_real}${realized_usd:,.2f} USD ({sign_real}{realized_roe:,.1f}% ROE) ~ {sign_real}Rp {realized_idr:,.0f} [{total_closed} Setup Selesai: {tp_count} TP / {sl_count} SL]")
+    print(f"🏆 WIN RATE (WR)           : {avg_portfolio_wr:.1f}% Rata-Rata Historis | WR Realisasi Sesi: {realized_wr:.1f}%")
+    print(f"📊 Ringkasan Siaga Pasang  : ⏳ {valid_count} Koin Siaga Limit Baru | 🔍 {memindai_count} Koin Memindai")
     print("=" * 125)
     print(f"{'KOIN':<6} | {'POTENSI':<19} | {'STATUS VALID':<19} | {'SENTUH LIMIT?':<22} | {'FLOATING / JARAK':<28} | {'WR':>5}")
     print("-" * 125)
