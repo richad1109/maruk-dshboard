@@ -12,6 +12,7 @@ def universe():
     return engine.catalog()
 @st.cache_data(ttl=300,show_spinner=False)
 def batch(items,rule):return engine.scan(items,rule)
+@st.fragment(run_every=60)
 def render():
     st.query_params['view']='sinyal-kripto'
     st.markdown('### MEXC / Signal Research Desk')
@@ -36,7 +37,7 @@ def render():
     col1,col2=st.columns(2)
     do_selected=col1.button('Analisis koin terpilih',type='primary',width='stretch')
     do_batch=col2.button('Pindai 30 koin berikutnya',width='stretch')
-    if do_selected:
+    if do_selected or (results.get(selected,{}).get('expires',float('inf'))<time.time()):
         with st.spinner('Menguji candle riil MEXC…'):
             result=batch([next(m for m in coins if m['symbol']==selected)],rule)[0];results[selected]=result
     if do_batch:
@@ -47,7 +48,7 @@ def render():
     if results:
         table=[]
         for r in results.values():
-            t=r.get('test',{});table.append({'Koin':r['symbol'],'Status':r.get('status','DATA GAGAL'),'Arah':{1:'LONG',-1:'SHORT',0:'—'}.get(r.get('side'),'—'),'WR uji %':round(t['wr'],2) if t else None,'Trade uji':t.get('n'),'PF uji':round(t['pf'],2) if t.get('pf') is not None else None,'Target 90%': 'Lolos sampel' if r.get('target90') else 'Belum terbukti'})
+            t=r.get('test',{});table.append({'Koin':r['symbol'],'Status':'KEDALUWARSA' if r.get('expires',float('inf'))<time.time() else r.get('status','DATA GAGAL'),'Arah':{1:'LONG',-1:'SHORT',0:'—'}.get(r.get('side'),'—'),'WR uji %':round(t['wr'],2) if t else None,'Trade uji':t.get('n'),'PF uji':round(t['pf'],2) if t.get('pf') is not None else None,'Target 90%': 'Lolos sampel' if r.get('target90') else 'Belum terbukti'})
         st.dataframe(pd.DataFrame(table),hide_index=True,width='stretch')
     r=results.get(selected)
     if not r:st.info('Pilih koin dan tekan Analisis. Hasil tidak dibuat ketika candle belum diperiksa.');return
