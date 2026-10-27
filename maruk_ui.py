@@ -24,7 +24,7 @@ PAGE={"Ringkasan":("Semua akun. Satu pandangan.","Pantau portofolio, pergerakan 
       "Posisi & Bursa":("Setiap posisi, lebih jelas.","Detail eksposur dan koneksi delapan wallet di tiga bursa."),
       "Bot Sakti":("Satu sistem. Setiap langkah terpantau.","Jurnal Termux terenkripsi, peringatan proteksi, dan status Bot Final."),
       "Sinyal & Skenario":("Baca kondisi. Siapkan rencana.","BTC, SOL, DOGE · skenario harga, TP/SL dan konteks pasar dari data publik."),
-      "Sinyal Kripto":("Cari peluang. Periksa buktinya.","Seluruh kontrak MEXC USDT · setup teknikal, TP/SL, dan pengujian kronologis.")}
+      "Sinyal Kripto":("Sinyal Kripto.","Peluang terpilih dari MEXC. Kartu entry, TP, SL dan status harga.")}
 
 
 

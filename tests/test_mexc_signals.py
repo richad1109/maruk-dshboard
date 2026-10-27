@@ -30,4 +30,29 @@ class ScannerTests(unittest.TestCase):
             a=AppTest.from_file(str(__import__('pathlib').Path(__file__).resolve().parents[1]/'streamlit_app.py'));a.query_params['view']='sinyal-kripto';a.run()
             self.assertFalse(a.exception)
             self.assertNotIn('Kantor 3D',a.radio[0].options)
+class CompactBoardTests(unittest.TestCase):
+    def signal(self):
+        return dict(symbol='BTC_USDT',rule='Donchian breakout',side=1,entry=100,tp=104,sl=98,
+            published=120,closed=100,expires=400,qualified=True,liquid=True,target90=True,
+            test=dict(n=110,wr=92,lower=85,pf=2,mean_r=.3))
+    def test_strict_gate_and_conflict(self):
+        from mexc_signal_ui import visible_signals
+        r=self.signal();self.assertEqual(len(visible_signals([r],now=200)),1)
+        self.assertFalse(visible_signals([{**r,'test':{**r['test'],'n':10}}],now=200))
+        self.assertFalse(visible_signals([r],now=500))
+        self.assertFalse(visible_signals([r,{**r,'side':-1}],now=200))
+    def test_level_touch_ambiguous_short_and_expiry(self):
+        r=self.signal()
+        self.assertEqual(m.touch_status(r,[dict(time=180,high=105,low=97)])['status'],'AMBIGU')
+        self.assertEqual(m.touch_status({**r,'side':-1,'tp':96,'sl':102},[dict(time=180,high=101,low=95)])['status'],'TP')
+        self.assertEqual(m.touch_status(r,[dict(time=480,high=105,low=99)])['status'],'KEDALUWARSA')
+        self.assertNotEqual(m.touch_status({**r,'published':125},[dict(time=120,high=105,low=97)])['status'],'AMBIGU')
+    def test_cards_without_tables_or_method_controls(self):
+        from streamlit.testing.v1 import AppTest
+        r=self.signal();r.update(closed=__import__('time').time()-60,expires=__import__('time').time()+300)
+        with patch('mexc_signal_ui.universe',return_value=[dict(symbol='BTC_USDT')]),patch('mexc_signal_ui.batch',return_value=[dict(symbol='BTC_USDT',candidates=[r])]),patch('mexc_signal_ui.touch',return_value=dict(status='TP',at=180)):
+            a=AppTest.from_file(str(__import__('pathlib').Path(__file__).resolve().parents[1]/'streamlit_app.py'));a.query_params['view']='sinyal-kripto';a.run()
+            self.assertFalse(a.exception);self.assertEqual(len(a.dataframe),0);self.assertEqual(len(a.selectbox),0)
+            self.assertTrue(any('TP TERSENTUH' in x.value for x in a.markdown))
+
 if __name__=='__main__':unittest.main()

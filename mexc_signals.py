@@ -108,3 +108,31 @@ def scan_one(meta,rule):
 
 def scan(items,rule):
     with ThreadPoolExecutor(max_workers=3) as pool:return list(pool.map(lambda m:scan_one(m,rule),items))
+
+def scan_multi(items):
+    """Fetch each coin once; evaluate fixed rules without changing holdout thresholds."""
+    def one(meta):
+        try:
+            rows=candles(meta['symbol'])
+            return dict(symbol=meta['symbol'],candidates=[evaluate(rows,meta,rule) for rule in RULES])
+        except Exception as e:
+            return dict(symbol=meta['symbol'],error=type(e).__name__,candidates=[])
+    with ThreadPoolExecutor(max_workers=3) as pool:return list(pool.map(one,items))
+
+def touch_status(signal,rows):
+    """Level observation after publication, never an exchange fill claim."""
+    start=math.ceil(signal['published']/60)*60
+    for r in sorted(rows,key=lambda r:r['time']):
+        if r['time']<start:continue
+        if r['time']>=signal['expires']:break
+        long=signal['side']==1
+        tp=r['high']>=signal['tp'] if long else r['low']<=signal['tp']
+        sl=r['low']<=signal['sl'] if long else r['high']>=signal['sl']
+        if tp or sl:return dict(status='AMBIGU' if tp and sl else 'TP' if tp else 'SL',at=r['time'])
+    return dict(status='AKTIF' if time.time()<signal['expires'] else 'KEDALUWARSA',at=None)
+
+def observe_touch(signal):
+    # Up to one hour validity, safely below 2000-minute endpoint cap.
+    d=get('kline/'+signal['symbol'],{'interval':'Min1','start':int(signal['published']),'end':int(time.time())})
+    rows=[dict(time=int(t),high=float(d['high'][i]),low=float(d['low'][i])) for i,t in enumerate(d['time'])]
+    return touch_status(signal,rows)
