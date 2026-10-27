@@ -35,20 +35,23 @@ def visible_signals(results,now=None):
 def touch(signal):return engine.observe_touch(signal)
 
 @st.cache_data(ttl=60,show_spinner=False)
-def bias_data():return engine.bias_snapshot()
+def bias_data():
+    # Top 20 crypto by MEXC USDT turnover, schema v2.
+    return engine.bias_snapshot()
 
 def bias_cards():
     observations=bias_data()
     valid=[r for r in observations if not r.get('error') and time.time()-r['closed']<=7200]
-    votes=sum(r['side'] for r in valid)
-    label='DOMINAN LONG' if len(valid)==3 and votes>=2 else 'DOMINAN SHORT' if len(valid)==3 and votes<=-2 else 'CAMPURAN / NETRAL' if valid else 'DATA BELUM TERSEDIA'
+    longs=sum(r['side']==1 for r in valid);shorts=sum(r['side']==-1 for r in valid)
+    label='DOMINAN LONG' if len(valid)>=10 and longs>len(valid)/2 else 'DOMINAN SHORT' if len(valid)>=10 and shorts>len(valid)/2 else 'CAMPURAN / NETRAL' if len(valid)>=10 else 'DATA BELUM CUKUP'
     st.markdown('### Bias pasar · '+label)
-    st.caption('Kecenderungan teknikal 1H, bukan sinyal entry atau klaim WR 90%. Ringkasan BTC, ETH, SOL; bukan seluruh pasar kripto.')
+    st.caption(f'Top 20 kripto menurut volume transaksi 24H MEXC dalam USDT · {len(valid)}/20 data terbaca. Bias 1H, bukan sinyal entry atau klaim WR 90%.')
     columns=st.columns(3)
-    for col,r in zip(columns,observations):
-        with col:
+    for i,r in enumerate(observations):
+        with columns[i%3]:
             with st.container(border=True):
-                st.markdown('#### '+r['symbol'].replace('_',' / '))
+                st.markdown('#### '+str(i+1)+'. '+r['symbol'].replace('_',' / '))
+                st.caption(f"Volume 24H US${r.get('volume',0):,.0f}")
                 if r not in valid:st.caption('Data belum tersedia atau usang.');continue
                 label={1:'CONDONG LONG',-1:'CONDONG SHORT',0:'NETRAL / MENUNGGU'}[r['side']]
                 st.markdown('**'+label+'**')

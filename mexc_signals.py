@@ -147,7 +147,8 @@ def market_bias(rows,now=None):
         support=min(r['low'] for r in rows[-24:]),resistance=max(r['high'] for r in rows[-24:]),closed=rows[-1]['time']+3600)
 
 def bias_snapshot():
-    def one(symbol):
-        try:return dict(symbol=symbol,**market_bias(candles(symbol)))
-        except Exception:return dict(symbol=symbol,error=True)
-    with ThreadPoolExecutor(max_workers=3) as pool:return list(pool.map(one,('BTC_USDT','ETH_USDT','SOL_USDT')))
+    top=[m for m in catalog() if not m.get('tradfi')][:20]
+    def one(meta):
+        try:return dict(symbol=meta['symbol'],volume=meta['volume'],**market_bias(candles(meta['symbol'])))
+        except Exception:return dict(symbol=meta['symbol'],volume=meta['volume'],error=True)
+    with ThreadPoolExecutor(max_workers=3) as pool:return list(pool.map(one,top))
