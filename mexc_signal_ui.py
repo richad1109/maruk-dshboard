@@ -59,12 +59,13 @@ def limit_validation():
     except (OSError,ValueError):return {}
 
 def bias_cards():
-    col_head_left, col_head_right = st.columns([2.5, 1.5])
+    # BAR TOP STATUS AUTO-REFRESH 10 DETIK & TOMBOL MANUAL REFRESH
+    col_head_left, col_head_right = st.columns([2.6, 1.4])
     with col_head_right:
         st.markdown(f'''
-        <div style="text-align: right; padding: 4px 0 8px 0;">
+        <div style="text-align: right; padding: 2px 0 6px 0;">
             <span style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px; border: 1px solid #10b981;">
-                ● LIVE AUTO-REFRESH 10s · {clock_now()}
+                ● AUTO-REFRESH 10s · {clock_now()}
             </span>
         </div>
         ''', unsafe_allow_html=True)
@@ -77,8 +78,13 @@ def bias_cards():
         st.warning('Radar limit order sedang menyinkronkan data bursa…')
         return
 
+    # HITUNG TOTAL STATISTIK FLOATING PROFIT SE-PORTOFOLIO 20 KOIN
+    total_floating_usd = sum(r['float_usd'] for r in observations if r['is_touched'])
+    total_floating_roe = sum(r['float_roe'] for r in observations if r['is_touched'])
+    active_floating_count = sum(1 for r in observations if r['is_touched'])
+    tp_count = sum(1 for r in observations if "TP SEBELUMNYA" in r['touch_status'])
+    sl_count = sum(1 for r in observations if "SL SEBELUMNYA" in r['touch_status'])
     valid_count = sum(1 for r in observations if "SETUP VALID" in r['valid_label'])
-    touched_count = sum(1 for r in observations if r['is_touched'])
     memindai_count = sum(1 for r in observations if "MEMINDAI" in r['valid_label'])
     longs = sum(1 for r in observations if "LONG" in r['potensi'])
     shorts = sum(1 for r in observations if "SHORT" in r['potensi'])
@@ -87,8 +93,56 @@ def bias_cards():
     
     with col_head_left:
         st.markdown('### Radar Limit Order 20 Koin · ' + label)
-        st.caption(f'Top 20 Likuiditas Kripto · {len(observations)} koin aktif | ⚡ {touched_count} Posisi Sedang Mantul (Floating) | ✅ {valid_count} Setup Valid Siaga Pasang | Margin $2.00 USD Isolated')
+        st.caption(f'Top 20 Likuiditas Kripto · Margin $2.00 USD Isolated per Posisi · Leverage 20x-30x')
+
+    # =========================================================================
+    # BANNER UTAMA: TOTAL FLOATING PROFIT DARI SEMUA 20 KOIN
+    # =========================================================================
+    sign_tot = "+" if total_floating_usd >= 0 else ""
+    tot_bg = "rgba(16, 185, 129, 0.16)" if total_floating_usd >= 0 else "rgba(239, 68, 68, 0.16)"
+    tot_border = "#10b981" if total_floating_usd >= 0 else "#ef4444"
+    tot_col = "#34d399" if total_floating_usd >= 0 else "#f87171"
+    tot_idr = total_floating_usd * 16300
+
+    st.markdown(f'''
+    <div style="background: {tot_bg}; border: 2px solid {tot_border}; border-radius: 12px; padding: 14px 20px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <div>
+                <div style="font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: #94a3b8; font-weight: 700;">
+                    💰 TOTAL FLOATING PROFIT PORTOFOLIO (20 KOIN LIMIT)
+                </div>
+                <div style="font-size: 30px; font-weight: 900; color: {tot_col}; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">
+                    {sign_tot}${total_floating_usd:,.2f} USD <span style="font-size: 18px; font-weight: 700;">({sign_tot}{total_floating_roe:,.1f}% ROE)</span>
+                </div>
+                <div style="font-size: 12px; color: #cbd5e1; margin-top: 3px;">
+                    Estimasi Rupiah: <strong style="color: {tot_col};">{sign_tot}Rp {tot_idr:,.0f}</strong> (Dari posisi limit yang sedang mantul aktif)
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <div style="background: rgba(16, 185, 129, 0.25); border: 1px solid #10b981; border-radius: 8px; padding: 8px 14px; text-align: center;">
+                    <div style="font-size: 10px; color: #a7f3d0; font-weight: 700;">⚡ SEDANG MANTUL</div>
+                    <div style="font-size: 18px; font-weight: 800; color: #34d399;">{active_floating_count} Koin</div>
+                </div>
+                <div style="background: rgba(59, 130, 246, 0.20); border: 1px solid #3b82f6; border-radius: 8px; padding: 8px 14px; text-align: center;">
+                    <div style="font-size: 10px; color: #bfdbfe; font-weight: 700;">🎯 SUKSES HIT TP</div>
+                    <div style="font-size: 18px; font-weight: 800; color: #60a5fa;">{tp_count} Setup</div>
+                </div>
+                <div style="background: rgba(239, 68, 68, 0.20); border: 1px solid #ef4444; border-radius: 8px; padding: 8px 14px; text-align: center;">
+                    <div style="font-size: 10px; color: #fecaca; font-weight: 700;">🛑 HIT STOP LOSS</div>
+                    <div style="font-size: 18px; font-weight: 800; color: #f87171;">{sl_count} Setup</div>
+                </div>
+                <div style="background: rgba(245, 158, 11, 0.20); border: 1px solid #f59e0b; border-radius: 8px; padding: 8px 14px; text-align: center;">
+                    <div style="font-size: 10px; color: #fde68a; font-weight: 700;">⏳ SIAGA PASANG</div>
+                    <div style="font-size: 18px; font-weight: 800; color: #f59e0b;">{valid_count} Koin</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
     
+    # =========================================================================
+    # GRID KARTU 20 KOIN
+    # =========================================================================
     columns=st.columns(3)
     for i,r in enumerate(observations):
         with columns[i%3]:
