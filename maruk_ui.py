@@ -395,13 +395,19 @@ def main():
     title,description=PAGE[nav]
     html(f'<div class="page-intro"><div><div class="eyebrow">KANTOR RAKUS / {escape(nav.upper())}</div><h1>{title}</h1><p>{description}</p></div><div class="page-count">03 ACCOUNTS<br><span style="color:#bac9d7;display:block;margin-top:6px">08 WALLETS / 03 EXCHANGES</span></div></div>')
     if nav=='Sinyal Kripto':
+        if st.query_params.get('view')!='sinyal-kripto':
+            st.query_params['view']='sinyal-kripto'
         import mexc_signal_ui
         mexc_signal_ui.render()
         return
     if nav=='Sinyal & Skenario':
+        if st.query_params.get('view')!='sinyal-auto':
+            st.query_params['view']='sinyal-auto'
         import signal_ui
         signal_ui.render()
         return
+    if 'view' in st.query_params:
+        del st.query_params['view']
     controls=st.columns([1.3,1,1.2,.7])
     with controls[0]:account_label=st.selectbox("Tampilan akun",["Semua akun","Akun 1","Akun 2","Akun 3"],key="account_filter")
     st.session_state['account']='all' if account_label=='Semua akun' else 'akun_'+account_label[-1]

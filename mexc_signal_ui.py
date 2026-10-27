@@ -17,7 +17,7 @@ def display_price(value):
     return format(Decimal(format(float(value),'.8g')),'f')
 
 def level_row(entry,tp,sl):
-    values=[('Entry (Limit)',entry),('Take Profit',tp),('Stop Loss',sl)]
+    values=[('Entry (Limit)',entry),('Take Profit (+35%)',tp),('Stop Loss (-20%)',sl)]
     cells=''.join(f'<div><span>{label}</span><strong>{escape(display_price(value))}</strong></div>' for label,value in values)
     st.markdown('<div class="compact-levels">'+cells+'</div>',unsafe_allow_html=True)
 
@@ -50,9 +50,12 @@ def touch(signal):return engine.observe_touch(signal)
 @st.cache_data(ttl=10,show_spinner=False)
 def limit_radar_data():
     try:
-        return sniper_limit_engine.scan_all()
+        data = sniper_limit_engine.scan_all()
+        if data:
+            return data
     except Exception:
-        return []
+        pass
+    return []
 
 def limit_validation():
     try:return json.loads((Path(__file__).parent/'limit_validation.json').read_text())
@@ -75,7 +78,7 @@ def bias_cards():
 
     observations=limit_radar_data()
     if not observations:
-        st.warning('Radar limit order sedang menyinkronkan data bursa…')
+        st.warning('Radar limit order sedang menyinkronkan data bursa BingX...')
         return
 
     # HITUNG TOTAL STATISTIK FLOATING & REALIZED PROFIT SE-PORTOFOLIO 20 KOIN
@@ -104,7 +107,7 @@ def bias_cards():
     
     with col_head_left:
         st.markdown('### Radar Limit Order 20 Koin · ' + label)
-        st.caption(f'Top 20 Likuiditas Kripto · Margin $2.00 USD Isolated per Posisi · Leverage 20x-30x')
+        st.caption('Top 20 Likuiditas Kripto · Margin &#36;2.00 USD Isolated per Posisi · Leverage 20x-30x')
 
     # =========================================================================
     # BANNER UTAMA: TOTAL FLOATING, REALIZED PnL & WIN RATE PORTOFOLIO
@@ -127,7 +130,7 @@ def bias_cards():
                     💰 FLOATING PROFIT (BERJALAN)
                 </div>
                 <div style="font-size: 24px; font-weight: 900; color: {tot_col}; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">
-                    {sign_tot}${total_floating_usd:,.2f} USD <span style="font-size: 15px; font-weight: 700;">({sign_tot}{total_floating_roe:,.1f}%)</span>
+                    {sign_tot}&#36;{total_floating_usd:,.2f} USD <span style="font-size: 15px; font-weight: 700;">({sign_tot}{total_floating_roe:,.1f}%)</span>
                 </div>
                 <div style="font-size: 11.5px; color: #cbd5e1; margin-top: 2px;">
                     Estimasi: <strong style="color: {tot_col};">{sign_tot}Rp {tot_idr:,.0f}</strong> ({active_floating_count} koin mantul)
@@ -140,7 +143,7 @@ def bias_cards():
                     💎 REALIZED PnL (SELESAI TP/SL)
                 </div>
                 <div style="font-size: 24px; font-weight: 900; color: {real_col}; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">
-                    {sign_real}${realized_usd:,.2f} USD <span style="font-size: 15px; font-weight: 700;">({sign_real}{realized_roe:,.1f}%)</span>
+                    {sign_real}&#36;{realized_usd:,.2f} USD <span style="font-size: 15px; font-weight: 700;">({sign_real}{realized_roe:,.1f}%)</span>
                 </div>
                 <div style="font-size: 11.5px; color: #cbd5e1; margin-top: 2px;">
                     Total Selesai: <strong style="color: {real_col};">{sign_real}Rp {realized_idr:,.0f}</strong> ({total_closed} setup selesai)
@@ -178,7 +181,7 @@ def bias_cards():
                 </span>
             </div>
             <div style="font-size: 11px; color: #64748b;">
-                *Margin \$2.00 per posisi isolated · TP +35% ROE · SL -36% ROE
+                *Margin &#36;2.00 per posisi isolated · TP +35% ROE · SL -20% ROE
             </div>
         </div>
     </div>
@@ -195,29 +198,29 @@ def bias_cards():
                 if "TP" in r['touch_status']:
                     st.markdown(f'''
                     <div style="background: rgba(16, 185, 129, 0.20); border: 1px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: 700; color: #10b981; font-size: 11px;">🎯 TP SEBELUMNYA HIT (+35% ROE)!</span>
-                        <span style="font-weight: 700; color: #34d399; font-size: 11px;">⚡ Setup Baru Siaga ({abs(r['diff_pct']):.2f}%)</span>
+                        <span style="font-weight: 700; color: #10b981; font-size: 11px;">🎯 TP HIT (+35% ROE)!</span>
+                        <span style="font-weight: 700; color: #34d399; font-size: 11px;">+&#36;0.70 USD · Siaga Setup Baru</span>
                     </div>
                     ''', unsafe_allow_html=True)
                 elif "SL" in r['touch_status']:
                     st.markdown(f'''
                     <div style="background: rgba(239, 68, 68, 0.18); border: 1px solid #ef4444; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: 700; color: #f87171; font-size: 11px;">🛑 SL SEBELUMNYA KENA (-36% ROE)</span>
-                        <span style="font-weight: 700; color: #f87171; font-size: 11px;">⚡ Setup Baru Siaga ({abs(r['diff_pct']):.2f}%)</span>
+                        <span style="font-weight: 700; color: #f87171; font-size: 11px;">🛑 SL HIT (-20% ROE)</span>
+                        <span style="font-weight: 700; color: #f87171; font-size: 11px;">-&#36;0.40 USD · Siaga Setup Baru</span>
                     </div>
                     ''', unsafe_allow_html=True)
                 elif r['is_touched']:
                     st.markdown(f'''
                     <div style="background: rgba(16, 185, 129, 0.16); border: 1px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: 700; color: #10b981; font-size: 11px;">⚡ LIMIT TERJEMPUT (MANTUL)</span>
-                        <span style="font-weight: 800; color: #34d399; font-size: 12px; font-family: monospace;">{escape(r["float_str"])}</span>
+                        <span style="font-weight: 800; color: #34d399; font-size: 12px; font-family: monospace;">{r["float_str"]}</span>
                     </div>
                     ''', unsafe_allow_html=True)
                 else:
                     st.markdown(f'''
                     <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: 600; color: #f59e0b; font-size: 11px;">⏳ LIMIT BELUM KESENTUH</span>
-                        <span style="font-weight: 700; color: #e2e8f0; font-size: 11.5px; font-family: monospace;">{escape(r["float_str"])}</span>
+                        <span style="font-weight: 700; color: #e2e8f0; font-size: 11.5px; font-family: monospace;">{r["float_str"]}</span>
                     </div>
                     ''', unsafe_allow_html=True)
 
@@ -225,14 +228,18 @@ def bias_cards():
                 col_a, col_b = st.columns([1.1, 1.9])
                 with col_a:
                     st.markdown(f"#### {i+1}. {r['coin']} / USDT")
-                    st.caption(f"Mark: ${r['cur_p']:,.4f}")
+                    st.caption(f"Mark: &#36;{r['cur_p']:,.4f}")
                 with col_b:
                     is_long = "LONG" in r['potensi']
                     pot_bg = "#064e3b" if is_long else "#7f1d1d"
                     pot_col = "#34d399" if is_long else "#f87171"
                     pot_text = "🟢 POTENSI LONG" if is_long else "🔴 POTENSI SHORT"
                     
-                    if r['is_touched']:
+                    if "TP" in r['touch_status']:
+                        stat_badge = '<span style="background: rgba(16, 185, 129, 0.25); color: #34d399; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #10b981; margin-left: 3px;">🎯 TP SELESAI</span>'
+                    elif "SL" in r['touch_status']:
+                        stat_badge = '<span style="background: rgba(239, 68, 68, 0.25); color: #f87171; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #ef4444; margin-left: 3px;">🛑 SL SELESAI</span>'
+                    elif r['is_touched']:
                         stat_badge = '<span style="background: rgba(16, 185, 129, 0.25); color: #34d399; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #10b981; margin-left: 3px;">⚡ TERISI</span>'
                     elif "SETUP VALID" in r['valid_label']:
                         stat_badge = '<span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #3b82f6; margin-left: 3px;">✅ SETUP VALID</span>'
@@ -247,7 +254,7 @@ def bias_cards():
                     ''', unsafe_allow_html=True)
 
                 # 3. LEVEL ENTRY (LIMIT), TP, SL
-                st.caption(f"Rencana Limit Order (Lev {r['lev']}x Isolated · Margin $2.00)")
+                st.caption(f"Rencana Limit Order (Lev {r['lev']}x Isolated · Margin &#36;2.00)")
                 level_row(r['limit_p'], r['tp_p'], r['sl_p'])
 
                 # 4. WR & METRIC
@@ -257,7 +264,7 @@ def bias_cards():
                     <span style="font-size: 10px; color: #94a3b8;">{r['tier']}</span>
                 </div>
                 <div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">
-                    Target TP: +$0.70 USD (+35% ROE) · Stop Loss: -$0.72 USD (-36% ROE)
+                    Target TP: +&#36;0.70 USD (+35% ROE) · Stop Loss: -&#36;0.40 USD (-20% ROE)
                 </div>
                 ''', unsafe_allow_html=True)
 
@@ -265,5 +272,4 @@ def bias_cards():
 
 @st.fragment(run_every=10)
 def render():
-    st.query_params['view']='sinyal-kripto'
     bias_cards()

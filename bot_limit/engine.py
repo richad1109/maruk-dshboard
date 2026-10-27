@@ -6,10 +6,12 @@ sniper_limit_engine.py
 Engine Sinyal Kripto Limit Order Sniper 20 Koin (Fibonacci 50% Pullback Reversion).
 100% Data Riil & Transparan:
 - Mendeteksi level pantulan 50% Golden Pullback dari struktur swing pasar 8 jam terakhir.
-- Status 'SEDANG MANTUL' HANYA aktif jika jarum harga dalam 3 candle terakhir (45 menit) benar-benar menyentuh titik limit.
-- Jika belum tersentuh, status adalah 'MENUNGGU JEMPUTAN' dengan jarak riil dalam persen.
+- Status 'SEDANG MANTUL' aktif jika jarum harga menyentuh titik limit dan saat ini posisinya aktif floating.
+- Status '🎯 TAKE PROFIT HIT (+35% ROE)' tercatat jika posisi mencapai target TP (+35% ROE).
+- Status '🛑 STOP LOSS HIT (-20% ROE)' tercatat jika posisi menyentuh SL (-20% ROE).
+- Jika belum tersentuh, status adalah '⏳ MENUNGGU JEMPUTAN' dengan jarak riil dalam persen.
 - Stop Loss diperketat ke -20% ROE (R:R Asimetris 1 : 1.75).
-- Tidak ada penghitungan laba masa lalu yang direkayasa.
+- Memiliki fallback cache lokal agar tampilan web tidak pernah blank/error saat jaringan bursa melambat.
 """
 
 import sys
@@ -18,6 +20,12 @@ import time
 import requests
 import urllib3
 from concurrent.futures import ThreadPoolExecutor
+
+try:
+    import exchange_network
+    exchange_network.install_dns()
+except Exception:
+    pass
 
 if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
     try: sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -55,6 +63,8 @@ TOP_20_COINS = [
     ("FET", "FET-USDT", "Artificial Superintelligence", 20, "⚠️ VOLATILE")
 ]
 
+_LAST_CACHE = []
+
 def scan_single_coin(sym_tuple):
     coin, sym, full_name, lev, tier_label = sym_tuple
     url = f"https://open-api.bingx.com/openApi/swap/v3/quote/klines?symbol={sym}&interval=15m&limit=32"
@@ -73,6 +83,8 @@ def scan_single_coin(sym_tuple):
             highs = [float(k['high']) for k in raw]
             lows = [float(k['low']) for k in raw]
             closes = [float(k['close']) for k in raw]
+            if not closes:
+                continue
             cur_p = closes[-1]
             n = len(raw)
             
@@ -89,6 +101,10 @@ def scan_single_coin(sym_tuple):
             wr_val = COIN_WIN_RATES.get(coin, 67.0)
             is_long = pos_in_range > 0.50 # Pullback dip in bullish bias
             
+            # Cek touch dan resolusi TP/SL dalam jendela 16 bar (4 jam)
+            look_window = 16
+            start_idx = max(0, len(raw) - look_window)
+            
             if is_long:
                 potensi = "POTENSI LONG (BUY)"
                 limit_p = sw_high - retrace * range_span
@@ -96,25 +112,42 @@ def scan_single_coin(sym_tuple):
                 sl_p = limit_p * (1.0 - sl_ratio)
                 diff_pct = ((cur_p - limit_p) / cur_p) * 100
                 
-                # Cek HANYA 3 candle terakhir (45 menit) apakah ada wick yang menyentuh limit
-                recent_lows = lows[-3:]
-                touched_recent = min(recent_lows) <= limit_p
-                
-                if touched_recent:
+                touch_idx = -1
+                for i in range(start_idx, len(raw)):
+                    if lows[i] <= limit_p:
+                        touch_idx = i
+                        break
+                        
+                if touch_idx != -1:
                     is_touched = True
-                    touch_status = "⚡ SEDANG MANTUL (TERISI)"
-                    valid_label = "✅ VALID (SEDANG MANTUL)"
-                    float_roe = ((cur_p - limit_p) / limit_p) * lev * 100
-                    float_usd = (float_roe / 100.0) * 2.0
-                    sign = "+" if float_roe >= 0 else ""
-                    float_str = f"Floating: {sign}${float_usd:.2f} ({sign}{float_roe:.1f}% ROE)"
+                    sub_highs = highs[touch_idx:]
+                    sub_lows = lows[touch_idx:]
+                    if max(sub_highs) >= tp_p:
+                        touch_status = "🎯 TAKE PROFIT HIT (+35% ROE)"
+                        valid_label = "🎯 TP HIT (+35%)"
+                        float_roe = 35.0
+                        float_usd = 0.70
+                        float_str = "Selesai: +&#36;0.70 (+35.0% ROE) TP HIT"
+                    elif min(sub_lows) <= sl_p:
+                        touch_status = "🛑 STOP LOSS HIT (-20% ROE)"
+                        valid_label = "🛑 SL HIT (-20%)"
+                        float_roe = -20.0
+                        float_usd = -0.40
+                        float_str = "Selesai: -&#36;0.40 (-20.0% ROE) SL HIT"
+                    else:
+                        touch_status = "⚡ SEDANG MANTUL (TERISI)"
+                        valid_label = "✅ VALID (SEDANG MANTUL)"
+                        float_roe = ((cur_p - limit_p) / limit_p) * lev * 100
+                        float_usd = (float_roe / 100.0) * 2.0
+                        sign = "+" if float_roe >= 0 else ""
+                        float_str = f"Floating: {sign}&#36;{float_usd:.2f} ({sign}{float_roe:.1f}% ROE)"
                 else:
                     is_touched = False
                     touch_status = "⏳ MENUNGGU JEMPUTAN"
                     float_roe = 0.0
                     float_usd = 0.0
                     float_str = f"Jarak: -{abs(diff_pct):.2f}% (Menunggu jemputan)"
-                    valid_label = "✅ SETUP VALID" if abs(diff_pct) <= 2.0 else "🔍 MEMINDAI (BELUM VALID)"
+                    valid_label = "✅ SETUP VALID" if abs(diff_pct) <= 2.5 else "🔍 MEMINDAI (BELUM VALID)"
             else:
                 potensi = "POTENSI SHORT (SELL)"
                 limit_p = sw_low + retrace * range_span
@@ -122,24 +155,42 @@ def scan_single_coin(sym_tuple):
                 sl_p = limit_p * (1.0 + sl_ratio)
                 diff_pct = ((limit_p - cur_p) / cur_p) * 100
                 
-                recent_highs = highs[-3:]
-                touched_recent = max(recent_highs) >= limit_p
-                
-                if touched_recent:
+                touch_idx = -1
+                for i in range(start_idx, len(raw)):
+                    if highs[i] >= limit_p:
+                        touch_idx = i
+                        break
+                        
+                if touch_idx != -1:
                     is_touched = True
-                    touch_status = "⚡ SEDANG MANTUL (TERISI)"
-                    valid_label = "✅ VALID (SEDANG MANTUL)"
-                    float_roe = ((limit_p - cur_p) / limit_p) * lev * 100
-                    float_usd = (float_roe / 100.0) * 2.0
-                    sign = "+" if float_roe >= 0 else ""
-                    float_str = f"Floating: {sign}${float_usd:.2f} ({sign}{float_roe:.1f}% ROE)"
+                    sub_highs = highs[touch_idx:]
+                    sub_lows = lows[touch_idx:]
+                    if min(sub_lows) <= tp_p:
+                        touch_status = "🎯 TAKE PROFIT HIT (+35% ROE)"
+                        valid_label = "🎯 TP HIT (+35%)"
+                        float_roe = 35.0
+                        float_usd = 0.70
+                        float_str = "Selesai: +&#36;0.70 (+35.0% ROE) TP HIT"
+                    elif max(sub_highs) >= sl_p:
+                        touch_status = "🛑 STOP LOSS HIT (-20% ROE)"
+                        valid_label = "🛑 SL HIT (-20%)"
+                        float_roe = -20.0
+                        float_usd = -0.40
+                        float_str = "Selesai: -&#36;0.40 (-20.0% ROE) SL HIT"
+                    else:
+                        touch_status = "⚡ SEDANG MANTUL (TERISI)"
+                        valid_label = "✅ VALID (SEDANG MANTUL)"
+                        float_roe = ((limit_p - cur_p) / limit_p) * lev * 100
+                        float_usd = (float_roe / 100.0) * 2.0
+                        sign = "+" if float_roe >= 0 else ""
+                        float_str = f"Floating: {sign}&#36;{float_usd:.2f} ({sign}{float_roe:.1f}% ROE)"
                 else:
                     is_touched = False
                     touch_status = "⏳ MENUNGGU JEMPUTAN"
                     float_roe = 0.0
                     float_usd = 0.0
                     float_str = f"Jarak: +{abs(diff_pct):.2f}% (Menunggu jemputan)"
-                    valid_label = "✅ SETUP VALID" if abs(diff_pct) <= 2.0 else "🔍 MEMINDAI (BELUM VALID)"
+                    valid_label = "✅ SETUP VALID" if abs(diff_pct) <= 2.5 else "🔍 MEMINDAI (BELUM VALID)"
             
             return {
                 "coin": coin,
@@ -168,9 +219,16 @@ def scan_single_coin(sym_tuple):
     return None
 
 def scan_all():
+    global _LAST_CACHE
     with ThreadPoolExecutor(max_workers=10) as ex:
         results = list(ex.map(scan_single_coin, TOP_20_COINS))
-    return [r for r in results if r is not None]
+    valid = [r for r in results if r is not None]
+    if len(valid) >= 15:
+        _LAST_CACHE = valid
+        return valid
+    elif _LAST_CACHE:
+        return _LAST_CACHE
+    return valid
 
 if __name__ == '__main__':
     data = scan_all()
