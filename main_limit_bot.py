@@ -45,9 +45,9 @@ def run_once():
     valid_count = sum(1 for r in results if "SETUP VALID" in r['valid_label'] or "PINDAI" in r['valid_label'])
     memindai_count = sum(1 for r in results if "MEMINDAI" in r['valid_label'])
     
-    # Realized PnL & Win Rate
-    realized_usd = (tp_count * 0.70) - (sl_count * 0.72)
-    realized_roe = (tp_count * 35.0) - (sl_count * 36.0)
+    # Realized PnL & Win Rate (Hit TP: +$0.70 | Hit SL: -$0.40)
+    realized_usd = (tp_count * 0.70) - (sl_count * 0.40)
+    realized_roe = (tp_count * 35.0) - (sl_count * 20.0)
     realized_idr = realized_usd * 16300
     total_closed = tp_count + sl_count
     realized_wr = (tp_count / total_closed * 100) if total_closed > 0 else 0.0

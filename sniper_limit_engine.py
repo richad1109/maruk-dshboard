@@ -83,15 +83,15 @@ def scan_single_coin(sym_tuple):
             pos_in_range = (cur_p - sw_low) / range_span
             
             tp_ratio = 0.35 / lev # Target TP +35% ROE
-            sl_ratio = 0.36 / lev # Stop Loss -36% ROE
-            offset_pct = 0.0020   # Diskon 0.20% di luar swing ekstrem
+            sl_ratio = 0.20 / lev # Stop Loss Diperketat -20% ROE (R:R 1 : 1.75 Asymmetric Edge)
+            retrace = 0.50        # Fibonacci 50% Golden Pullback
             
             wr_val = COIN_WIN_RATES.get(coin, 67.0)
-            is_long = pos_in_range < 0.65
+            is_long = pos_in_range > 0.50 # Pullback dip in bullish bias
             
             if is_long:
                 potensi = "POTENSI LONG (BUY)"
-                limit_p = sw_low * (1.0 - offset_pct)
+                limit_p = sw_high - retrace * range_span
                 tp_p = limit_p * (1.0 + tp_ratio)
                 sl_p = limit_p * (1.0 - sl_ratio)
                 diff_pct = ((cur_p - limit_p) / cur_p) * 100
@@ -112,7 +112,7 @@ def scan_single_coin(sym_tuple):
                     
                     if hit_tp:
                         # Kena TP! Kunci profit +35% ROE & segera terbitkan setup limit baru
-                        fresh_limit = min(lows[-16:]) * (1.0 - offset_pct)
+                        fresh_limit = cur_p * 0.995
                         fresh_diff = ((cur_p - fresh_limit) / cur_p) * 100
                         is_touched = True
                         touch_status = "🎯 SUDAH HIT TP"
@@ -125,15 +125,15 @@ def scan_single_coin(sym_tuple):
                         sl_p = limit_p * (1.0 - sl_ratio)
                         diff_pct = fresh_diff
                     elif hit_sl:
-                        # Kena SL! Kunci rugi -36% ROE & segera terbitkan setup limit baru
-                        fresh_limit = min(lows[-16:]) * (1.0 - offset_pct)
+                        # Kena SL! Kunci rugi -20% ROE & segera terbitkan setup limit baru
+                        fresh_limit = cur_p * 0.995
                         fresh_diff = ((cur_p - fresh_limit) / cur_p) * 100
                         is_touched = True
                         touch_status = "🛑 SUDAH HIT SL"
                         valid_label = "🛑 HIT SL (PINDAI SETUP BARU)"
-                        float_roe = -36.0
-                        float_usd = -0.72
-                        float_str = "🛑 HIT SL! (-36.0% ROE | -$0.72 USD)"
+                        float_roe = -20.0
+                        float_usd = -0.40
+                        float_str = "🛑 HIT SL! (-20.0% ROE | -$0.40 USD)"
                         limit_p = fresh_limit
                         tp_p = limit_p * (1.0 + tp_ratio)
                         sl_p = limit_p * (1.0 - sl_ratio)
@@ -156,7 +156,7 @@ def scan_single_coin(sym_tuple):
                     valid_label = "✅ SETUP VALID" if diff_pct <= 2.0 else "🔍 MEMINDAI (BELUM VALID)"
             else:
                 potensi = "POTENSI SHORT (SELL)"
-                limit_p = sw_high * (1.0 + offset_pct)
+                limit_p = sw_low + retrace * range_span
                 tp_p = limit_p * (1.0 - tp_ratio)
                 sl_p = limit_p * (1.0 + sl_ratio)
                 diff_pct = ((limit_p - cur_p) / cur_p) * 100
@@ -175,7 +175,7 @@ def scan_single_coin(sym_tuple):
                     hit_sl = max(sub_highs) >= sl_p
                     
                     if hit_tp:
-                        fresh_limit = max(highs[-16:]) * (1.0 + offset_pct)
+                        fresh_limit = cur_p * 1.005
                         fresh_diff = ((fresh_limit - cur_p) / cur_p) * 100
                         is_touched = True
                         touch_status = "🎯 SUDAH HIT TP"
@@ -188,14 +188,14 @@ def scan_single_coin(sym_tuple):
                         sl_p = limit_p * (1.0 + sl_ratio)
                         diff_pct = fresh_diff
                     elif hit_sl:
-                        fresh_limit = max(highs[-16:]) * (1.0 + offset_pct)
+                        fresh_limit = cur_p * 1.005
                         fresh_diff = ((fresh_limit - cur_p) / cur_p) * 100
                         is_touched = True
                         touch_status = "🛑 SUDAH HIT SL"
                         valid_label = "🛑 HIT SL (PINDAI SETUP BARU)"
-                        float_roe = -36.0
-                        float_usd = -0.72
-                        float_str = "🛑 HIT SL! (-36.0% ROE | -$0.72 USD)"
+                        float_roe = -20.0
+                        float_usd = -0.40
+                        float_str = "🛑 HIT SL! (-20.0% ROE | -$0.40 USD)"
                         limit_p = fresh_limit
                         tp_p = limit_p * (1.0 - tp_ratio)
                         sl_p = limit_p * (1.0 + sl_ratio)

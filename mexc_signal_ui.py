@@ -90,9 +90,9 @@ def bias_cards():
     longs = sum(1 for r in observations if "LONG" in r['potensi'])
     shorts = sum(1 for r in observations if "SHORT" in r['potensi'])
     
-    # Perhitungan Realized PnL dari Setup Selesai (Hit TP: +$0.70 | Hit SL: -$0.72)
-    realized_usd = (tp_count * 0.70) - (sl_count * 0.72)
-    realized_roe = (tp_count * 35.0) - (sl_count * 36.0)
+    # Perhitungan Realized PnL dari Setup Selesai (Hit TP: +$0.70 | Hit SL: -$0.40)
+    realized_usd = (tp_count * 0.70) - (sl_count * 0.40)
+    realized_roe = (tp_count * 35.0) - (sl_count * 20.0)
     realized_idr = realized_usd * 16300
     
     # Win Rate Realisasi & Historis
