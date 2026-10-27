@@ -17,11 +17,15 @@ def render():
     try:
         with st.spinner('Mengambil katalog MEXC…'):coins=universe()
     except Exception as e:st.error('Katalog MEXC belum terbaca: '+type(e).__name__);return
+    total=len(coins)
+    include=st.toggle('Sertakan kontrak saham / komoditas MEXC',value=False)
+    if not include:coins=[m for m in coins if not m.get('tradfi')]
+    st.caption(f'{len(coins)} kontrak dalam pilihan dari {total} USDT aktif. Kategori mengikuti label TradFi resmi MEXC.')
     a,b,c=st.columns(3);a.metric('Kontrak tersedia',len(coins));b.metric('Timeframe','1 jam');c.metric('Target WR riset','90% · belum dijamin')
     rule=st.selectbox('Metode tetap',engine.RULES,help='Aturan ditetapkan sebelum periode uji; memilih metode setelah melihat hasil tetap menimbulkan bias seleksi.')
     selected=st.selectbox('Cari semua koin MEXC',[m['symbol'] for m in coins],key='mexc_symbol')
     st.caption('Pemindaian berurutan menurut volume 24 jam. Semua koin bisa dipilih, termasuk yang tidak mengizinkan order API. Katalog ini futures USDT, bukan seluruh aset spot.')
-    key='mexc_scan_'+rule
+    key='mexc_scan_'+rule+str(include)
     if key not in st.session_state:st.session_state[key]={}
     results=st.session_state[key]
     if not results:

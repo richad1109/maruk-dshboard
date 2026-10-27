@@ -21,7 +21,7 @@ def catalog():
     for c in contracts:
         if c.get('quoteCoin')!='USDT' or c.get('state')!=0:continue
         t=tickers.get(c['symbol'],{});bid=float(t.get('bid1') or 0);ask=float(t.get('ask1') or 0)
-        rows.append(dict(symbol=c['symbol'],volume=float(t.get('amount24') or 0),
+        rows.append(dict(symbol=c['symbol'],tradfi='mc-trade-zone-tradfi' in c.get('conceptPlate',[]),volume=float(t.get('amount24') or 0),
             spread=100*(ask-bid)/((ask+bid)/2) if ask>=bid>0 else None,
             last=float(t.get('lastPrice') or 0),funding=t.get('fundingRate'),fee=c.get('takerFeeRate'),
             api_allowed=c.get('apiAllowed'),timestamp=t.get('timestamp')))
