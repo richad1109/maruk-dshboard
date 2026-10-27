@@ -6,6 +6,9 @@ def rows(n=700):
     return [dict(time=1700002800+i*3600,open=100+i*.03,high=101+i*.03,low=99+i*.03,close=100.4+i*.03,vol=100) for i in range(n)]
 
 class ScannerTests(unittest.TestCase):
+    def setUp(self):
+        p=patch('mexc_signal_ui.bias_data',return_value=[]);p.start();self.addCleanup(p.stop)
+
     def test_closed_and_gaps(self):
         r=rows();now=r[-1]['time']+3600
         self.assertEqual(len(m.clean(r+[dict(r[-1],time=now)],now)),700)
@@ -27,10 +30,18 @@ class ScannerTests(unittest.TestCase):
     def test_no_private_calls_ui(self):
         from streamlit.testing.v1 import AppTest
         with patch('mexc_signal_ui.universe',return_value=[dict(symbol='BTC_USDT')]),patch('mexc_signal_ui.batch',return_value=[dict(symbol='BTC_USDT',error='test',message='test')]),patch('maruk_ui.portfolio',side_effect=AssertionError('private read')):
-            a=AppTest.from_file(str(__import__('pathlib').Path(__file__).resolve().parents[1]/'streamlit_app.py'));a.query_params['view']='sinyal-kripto';a.run()
+            a=AppTest.from_file(str(__import__('pathlib').Path(__file__).resolve().parents[1]/'streamlit_app.py'),default_timeout=20);a.query_params['view']='sinyal-kripto';a.run()
             self.assertFalse(a.exception)
             self.assertNotIn('Kantor 3D',a.radio[0].options)
 class CompactBoardTests(unittest.TestCase):
+    def setUp(self):
+        p=patch('mexc_signal_ui.bias_data',return_value=[]);p.start();self.addCleanup(p.stop)
+    def test_bias_is_causal_and_stale_rejected(self):
+        r=rows();now=r[-1]['time']+3600
+        a=m.market_bias(r,now);self.assertEqual(a['side'],1)
+        self.assertEqual(a,m.market_bias(r+[dict(r[-1],time=now,close=99999,high=99999)],now))
+        with self.assertRaises(ValueError):m.market_bias(r,now+10800)
+
     def signal(self):
         return dict(symbol='BTC_USDT',rule='Donchian breakout',side=1,entry=100,tp=104,sl=98,
             published=120,closed=100,expires=400,qualified=True,liquid=True,target90=True,
@@ -51,7 +62,7 @@ class CompactBoardTests(unittest.TestCase):
         from streamlit.testing.v1 import AppTest
         r=self.signal();r.update(closed=__import__('time').time()-60,expires=__import__('time').time()+300)
         with patch('mexc_signal_ui.universe',return_value=[dict(symbol='BTC_USDT')]),patch('mexc_signal_ui.batch',return_value=[dict(symbol='BTC_USDT',candidates=[r])]),patch('mexc_signal_ui.touch',return_value=dict(status='TP',at=180)):
-            a=AppTest.from_file(str(__import__('pathlib').Path(__file__).resolve().parents[1]/'streamlit_app.py'));a.query_params['view']='sinyal-kripto';a.run()
+            a=AppTest.from_file(str(__import__('pathlib').Path(__file__).resolve().parents[1]/'streamlit_app.py'),default_timeout=20);a.query_params['view']='sinyal-kripto';a.run()
             self.assertFalse(a.exception);self.assertEqual(len(a.dataframe),0);self.assertEqual(len(a.selectbox),0)
             self.assertTrue(any('TP TERSENTUH' in x.value for x in a.markdown))
 

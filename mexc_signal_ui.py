@@ -34,10 +34,35 @@ def visible_signals(results,now=None):
 @st.cache_data(ttl=30,show_spinner=False)
 def touch(signal):return engine.observe_touch(signal)
 
+@st.cache_data(ttl=60,show_spinner=False)
+def bias_data():return engine.bias_snapshot()
+
+def bias_cards():
+    observations=bias_data()
+    valid=[r for r in observations if not r.get('error') and time.time()-r['closed']<=7200]
+    votes=sum(r['side'] for r in valid)
+    label='DOMINAN LONG' if len(valid)==3 and votes>=2 else 'DOMINAN SHORT' if len(valid)==3 and votes<=-2 else 'CAMPURAN / NETRAL' if valid else 'DATA BELUM TERSEDIA'
+    st.markdown('### Bias pasar · '+label)
+    st.caption('Kecenderungan teknikal 1H, bukan sinyal entry atau klaim WR 90%. Ringkasan BTC, ETH, SOL; bukan seluruh pasar kripto.')
+    columns=st.columns(3)
+    for col,r in zip(columns,observations):
+        with col:
+            with st.container(border=True):
+                st.markdown('#### '+r['symbol'].replace('_',' / '))
+                if r not in valid:st.caption('Data belum tersedia atau usang.');continue
+                label={1:'CONDONG LONG',-1:'CONDONG SHORT',0:'NETRAL / MENUNGGU'}[r['side']]
+                st.markdown('**'+label+'**')
+                st.metric('Close terakhir',f"{r['close']:.8g}")
+                st.write(f"Momentum 12H {r['momentum']:+.2f}% · RSI {r['rsi']:.1f}")
+                st.caption(f"Harga {'di atas' if r['close']>r['ema50'] else 'di bawah'} EMA50 · support {r['support']:.8g} · resistance {r['resistance']:.8g}")
+                st.caption('Candle close '+stamp(r['closed'])+' WIB · MEXC')
+    st.caption('Bias mengikuti keselarasan tren EMA50/100, momentum 12 jam, dan RSI. Support/resistance adalah rentang 24 jam terakhir; bukan TP/SL order.')
+
 @st.fragment(run_every=60)
 def render():
     st.query_params['view']='sinyal-kripto'
     now=time.time()
+    bias_cards()
     try:
         coins=[m for m in universe() if not m.get('tradfi')]
     except Exception:
@@ -59,7 +84,7 @@ def render():
         if identity not in registry:registry[identity]={**r,'published':time.time(),'outcome':{'status':'AKTIF','at':None}}
     labels={'AKTIF':'SINYAL AKTIF','TP':'✓ TP TERSENTUH','SL':'✕ SL TERSENTUH','AMBIGU':'TP & SL · URUTAN TIDAK PASTI','KEDALUWARSA':'MASA BERLAKU SELESAI'}
     reasons={'Trend pullback':'Pantulan terkonfirmasi searah tren.','Donchian breakout':'Penembusan rentang searah momentum.','Range reversal':'Pembalikan harga di dalam rentang.'}
-    st.markdown(f'<div class="signal-hero"><div><div class="eyebrow">MEXC / SINYAL KRIPTO</div><h2>{"Peluang terpilih." if active else "NETRAL · menunggu peluang."}</h2><p>{len(active)} sinyal lolos · diperiksa {stamp(state["updated"])} WIB</p></div></div>',unsafe_allow_html=True)
+    st.markdown(f'<div class="signal-hero"><div><div class="eyebrow">MEXC / SINYAL KRIPTO</div><h2>{"Peluang terpilih." if active else "Sinyal entry · menunggu konfirmasi."}</h2><p>{len(active)} sinyal lolos · diperiksa {stamp(state["updated"])} WIB</p></div></div>',unsafe_allow_html=True)
     if not registry:st.info('Belum ada koin yang lolos syarat WR historis ≥90% dengan sampel cukup. Kartu muncul otomatis ketika ada sinyal yang memenuhi syarat.')
     columns=st.columns(2)
     recent=sorted(registry.values(),key=lambda r:r['published'],reverse=True)[:20]

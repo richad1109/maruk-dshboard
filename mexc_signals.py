@@ -136,3 +136,18 @@ def observe_touch(signal):
     d=get('kline/'+signal['symbol'],{'interval':'Min1','start':int(signal['published']),'end':int(time.time())})
     rows=[dict(time=int(t),high=float(d['high'][i]),low=float(d['low'][i])) for i,t in enumerate(d['time'])]
     return touch_status(signal,rows)
+
+def market_bias(rows,now=None):
+    now=time.time() if now is None else now
+    rows=clean(rows,now);a=features(rows)[-1];close=rows[-1]['close'];mom=100*(close/rows[-13]['close']-1)
+    votes=[1 if close>a['e50']>a['e100'] else -1 if close<a['e50']<a['e100'] else 0,
+        1 if mom>.3 else -1 if mom<-.3 else 0,1 if a['rsi']>55 else -1 if a['rsi']<45 else 0]
+    direction=1 if sum(votes)>=2 else -1 if sum(votes)<=-2 else 0
+    return dict(side=direction,close=close,momentum=mom,rsi=a['rsi'],ema50=a['e50'],
+        support=min(r['low'] for r in rows[-24:]),resistance=max(r['high'] for r in rows[-24:]),closed=rows[-1]['time']+3600)
+
+def bias_snapshot():
+    def one(symbol):
+        try:return dict(symbol=symbol,**market_bias(candles(symbol)))
+        except Exception:return dict(symbol=symbol,error=True)
+    with ThreadPoolExecutor(max_workers=3) as pool:return list(pool.map(one,('BTC_USDT','ETH_USDT','SOL_USDT')))
