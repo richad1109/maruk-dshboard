@@ -46,7 +46,7 @@ def visible_signals(results,now=None):
 @st.cache_data(ttl=30,show_spinner=False)
 def touch(signal):return engine.observe_touch(signal)
 
-@st.cache_data(ttl=30,show_spinner=False)
+@st.cache_data(ttl=20,show_spinner=False)
 def limit_radar_data():
     try:
         return sniper_limit_engine.scan_all()
@@ -66,20 +66,36 @@ def bias_cards():
     valid_count = sum(1 for r in observations if "SETUP VALID" in r['valid_label'])
     memindai_count = sum(1 for r in observations if "MEMINDAI" in r['valid_label'])
     touched_count = sum(1 for r in observations if r['is_touched'])
+    tp_count = sum(1 for r in observations if "TP" in r['touch_status'])
+    sl_count = sum(1 for r in observations if "SL" in r['touch_status'])
     longs = sum(1 for r in observations if "LONG" in r['potensi'])
     shorts = sum(1 for r in observations if "SHORT" in r['potensi'])
     
     label = 'DOMINAN LONG' if longs > shorts else 'DOMINAN SHORT' if shorts > longs else 'CAMPURAN / NETRAL'
     
     st.markdown('### Radar Limit Order 20 Koin · ' + label)
-    st.caption(f'Top 20 Likuiditas Kripto · {len(observations)} koin terpantau | ✅ {valid_count} Setup Valid Siaga | ⚡ {touched_count} Limit Terisi Mantul | 🔍 {memindai_count} Memindai | Aturan: Margin $2.00 USD Isolated')
+    st.caption(f'Top 20 Likuiditas Kripto · {len(observations)} koin terpantau | ⚡ {touched_count} Limit Terisi Mantul (🎯 {tp_count} TP / 🛑 {sl_count} SL) | ✅ {valid_count} Setup Valid Siaga | 🔍 {memindai_count} Memindai | Margin $2.00 USD Isolated')
     
     columns=st.columns(3)
     for i,r in enumerate(observations):
         with columns[i%3]:
             with st.container(border=True):
-                # 1. ATASNYA: FLOATING PROFIT BANNER / STATUS SENTUHAN LIMIT
-                if r['is_touched']:
+                # 1. ATASNYA: FLOATING PROFIT BANNER / STATUS SIKLUS MANTUL
+                if "TP" in r['touch_status']:
+                    st.markdown(f'''
+                    <div style="background: rgba(16, 185, 129, 0.22); border: 1px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 700; color: #10b981; font-size: 11px;">🎯 SUDAH TP (MANTUL SUKSES)</span>
+                        <span style="font-weight: 800; color: #34d399; font-size: 12px; font-family: monospace;">+$0.70 USD (+35% ROE) 🏆</span>
+                    </div>
+                    ''', unsafe_allow_html=True)
+                elif "SL" in r['touch_status']:
+                    st.markdown(f'''
+                    <div style="background: rgba(239, 68, 68, 0.20); border: 1px solid #ef4444; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 700; color: #f87171; font-size: 11px;">🛑 HIT STOP LOSS</span>
+                        <span style="font-weight: 800; color: #f87171; font-size: 12px; font-family: monospace;">-$0.72 USD (-36% ROE)</span>
+                    </div>
+                    ''', unsafe_allow_html=True)
+                elif r['is_touched']:
                     st.markdown(f'''
                     <div style="background: rgba(16, 185, 129, 0.16); border: 1px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: 700; color: #10b981; font-size: 11px;">⚡ LIMIT TERJEMPUT (MANTUL)</span>
@@ -105,7 +121,11 @@ def bias_cards():
                     pot_col = "#34d399" if is_long else "#f87171"
                     pot_text = "🟢 POTENSI LONG" if is_long else "🔴 POTENSI SHORT"
                     
-                    if r['is_touched']:
+                    if "TP" in r['touch_status']:
+                        stat_badge = '<span style="background: rgba(16, 185, 129, 0.3); color: #34d399; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #10b981; margin-left: 3px;">🎯 TP HIT</span>'
+                    elif "SL" in r['touch_status']:
+                        stat_badge = '<span style="background: rgba(239, 68, 68, 0.3); color: #f87171; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #ef4444; margin-left: 3px;">🛑 SL HIT</span>'
+                    elif r['is_touched']:
                         stat_badge = '<span style="background: rgba(16, 185, 129, 0.25); color: #34d399; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #10b981; margin-left: 3px;">⚡ TERISI</span>'
                     elif "SETUP VALID" in r['valid_label']:
                         stat_badge = '<span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #3b82f6; margin-left: 3px;">✅ SETUP VALID</span>'
@@ -134,7 +154,7 @@ def bias_cards():
                 </div>
                 ''', unsafe_allow_html=True)
 
-    st.caption('Setup Limit Order memanfaatkan zona pantulan likuiditas wick (Whale Sweep). Limit tidak mengejar pasar (market order), melainkan menunggu jemputan harga di titik diskon/ekstrem dengan Stop Loss ketat di luar noise wick dan target TP realistis 1:1 R:R (+35% ROE). Angka Win Rate didasarkan pada audit backtest 2 tahun riil.')
+    st.caption('Posisi limit yang sudah terjemput (mantul) dipantau secara kontinu dengan status floating profit riil hingga target TP atau proteksi SL tersentuh. Sistem tidak mereset status ke menunggu jemputan sebelum siklus selesai. Angka Win Rate didasarkan pada audit backtest riil.')
 
 @st.fragment(run_every=60)
 def render():
