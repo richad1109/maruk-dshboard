@@ -1,12 +1,21 @@
 """Compact public signal board. Research stays behind the scenes."""
 import time
 from html import escape
+from decimal import Decimal
 from datetime import datetime,timezone,timedelta
 import streamlit as st
 import mexc_signals as engine
 WIB=timezone(timedelta(hours=7))
 
 def stamp(t):return datetime.fromtimestamp(t,WIB).strftime('%d %b %H:%M')
+def display_price(value):
+    return format(Decimal(format(float(value),'.8g')),'f')
+
+def level_row(entry,tp,sl):
+    values=[('Entry',entry),('TP',tp),('SL',sl)]
+    cells=''.join(f'<div><span>{label}</span><strong>{escape(display_price(value))}</strong></div>' for label,value in values)
+    st.markdown('<div class="compact-levels">'+cells+'</div>',unsafe_allow_html=True)
+
 @st.cache_data(ttl=120,show_spinner=False)
 def universe():
     # Catalog v2 includes the official TradFi classification.
@@ -40,7 +49,10 @@ def bias_data():
     return engine.bias_snapshot()
 
 def bias_cards():
-    observations=bias_data()
+    try:observations=bias_data()
+    except Exception:
+        st.warning('Bias pasar belum terbaca. Mencoba lagi saat pembaruan berikutnya.')
+        return
     valid=[r for r in observations if not r.get('error') and time.time()-r['closed']<=7200]
     longs=sum(r['side']==1 for r in valid);shorts=sum(r['side']==-1 for r in valid)
     label='DOMINAN LONG' if len(valid)>=10 and longs>len(valid)/2 else 'DOMINAN SHORT' if len(valid)>=10 and shorts>len(valid)/2 else 'CAMPURAN / NETRAL' if len(valid)>=10 else 'DATA BELUM CUKUP'
@@ -55,18 +67,20 @@ def bias_cards():
                 if r not in valid:st.caption('Data belum tersedia atau usang.');continue
                 label={1:'CONDONG LONG',-1:'CONDONG SHORT',0:'NETRAL / MENUNGGU'}[r['side']]
                 st.markdown('**'+label+'**')
-                st.metric('Close terakhir',f"{r['close']:.8g}")
+                st.markdown('<div class="compact-quote"><span>Close terakhir</span><strong>'+escape(display_price(r['close']))+'</strong></div>',unsafe_allow_html=True)
                 st.write(f"Momentum 12H {r['momentum']:+.2f}% · RSI {r['rsi']:.1f}")
                 st.caption(f"Harga {'di atas' if r['close']>r['ema50'] else 'di bawah'} EMA50 · support {r['support']:.8g} · resistance {r['resistance']:.8g}")
                 st.caption('Candle close '+stamp(r['closed'])+' WIB · MEXC')
+                if not 0<=time.time()-r['closed']<3600:
+                    st.caption('Level rencana kedaluwarsa; menunggu candle terbaru.')
+                    continue
                 st.markdown('**Rencana entry bersyarat**')
                 for direction in ([r['side']] if r['side'] else [1,-1]):
                     try:plan=engine.bias_plan(r,direction)
                     except (ValueError,KeyError):continue
                     name='LONG' if direction==1 else 'SHORT'
                     st.caption(name+' · tunggu candle 1H close '+('di atas' if direction==1 else 'di bawah')+' level entry')
-                    a,b,c=st.columns(3)
-                    a.metric('Entry',f"{plan['entry']:.8g}");b.metric('TP',f"{plan['tp']:.8g}");c.metric('SL',f"{plan['sl']:.8g}")
+                    level_row(plan['entry'],plan['tp'],plan['sl'])
                 st.caption('WR 90%: BELUM TERBUKTI untuk rencana ini. Bukan sinyal entry tervalidasi. Level dihitung ulang saat candle berganti.')
     st.caption('Bias mengikuti keselarasan tren EMA50/100, momentum 12 jam, dan RSI. Rencana memakai breakout rentang 24H + buffer 0,1 ATR, SL 2 ATR dan TP 4 ATR (2R). Berlaku sampai candle berikutnya; bukan order bursa. Konfirmasi tidak menjamin harga fill atau WR 90%.')
 
@@ -110,7 +124,7 @@ def render():
             with st.container(border=True):
                 st.markdown(f"### {escape(r['symbol'].replace('_',' / '))} · {'LONG' if r['side']==1 else 'SHORT'}")
                 st.markdown(f'<strong style="color:{color}">{labels[status]}</strong>',unsafe_allow_html=True)
-                a,b,c=st.columns(3);a.metric('Entry',f"{r['entry']:.8g}");b.metric('TP',f"{r['tp']:.8g}");c.metric('SL',f"{r['sl']:.8g}")
+                level_row(r['entry'],r['tp'],r['sl'])
                 st.write(reasons.get(r['rule'],'Kondisi teknikal terkonfirmasi.'))
                 st.caption(f"WR uji {r['test']['wr']:.1f}% · {r['test']['n']} transaksi · berlaku sampai {stamp(r['expires'])} WIB")
                 if outcome.get('at'):st.caption('Level teramati pada candle 1 menit '+stamp(outcome['at'])+' WIB')
