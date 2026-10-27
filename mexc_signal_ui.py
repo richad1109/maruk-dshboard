@@ -36,7 +36,7 @@ def touch(signal):return engine.observe_touch(signal)
 
 @st.cache_data(ttl=60,show_spinner=False)
 def bias_data():
-    # Top 20 crypto by MEXC USDT turnover, schema v2.
+    # Top 20 crypto with ATR and conditional plans, schema v3.
     return engine.bias_snapshot()
 
 def bias_cards():
@@ -59,7 +59,16 @@ def bias_cards():
                 st.write(f"Momentum 12H {r['momentum']:+.2f}% · RSI {r['rsi']:.1f}")
                 st.caption(f"Harga {'di atas' if r['close']>r['ema50'] else 'di bawah'} EMA50 · support {r['support']:.8g} · resistance {r['resistance']:.8g}")
                 st.caption('Candle close '+stamp(r['closed'])+' WIB · MEXC')
-    st.caption('Bias mengikuti keselarasan tren EMA50/100, momentum 12 jam, dan RSI. Support/resistance adalah rentang 24 jam terakhir; bukan TP/SL order.')
+                st.markdown('**Rencana entry bersyarat**')
+                for direction in ([r['side']] if r['side'] else [1,-1]):
+                    try:plan=engine.bias_plan(r,direction)
+                    except (ValueError,KeyError):continue
+                    name='LONG' if direction==1 else 'SHORT'
+                    st.caption(name+' · tunggu candle 1H close '+('di atas' if direction==1 else 'di bawah')+' level entry')
+                    a,b,c=st.columns(3)
+                    a.metric('Entry',f"{plan['entry']:.8g}");b.metric('TP',f"{plan['tp']:.8g}");c.metric('SL',f"{plan['sl']:.8g}")
+                st.caption('WR 90%: BELUM TERBUKTI untuk rencana ini. Bukan sinyal entry tervalidasi. Level dihitung ulang saat candle berganti.')
+    st.caption('Bias mengikuti keselarasan tren EMA50/100, momentum 12 jam, dan RSI. Rencana memakai breakout rentang 24H + buffer 0,1 ATR, SL 2 ATR dan TP 4 ATR (2R). Berlaku sampai candle berikutnya; bukan order bursa. Konfirmasi tidak menjamin harga fill atau WR 90%.')
 
 @st.fragment(run_every=60)
 def render():

@@ -46,6 +46,13 @@ class CompactBoardTests(unittest.TestCase):
         return dict(symbol='BTC_USDT',rule='Donchian breakout',side=1,entry=100,tp=104,sl=98,
             published=120,closed=100,expires=400,qualified=True,liquid=True,target90=True,
             test=dict(n=110,wr=92,lower=85,pf=2,mean_r=.3))
+    def test_conditional_plans_are_directional_not_accuracy_claims(self):
+        obs=dict(atr=2,support=90,resistance=110,closed=100)
+        long=m.bias_plan(obs,1);short=m.bias_plan(obs,-1)
+        self.assertLess(long['sl'],long['entry']);self.assertLess(long['entry'],long['tp'])
+        self.assertGreater(short['sl'],short['entry']);self.assertGreater(short['entry'],short['tp'])
+        self.assertAlmostEqual((long['tp']-long['entry'])/(long['entry']-long['sl']),2)
+        self.assertNotIn('wr',long)
     def test_strict_gate_and_conflict(self):
         from mexc_signal_ui import visible_signals
         r=self.signal();self.assertEqual(len(visible_signals([r],now=200)),1)

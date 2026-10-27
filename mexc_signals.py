@@ -143,7 +143,7 @@ def market_bias(rows,now=None):
     votes=[1 if close>a['e50']>a['e100'] else -1 if close<a['e50']<a['e100'] else 0,
         1 if mom>.3 else -1 if mom<-.3 else 0,1 if a['rsi']>55 else -1 if a['rsi']<45 else 0]
     direction=1 if sum(votes)>=2 else -1 if sum(votes)<=-2 else 0
-    return dict(side=direction,close=close,momentum=mom,rsi=a['rsi'],ema50=a['e50'],
+    return dict(side=direction,close=close,momentum=mom,rsi=a['rsi'],ema50=a['e50'],atr=a['atr'],
         support=min(r['low'] for r in rows[-24:]),resistance=max(r['high'] for r in rows[-24:]),closed=rows[-1]['time']+3600)
 
 def bias_snapshot():
@@ -152,3 +152,13 @@ def bias_snapshot():
         try:return dict(symbol=meta['symbol'],volume=meta['volume'],**market_bias(candles(meta['symbol'])))
         except Exception:return dict(symbol=meta['symbol'],volume=meta['volume'],error=True)
     with ThreadPoolExecutor(max_workers=3) as pool:return list(pool.map(one,top))
+
+
+def bias_plan(observation,side):
+    """Conditional breakout levels; no execution or accuracy claim."""
+    atr=observation['atr']
+    if side not in (-1,1) or not math.isfinite(atr) or atr<=0:raise ValueError('Rencana tidak valid')
+    entry=observation['resistance']+.1*atr if side==1 else observation['support']-.1*atr
+    sl=entry-side*2*atr;tp=entry+side*4*atr
+    if min(entry,sl,tp)<=0:raise ValueError('Level di luar rentang harga valid')
+    return dict(side=side,entry=entry,sl=sl,tp=tp,expires=observation['closed']+3600)
