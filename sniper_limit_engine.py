@@ -19,8 +19,8 @@ import requests
 import urllib3
 from concurrent.futures import ThreadPoolExecutor
 
-if sys.stdout and hasattr(sys.stdout, 'buffer'):
-    try: sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
+    try: sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     except Exception: pass
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
