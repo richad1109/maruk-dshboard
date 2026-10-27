@@ -7,7 +7,9 @@ import mexc_signals as engine
 WIB=timezone(timedelta(hours=7))
 def stamp(t):return datetime.fromtimestamp(t,WIB).strftime('%d %b %Y %H:%M WIB')
 @st.cache_data(ttl=120,show_spinner=False)
-def universe():return engine.catalog()
+def universe():
+    # Catalog schema v2 includes the official TradFi classification.
+    return engine.catalog()
 @st.cache_data(ttl=300,show_spinner=False)
 def batch(items,rule):return engine.scan(items,rule)
 def render():
