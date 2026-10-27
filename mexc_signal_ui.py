@@ -12,6 +12,7 @@ import sniper_limit_engine
 WIB=timezone(timedelta(hours=7))
 
 def stamp(t):return datetime.fromtimestamp(t,WIB).strftime('%d %b %H:%M')
+def clock_now():return datetime.now(WIB).strftime('%H:%M:%S WIB')
 def display_price(value):
     return format(Decimal(format(float(value),'.8g')),'f')
 
@@ -43,10 +44,10 @@ def visible_signals(results,now=None):
         if len({r['side'] for r in group})==1:out.append(max(group,key=lambda r:(r['test']['lower'],r['test']['n'])))
     return out
 
-@st.cache_data(ttl=30,show_spinner=False)
+@st.cache_data(ttl=10,show_spinner=False)
 def touch(signal):return engine.observe_touch(signal)
 
-@st.cache_data(ttl=20,show_spinner=False)
+@st.cache_data(ttl=10,show_spinner=False)
 def limit_radar_data():
     try:
         return sniper_limit_engine.scan_all()
@@ -58,41 +59,53 @@ def limit_validation():
     except (OSError,ValueError):return {}
 
 def bias_cards():
+    col_head_left, col_head_right = st.columns([2.5, 1.5])
+    with col_head_right:
+        st.markdown(f'''
+        <div style="text-align: right; padding: 4px 0 8px 0;">
+            <span style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px; border: 1px solid #10b981;">
+                ● LIVE AUTO-REFRESH 10s · {clock_now()}
+            </span>
+        </div>
+        ''', unsafe_allow_html=True)
+        if st.button('↻ Refresh Sekarang', key='btn_refresh_now', use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+
     observations=limit_radar_data()
     if not observations:
         st.warning('Radar limit order sedang menyinkronkan data bursa…')
         return
 
     valid_count = sum(1 for r in observations if "SETUP VALID" in r['valid_label'])
-    memindai_count = sum(1 for r in observations if "MEMINDAI" in r['valid_label'])
     touched_count = sum(1 for r in observations if r['is_touched'])
-    tp_count = sum(1 for r in observations if "TP" in r['touch_status'])
-    sl_count = sum(1 for r in observations if "SL" in r['touch_status'])
+    memindai_count = sum(1 for r in observations if "MEMINDAI" in r['valid_label'])
     longs = sum(1 for r in observations if "LONG" in r['potensi'])
     shorts = sum(1 for r in observations if "SHORT" in r['potensi'])
     
     label = 'DOMINAN LONG' if longs > shorts else 'DOMINAN SHORT' if shorts > longs else 'CAMPURAN / NETRAL'
     
-    st.markdown('### Radar Limit Order 20 Koin · ' + label)
-    st.caption(f'Top 20 Likuiditas Kripto · {len(observations)} koin terpantau | ⚡ {touched_count} Limit Terisi Mantul (🎯 {tp_count} TP / 🛑 {sl_count} SL) | ✅ {valid_count} Setup Valid Siaga | 🔍 {memindai_count} Memindai | Margin $2.00 USD Isolated')
+    with col_head_left:
+        st.markdown('### Radar Limit Order 20 Koin · ' + label)
+        st.caption(f'Top 20 Likuiditas Kripto · {len(observations)} koin aktif | ⚡ {touched_count} Posisi Sedang Mantul (Floating) | ✅ {valid_count} Setup Valid Siaga Pasang | Margin $2.00 USD Isolated')
     
     columns=st.columns(3)
     for i,r in enumerate(observations):
         with columns[i%3]:
             with st.container(border=True):
-                # 1. ATASNYA: FLOATING PROFIT BANNER / STATUS SIKLUS MANTUL
-                if "TP" in r['touch_status']:
+                # 1. ATASNYA: BANNER FLOATING / STATUS SIKLUS MANTUL & PEMBARUAN SETUP BARU
+                if "TP SEBELUMNYA" in r['touch_status']:
                     st.markdown(f'''
-                    <div style="background: rgba(16, 185, 129, 0.22); border: 1px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: 700; color: #10b981; font-size: 11px;">🎯 SUDAH TP (MANTUL SUKSES)</span>
-                        <span style="font-weight: 800; color: #34d399; font-size: 12px; font-family: monospace;">+$0.70 USD (+35% ROE) 🏆</span>
+                    <div style="background: rgba(16, 185, 129, 0.20); border: 1px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 700; color: #10b981; font-size: 11px;">🎯 TP SEBELUMNYA HIT (+35% ROE)!</span>
+                        <span style="font-weight: 700; color: #34d399; font-size: 11px;">⚡ Setup Baru Siaga ({r['diff_pct']:.2f}%)</span>
                     </div>
                     ''', unsafe_allow_html=True)
-                elif "SL" in r['touch_status']:
+                elif "SL SEBELUMNYA" in r['touch_status']:
                     st.markdown(f'''
-                    <div style="background: rgba(239, 68, 68, 0.20); border: 1px solid #ef4444; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: 700; color: #f87171; font-size: 11px;">🛑 HIT STOP LOSS</span>
-                        <span style="font-weight: 800; color: #f87171; font-size: 12px; font-family: monospace;">-$0.72 USD (-36% ROE)</span>
+                    <div style="background: rgba(239, 68, 68, 0.18); border: 1px solid #ef4444; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 700; color: #f87171; font-size: 11px;">🛑 SL SEBELUMNYA KENA (-36% ROE)</span>
+                        <span style="font-weight: 700; color: #f87171; font-size: 11px;">⚡ Setup Baru Siaga ({r['diff_pct']:.2f}%)</span>
                     </div>
                     ''', unsafe_allow_html=True)
                 elif r['is_touched']:
@@ -121,11 +134,7 @@ def bias_cards():
                     pot_col = "#34d399" if is_long else "#f87171"
                     pot_text = "🟢 POTENSI LONG" if is_long else "🔴 POTENSI SHORT"
                     
-                    if "TP" in r['touch_status']:
-                        stat_badge = '<span style="background: rgba(16, 185, 129, 0.3); color: #34d399; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #10b981; margin-left: 3px;">🎯 TP HIT</span>'
-                    elif "SL" in r['touch_status']:
-                        stat_badge = '<span style="background: rgba(239, 68, 68, 0.3); color: #f87171; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #ef4444; margin-left: 3px;">🛑 SL HIT</span>'
-                    elif r['is_touched']:
+                    if r['is_touched']:
                         stat_badge = '<span style="background: rgba(16, 185, 129, 0.25); color: #34d399; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #10b981; margin-left: 3px;">⚡ TERISI</span>'
                     elif "SETUP VALID" in r['valid_label']:
                         stat_badge = '<span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #3b82f6; margin-left: 3px;">✅ SETUP VALID</span>'
@@ -154,9 +163,9 @@ def bias_cards():
                 </div>
                 ''', unsafe_allow_html=True)
 
-    st.caption('Posisi limit yang sudah terjemput (mantul) dipantau secara kontinu dengan status floating profit riil hingga target TP atau proteksi SL tersentuh. Sistem tidak mereset status ke menunggu jemputan sebelum siklus selesai. Angka Win Rate didasarkan pada audit backtest riil.')
+    st.caption('Pembaruan otomatis berjalan setiap 10 detik tanpa perlu refresh manual. Saat posisi menyentuh TP atau SL, sistem otomatis memindai dan memperbarui level Limit Order baru agar Anda selalu siap pasang posisi berikutnya.')
 
-@st.fragment(run_every=60)
+@st.fragment(run_every=10)
 def render():
     st.query_params['view']='sinyal-kripto'
     bias_cards()

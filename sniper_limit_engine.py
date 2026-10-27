@@ -4,14 +4,11 @@
 sniper_limit_engine.py
 -----------------------
 Engine Sinyal Kripto Limit Order Sniper 20 Koin (Whale Wick - Realistis Tanpa Ilusi).
-Menjaga status aktif setelah mantul:
-- Jika sudah terjemput (mantul), status TETAP FLOATING PROFIT sampai kena TP atau SL!
-- Tidak akan reset ke 'menunggu jemputan' sebelum siklus selesai.
-- Menampilkan:
-  * ⚡ LIMIT TERJEMPUT (MANTUL): Floating Profit (+ROE% & +USD)
-  * 🎯 TARGET TP TERSENTUH (+35% ROE | +$0.70 USD)
-  * 🛑 STOP LOSS TERSENTUH (-36% ROE | -$0.72 USD)
-  * ⏳ LIMIT BELUM KESENTUH: Jarak % ke titik jemputan
+Logika Pemindaian Kontinu & Pembaruan Setup Otomatis:
+1. Jika posisi sedang MANTUL & FLOATING -> Tampilkan status FLOATING PROFIT real-time.
+2. Jika posisi SELESAI (SUDAH HIT TP atau HIT SL) -> JANGAN BERHENTI!
+   Langsung pindai struktur pasar terbaru dan TERBITKAN SETUP LIMIT BARU untuk dipasang di bursa!
+3. Pengguna selalu memiliki titik Limit Order segar yang siap dipasang di aplikasi bursa.
 """
 
 import sys
@@ -78,14 +75,13 @@ def scan_single_coin(sym_tuple):
             cur_p = closes[-1]
             n = len(raw)
             
-            # Base Swing S/R dari 32 candle awal (candle 0 s/d 31)
-            # Candle 32 s/d 47 (16 candle terakhir = 4 jam) adalah execution window
-            split_idx = max(24, n - 16)
-            base_lows = lows[:split_idx]
-            base_highs = highs[:split_idx]
+            # Multi-bar swing S/R dari 28 candle terakhir (7 jam terakhir)
+            lookback = min(28, n)
+            recent_lows = lows[-lookback:-1]
+            recent_highs = highs[-lookback:-1]
             
-            sw_low = min(base_lows)
-            sw_high = max(base_highs)
+            sw_low = min(recent_lows)
+            sw_high = max(recent_highs)
             range_span = sw_high - sw_low if sw_high > sw_low else 1.0
             pos_in_range = (cur_p - sw_low) / range_span
             
@@ -103,34 +99,55 @@ def scan_single_coin(sym_tuple):
                 sl_p = limit_p * (1.0 - sl_ratio)
                 diff_pct = ((cur_p - limit_p) / cur_p) * 100
                 
-                # Cari candle pertama di execution window yang menyentuh limit
+                # Cek 6 candle terakhir (1.5 jam) untuk status floating aktif
+                active_window = min(6, n)
+                last_lows = lows[-active_window:]
+                last_highs = highs[-active_window:]
+                
                 fill_idx = -1
-                for idx in range(split_idx, n):
-                    if lows[idx] <= limit_p:
+                for idx, l_val in enumerate(last_lows):
+                    if l_val <= limit_p:
                         fill_idx = idx
                         break
                         
                 if fill_idx != -1:
-                    # LIMIT SUDAH TERSENTUH / MANTUL!
-                    sub_highs = highs[fill_idx:]
-                    sub_lows = lows[fill_idx:]
+                    # Terjemput dalam 6 candle terakhir!
+                    sub_highs = last_highs[fill_idx:]
+                    sub_lows = last_lows[fill_idx:]
                     hit_tp = max(sub_highs) >= tp_p
                     hit_sl = min(sub_lows) <= sl_p
-                    is_touched = True
                     
                     if hit_tp:
-                        touch_status = "🎯 TARGET TP TERSENTUH"
-                        valid_label = "🎯 SUDAH TP (MANTUL SUKSES)"
+                        # TP tercapai! Jangan diam, perbarui setup limit baru
+                        fresh_limit = min(lows[-16:]) * (1.0 - offset_pct)
+                        fresh_diff = ((cur_p - fresh_limit) / cur_p) * 100
+                        limit_p = fresh_limit
+                        tp_p = limit_p * (1.0 + tp_ratio)
+                        sl_p = limit_p * (1.0 - sl_ratio)
+                        diff_pct = fresh_diff
+                        is_touched = False
+                        touch_status = "🎯 TP SEBELUMNYA HIT"
+                        valid_label = "✅ SETUP VALID (LIMIT BARU)"
                         float_roe = 35.0
                         float_usd = 0.70
-                        float_str = "🎯 HIT TP! (+35.0% ROE | +$0.70 USD) 🏆"
+                        float_str = f"🎯 TP Sebelumnya Hit (+35% ROE)! Pasang Limit Baru di ${limit_p:,.4f} (-{diff_pct:.2f}%)"
                     elif hit_sl:
-                        touch_status = "🛑 STOP LOSS TERSENTUH"
-                        valid_label = "🛑 HIT SL (STOP LOSS)"
+                        # SL kena! Jangan diam, perbarui setup limit baru
+                        fresh_limit = min(lows[-16:]) * (1.0 - offset_pct)
+                        fresh_diff = ((cur_p - fresh_limit) / cur_p) * 100
+                        limit_p = fresh_limit
+                        tp_p = limit_p * (1.0 + tp_ratio)
+                        sl_p = limit_p * (1.0 - sl_ratio)
+                        diff_pct = fresh_diff
+                        is_touched = False
+                        touch_status = "🛑 SL SEBELUMNYA KENA"
+                        valid_label = "✅ SETUP VALID (LIMIT BARU)"
                         float_roe = -36.0
                         float_usd = -0.72
-                        float_str = "🛑 HIT SL! (-36.0% ROE | -$0.72 USD)"
+                        float_str = f"🛑 SL Sebelumnya Kena (-36% ROE). Pasang Limit Baru di ${limit_p:,.4f} (-{diff_pct:.2f}%)"
                     else:
+                        # SEDANG AKTIF FLOATING MANTUL
+                        is_touched = True
                         touch_status = "⚡ SUDAH KESENTUH (TERISI)"
                         valid_label = "✅ VALID (SEDANG MANTUL)"
                         float_roe = ((cur_p - limit_p) / limit_p) * lev * 100
@@ -138,7 +155,7 @@ def scan_single_coin(sym_tuple):
                         sign = "+" if float_roe >= 0 else ""
                         float_str = f"Floating: {sign}${float_usd:.2f} ({sign}{float_roe:.1f}% ROE)"
                 else:
-                    # Belum tersentuh sama sekali
+                    # Belum tersentuh
                     is_touched = False
                     touch_status = "⏳ BELUM KESENTUH"
                     float_roe = 0.0
@@ -149,40 +166,58 @@ def scan_single_coin(sym_tuple):
                     else:
                         valid_label = "🔍 MEMINDAI (BELUM VALID)"
             else:
+                # SHORT
                 potensi = "POTENSI SHORT (SELL)"
                 limit_p = sw_high * (1.0 + offset_pct)
                 tp_p = limit_p * (1.0 - tp_ratio)
                 sl_p = limit_p * (1.0 + sl_ratio)
                 diff_pct = ((limit_p - cur_p) / cur_p) * 100
                 
-                # Cari candle pertama di execution window yang menyentuh short limit
+                active_window = min(6, n)
+                last_highs = highs[-active_window:]
+                last_lows = lows[-active_window:]
+                
                 fill_idx = -1
-                for idx in range(split_idx, n):
-                    if highs[idx] >= limit_p:
+                for idx, h_val in enumerate(last_highs):
+                    if h_val >= limit_p:
                         fill_idx = idx
                         break
                         
                 if fill_idx != -1:
-                    # LIMIT SUDAH TERSENTUH / MANTUL!
-                    sub_highs = highs[fill_idx:]
-                    sub_lows = lows[fill_idx:]
+                    sub_highs = last_highs[fill_idx:]
+                    sub_lows = last_lows[fill_idx:]
                     hit_tp = min(sub_lows) <= tp_p
                     hit_sl = max(sub_highs) >= sl_p
-                    is_touched = True
                     
                     if hit_tp:
-                        touch_status = "🎯 TARGET TP TERSENTUH"
-                        valid_label = "🎯 SUDAH TP (MANTUL SUKSES)"
+                        # TP tercapai! Jangan diam, perbarui setup limit baru
+                        fresh_limit = max(highs[-16:]) * (1.0 + offset_pct)
+                        fresh_diff = ((fresh_limit - cur_p) / cur_p) * 100
+                        limit_p = fresh_limit
+                        tp_p = limit_p * (1.0 - tp_ratio)
+                        sl_p = limit_p * (1.0 + sl_ratio)
+                        diff_pct = fresh_diff
+                        is_touched = False
+                        touch_status = "🎯 TP SEBELUMNYA HIT"
+                        valid_label = "✅ SETUP VALID (LIMIT BARU)"
                         float_roe = 35.0
                         float_usd = 0.70
-                        float_str = "🎯 HIT TP! (+35.0% ROE | +$0.70 USD) 🏆"
+                        float_str = f"🎯 TP Sebelumnya Hit (+35% ROE)! Pasang Limit Baru di ${limit_p:,.4f} (+{diff_pct:.2f}%)"
                     elif hit_sl:
-                        touch_status = "🛑 STOP LOSS TERSENTUH"
-                        valid_label = "🛑 HIT SL (STOP LOSS)"
+                        fresh_limit = max(highs[-16:]) * (1.0 + offset_pct)
+                        fresh_diff = ((fresh_limit - cur_p) / cur_p) * 100
+                        limit_p = fresh_limit
+                        tp_p = limit_p * (1.0 - tp_ratio)
+                        sl_p = limit_p * (1.0 + sl_ratio)
+                        diff_pct = fresh_diff
+                        is_touched = False
+                        touch_status = "🛑 SL SEBELUMNYA KENA"
+                        valid_label = "✅ SETUP VALID (LIMIT BARU)"
                         float_roe = -36.0
                         float_usd = -0.72
-                        float_str = "🛑 HIT SL! (-36.0% ROE | -$0.72 USD)"
+                        float_str = f"🛑 SL Sebelumnya Kena (-36% ROE). Pasang Limit Baru di ${limit_p:,.4f} (+{diff_pct:.2f}%)"
                     else:
+                        is_touched = True
                         touch_status = "⚡ SUDAH KESENTUH (TERISI)"
                         valid_label = "✅ VALID (SEDANG MANTUL)"
                         float_roe = ((limit_p - cur_p) / limit_p) * lev * 100
