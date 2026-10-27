@@ -16,10 +16,15 @@ def clock_now():return datetime.now(WIB).strftime('%H:%M:%S WIB')
 def display_price(value):
     return format(Decimal(format(float(value),'.8g')),'f')
 
+def html(raw_html: str):
+    """Safely render HTML without any Markdown code block indentation artifacts."""
+    clean = " ".join(line.strip() for line in raw_html.strip().splitlines() if line.strip())
+    st.markdown(clean, unsafe_allow_html=True)
+
 def level_row(entry,tp,sl):
     values=[('Entry (Limit)',entry),('Take Profit (+35%)',tp),('Stop Loss (-20%)',sl)]
     cells=''.join(f'<div><span>{label}</span><strong>{escape(display_price(value))}</strong></div>' for label,value in values)
-    st.markdown('<div class="compact-levels">'+cells+'</div>',unsafe_allow_html=True)
+    html(f'<div class="compact-levels">{cells}</div>')
 
 @st.cache_data(ttl=120,show_spinner=False)
 def universe():
@@ -65,13 +70,7 @@ def bias_cards():
     # BAR TOP STATUS AUTO-REFRESH 10 DETIK & TOMBOL MANUAL REFRESH
     col_head_left, col_head_right = st.columns([2.6, 1.4])
     with col_head_right:
-        st.markdown(f'''
-        <div style="text-align: right; padding: 2px 0 6px 0;">
-            <span style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px; border: 1px solid #10b981;">
-                ● AUTO-REFRESH 10s · {clock_now()}
-            </span>
-        </div>
-        ''', unsafe_allow_html=True)
+        html(f'<div style="text-align: right; padding: 2px 0 6px 0;"><span style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px; border: 1px solid #10b981;">● AUTO-REFRESH 10s · {clock_now()}</span></div>')
         if st.button('↻ Refresh Sekarang', key='btn_refresh_now', use_container_width=True):
             st.cache_data.clear()
             st.rerun()
@@ -121,71 +120,36 @@ def bias_cards():
     sign_real = "+" if realized_usd >= 0 else ""
     real_col = "#34d399" if realized_usd >= 0 else "#f87171"
 
-    st.markdown(f'''
-    <div style="background: rgba(15, 23, 42, 0.75); border: 2px solid #334155; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px;">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 14px;">
-            <!-- 1. FLOATING PROFIT -->
-            <div style="background: {tot_bg}; border: 1.5px solid {tot_border}; border-radius: 10px; padding: 12px 16px;">
-                <div style="font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: #94a3b8; font-weight: 700;">
-                    💰 FLOATING PROFIT (BERJALAN)
-                </div>
-                <div style="font-size: 24px; font-weight: 900; color: {tot_col}; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">
-                    {sign_tot}&#36;{total_floating_usd:,.2f} USD <span style="font-size: 15px; font-weight: 700;">({sign_tot}{total_floating_roe:,.1f}%)</span>
-                </div>
-                <div style="font-size: 11.5px; color: #cbd5e1; margin-top: 2px;">
-                    Estimasi: <strong style="color: {tot_col};">{sign_tot}Rp {tot_idr:,.0f}</strong> ({active_floating_count} koin mantul)
-                </div>
-            </div>
-
-            <!-- 2. REALIZED PnL -->
-            <div style="background: rgba(59, 130, 246, 0.14); border: 1.5px solid #3b82f6; border-radius: 10px; padding: 12px 16px;">
-                <div style="font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: #93c5fd; font-weight: 700;">
-                    💎 REALIZED PnL (SELESAI TP/SL)
-                </div>
-                <div style="font-size: 24px; font-weight: 900; color: {real_col}; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">
-                    {sign_real}&#36;{realized_usd:,.2f} USD <span style="font-size: 15px; font-weight: 700;">({sign_real}{realized_roe:,.1f}%)</span>
-                </div>
-                <div style="font-size: 11.5px; color: #cbd5e1; margin-top: 2px;">
-                    Total Selesai: <strong style="color: {real_col};">{sign_real}Rp {realized_idr:,.0f}</strong> ({total_closed} setup selesai)
-                </div>
-            </div>
-
-            <!-- 3. WIN RATE PORTOFOLIO -->
-            <div style="background: rgba(245, 158, 11, 0.14); border: 1.5px solid #f59e0b; border-radius: 10px; padding: 12px 16px;">
-                <div style="font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: #fde68a; font-weight: 700;">
-                    🏆 WIN RATE (WR) PORTOFOLIO
-                </div>
-                <div style="font-size: 24px; font-weight: 900; color: #fbbf24; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">
-                    {avg_portfolio_wr:.1f}% <span style="font-size: 13px; font-weight: 700; color: #94a3b8;">(Historis)</span>
-                </div>
-                <div style="font-size: 11.5px; color: #cbd5e1; margin-top: 2px;">
-                    WR Sesi Selesai: <strong style="color: #60a5fa;">{realized_wr:.1f}%</strong> ({tp_count} TP / {sl_count} SL)
-                </div>
-            </div>
-        </div>
-
-        <!-- BARIS KEDUA: COUNTER STATUS -->
-        <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; border-top: 1px solid #1e293b; padding-top: 12px;">
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <span style="background: rgba(16, 185, 129, 0.22); border: 1px solid #10b981; color: #34d399; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">
-                    ⚡ {active_floating_count} Koin Mantul
-                </span>
-                <span style="background: rgba(59, 130, 246, 0.22); border: 1px solid #3b82f6; color: #60a5fa; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">
-                    🎯 {tp_count} Sukses Hit TP
-                </span>
-                <span style="background: rgba(239, 68, 68, 0.22); border: 1px solid #ef4444; color: #f87171; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">
-                    🛑 {sl_count} Hit Stop Loss
-                </span>
-                <span style="background: rgba(245, 158, 11, 0.22); border: 1px solid #f59e0b; color: #f59e0b; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">
-                    ⏳ {valid_count} Siaga Limit Baru
-                </span>
-            </div>
-            <div style="font-size: 11px; color: #64748b;">
-                *Margin &#36;2.00 per posisi isolated · TP +35% ROE · SL -20% ROE
-            </div>
-        </div>
-    </div>
-    ''', unsafe_allow_html=True)
+    html(f'''
+<div style="background: rgba(15, 23, 42, 0.75); border: 2px solid #334155; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px;">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 14px;">
+<div style="background: {tot_bg}; border: 1.5px solid {tot_border}; border-radius: 10px; padding: 12px 16px;">
+<div style="font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: #94a3b8; font-weight: 700;">💰 FLOATING PROFIT (BERJALAN)</div>
+<div style="font-size: 24px; font-weight: 900; color: {tot_col}; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">{sign_tot}&#36;{total_floating_usd:,.2f} USD <span style="font-size: 15px; font-weight: 700;">({sign_tot}{total_floating_roe:,.1f}%)</span></div>
+<div style="font-size: 11.5px; color: #cbd5e1; margin-top: 2px;">Estimasi: <strong style="color: {tot_col};">{sign_tot}Rp {tot_idr:,.0f}</strong> ({active_floating_count} koin mantul)</div>
+</div>
+<div style="background: rgba(59, 130, 246, 0.14); border: 1.5px solid #3b82f6; border-radius: 10px; padding: 12px 16px;">
+<div style="font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: #93c5fd; font-weight: 700;">💎 REALIZED PnL (SELESAI TP/SL)</div>
+<div style="font-size: 24px; font-weight: 900; color: {real_col}; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">{sign_real}&#36;{realized_usd:,.2f} USD <span style="font-size: 15px; font-weight: 700;">({sign_real}{realized_roe:,.1f}%)</span></div>
+<div style="font-size: 11.5px; color: #cbd5e1; margin-top: 2px;">Total Selesai: <strong style="color: {real_col};">{sign_real}Rp {realized_idr:,.0f}</strong> ({total_closed} setup selesai)</div>
+</div>
+<div style="background: rgba(245, 158, 11, 0.14); border: 1.5px solid #f59e0b; border-radius: 10px; padding: 12px 16px;">
+<div style="font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: #fde68a; font-weight: 700;">🏆 WIN RATE (WR) PORTOFOLIO</div>
+<div style="font-size: 24px; font-weight: 900; color: #fbbf24; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">{avg_portfolio_wr:.1f}% <span style="font-size: 13px; font-weight: 700; color: #94a3b8;">(Historis)</span></div>
+<div style="font-size: 11.5px; color: #cbd5e1; margin-top: 2px;">WR Sesi Selesai: <strong style="color: #60a5fa;">{realized_wr:.1f}%</strong> ({tp_count} TP / {sl_count} SL)</div>
+</div>
+</div>
+<div style="display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; border-top: 1px solid #1e293b; padding-top: 12px;">
+<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+<span style="background: rgba(16, 185, 129, 0.22); border: 1px solid #10b981; color: #34d399; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">⚡ {active_floating_count} Koin Mantul</span>
+<span style="background: rgba(59, 130, 246, 0.22); border: 1px solid #3b82f6; color: #60a5fa; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">🎯 {tp_count} Sukses Hit TP</span>
+<span style="background: rgba(239, 68, 68, 0.22); border: 1px solid #ef4444; color: #f87171; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">🛑 {sl_count} Hit Stop Loss</span>
+<span style="background: rgba(245, 158, 11, 0.22); border: 1px solid #f59e0b; color: #f59e0b; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">⏳ {valid_count} Siaga Limit Baru</span>
+</div>
+<div style="font-size: 11px; color: #64748b;">*Margin &#36;2.00 per posisi isolated · TP +35% ROE · SL -20% ROE</div>
+</div>
+</div>
+''')
     
     # =========================================================================
     # GRID KARTU 20 KOIN
@@ -196,33 +160,13 @@ def bias_cards():
             with st.container(border=True):
                 # 1. ATASNYA: BANNER FLOATING / STATUS SIKLUS MANTUL & PEMBARUAN SETUP BARU
                 if "TP" in r['touch_status']:
-                    st.markdown(f'''
-                    <div style="background: rgba(16, 185, 129, 0.20); border: 1px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: 700; color: #10b981; font-size: 11px;">🎯 TP HIT (+35% ROE)!</span>
-                        <span style="font-weight: 700; color: #34d399; font-size: 11px;">+&#36;0.70 USD · Siaga Setup Baru</span>
-                    </div>
-                    ''', unsafe_allow_html=True)
+                    html('<div style="background: rgba(16, 185, 129, 0.20); border: 1px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 700; color: #10b981; font-size: 11px;">🎯 TP HIT (+35% ROE)!</span><span style="font-weight: 700; color: #34d399; font-size: 11px;">+&#36;0.70 USD · Siaga Setup Baru</span></div>')
                 elif "SL" in r['touch_status']:
-                    st.markdown(f'''
-                    <div style="background: rgba(239, 68, 68, 0.18); border: 1px solid #ef4444; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: 700; color: #f87171; font-size: 11px;">🛑 SL HIT (-20% ROE)</span>
-                        <span style="font-weight: 700; color: #f87171; font-size: 11px;">-&#36;0.40 USD · Siaga Setup Baru</span>
-                    </div>
-                    ''', unsafe_allow_html=True)
+                    html('<div style="background: rgba(239, 68, 68, 0.18); border: 1px solid #ef4444; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 700; color: #f87171; font-size: 11px;">🛑 SL HIT (-20% ROE)</span><span style="font-weight: 700; color: #f87171; font-size: 11px;">-&#36;0.40 USD · Siaga Setup Baru</span></div>')
                 elif r['is_touched']:
-                    st.markdown(f'''
-                    <div style="background: rgba(16, 185, 129, 0.16); border: 1px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: 700; color: #10b981; font-size: 11px;">⚡ LIMIT TERJEMPUT (MANTUL)</span>
-                        <span style="font-weight: 800; color: #34d399; font-size: 12px; font-family: monospace;">{r["float_str"]}</span>
-                    </div>
-                    ''', unsafe_allow_html=True)
+                    html(f'<div style="background: rgba(16, 185, 129, 0.16); border: 1px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 700; color: #10b981; font-size: 11px;">⚡ LIMIT TERJEMPUT (MANTUL)</span><span style="font-weight: 800; color: #34d399; font-size: 12px; font-family: monospace;">{r["float_str"]}</span></div>')
                 else:
-                    st.markdown(f'''
-                    <div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-weight: 600; color: #f59e0b; font-size: 11px;">⏳ LIMIT BELUM KESENTUH</span>
-                        <span style="font-weight: 700; color: #e2e8f0; font-size: 11.5px; font-family: monospace;">{r["float_str"]}</span>
-                    </div>
-                    ''', unsafe_allow_html=True)
+                    html(f'<div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;"><span style="font-weight: 600; color: #f59e0b; font-size: 11px;">⏳ LIMIT BELUM KESENTUH</span><span style="font-weight: 700; color: #e2e8f0; font-size: 11.5px; font-family: monospace;">{r["float_str"]}</span></div>')
 
                 # 2. HEADER: NAMA KOIN, POTENSI & STATUS VALIDASI
                 col_a, col_b = st.columns([1.1, 1.9])
@@ -246,27 +190,14 @@ def bias_cards():
                     else:
                         stat_badge = '<span style="background: rgba(107, 114, 128, 0.2); color: #9ca3af; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #4b5563; margin-left: 3px;">🔍 MEMINDAI...</span>'
                         
-                    st.markdown(f'''
-                    <div style="text-align: right; padding-top: 2px;">
-                        <span style="background: {pot_bg}; color: {pot_col}; font-weight: 800; font-size: 10px; padding: 3px 6px; border-radius: 4px;">{pot_text}</span>
-                        {stat_badge}
-                    </div>
-                    ''', unsafe_allow_html=True)
+                    html(f'<div style="text-align: right; padding-top: 2px;"><span style="background: {pot_bg}; color: {pot_col}; font-weight: 800; font-size: 10px; padding: 3px 6px; border-radius: 4px;">{pot_text}</span>{stat_badge}</div>')
 
                 # 3. LEVEL ENTRY (LIMIT), TP, SL
                 st.caption(f"Rencana Limit Order (Lev {r['lev']}x Isolated · Margin &#36;2.00)")
                 level_row(r['limit_p'], r['tp_p'], r['sl_p'])
 
                 # 4. WR & METRIC
-                st.markdown(f'''
-                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #263140; padding-top: 6px; margin-top: 4px;">
-                    <span style="font-size: 11px; font-weight: 700; color: #facc15;">🏆 WR Historis: {r['wr']:.1f}%</span>
-                    <span style="font-size: 10px; color: #94a3b8;">{r['tier']}</span>
-                </div>
-                <div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">
-                    Target TP: +&#36;0.70 USD (+35% ROE) · Stop Loss: -&#36;0.40 USD (-20% ROE)
-                </div>
-                ''', unsafe_allow_html=True)
+                html(f'<div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #263140; padding-top: 6px; margin-top: 4px;"><span style="font-size: 11px; font-weight: 700; color: #facc15;">🏆 WR Historis: {r["wr"]:.1f}%</span><span style="font-size: 10px; color: #94a3b8;">{r["tier"]}</span></div><div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">Target TP: +&#36;0.70 USD (+35% ROE) · Stop Loss: -&#36;0.40 USD (-20% ROE)</div>')
 
     st.caption('Pembaruan otomatis berjalan setiap 10 detik tanpa perlu refresh manual. Saat posisi menyentuh TP atau SL, sistem otomatis memindai dan memperbarui level Limit Order baru agar Anda selalu siap pasang posisi berikutnya.')
 

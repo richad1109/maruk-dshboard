@@ -127,20 +127,20 @@ def scan_single_coin(sym_tuple):
                         valid_label = "🎯 TP HIT (+35%)"
                         float_roe = 35.0
                         float_usd = 0.70
-                        float_str = "Selesai: +&#36;0.70 (+35.0% ROE) TP HIT"
+                        float_str = "Selesai: +$0.70 (+35.0% ROE) TP HIT"
                     elif min(sub_lows) <= sl_p:
                         touch_status = "🛑 STOP LOSS HIT (-20% ROE)"
                         valid_label = "🛑 SL HIT (-20%)"
                         float_roe = -20.0
                         float_usd = -0.40
-                        float_str = "Selesai: -&#36;0.40 (-20.0% ROE) SL HIT"
+                        float_str = "Selesai: -$0.40 (-20.0% ROE) SL HIT"
                     else:
                         touch_status = "⚡ SEDANG MANTUL (TERISI)"
                         valid_label = "✅ VALID (SEDANG MANTUL)"
                         float_roe = ((cur_p - limit_p) / limit_p) * lev * 100
                         float_usd = (float_roe / 100.0) * 2.0
                         sign = "+" if float_roe >= 0 else ""
-                        float_str = f"Floating: {sign}&#36;{float_usd:.2f} ({sign}{float_roe:.1f}% ROE)"
+                        float_str = f"Floating: {sign}${float_usd:.2f} ({sign}{float_roe:.1f}% ROE)"
                 else:
                     is_touched = False
                     touch_status = "⏳ MENUNGGU JEMPUTAN"
@@ -170,20 +170,20 @@ def scan_single_coin(sym_tuple):
                         valid_label = "🎯 TP HIT (+35%)"
                         float_roe = 35.0
                         float_usd = 0.70
-                        float_str = "Selesai: +&#36;0.70 (+35.0% ROE) TP HIT"
+                        float_str = "Selesai: +$0.70 (+35.0% ROE) TP HIT"
                     elif max(sub_highs) >= sl_p:
                         touch_status = "🛑 STOP LOSS HIT (-20% ROE)"
                         valid_label = "🛑 SL HIT (-20%)"
                         float_roe = -20.0
                         float_usd = -0.40
-                        float_str = "Selesai: -&#36;0.40 (-20.0% ROE) SL HIT"
+                        float_str = "Selesai: -$0.40 (-20.0% ROE) SL HIT"
                     else:
                         touch_status = "⚡ SEDANG MANTUL (TERISI)"
                         valid_label = "✅ VALID (SEDANG MANTUL)"
                         float_roe = ((limit_p - cur_p) / limit_p) * lev * 100
                         float_usd = (float_roe / 100.0) * 2.0
                         sign = "+" if float_roe >= 0 else ""
-                        float_str = f"Floating: {sign}&#36;{float_usd:.2f} ({sign}{float_roe:.1f}% ROE)"
+                        float_str = f"Floating: {sign}${float_usd:.2f} ({sign}{float_roe:.1f}% ROE)"
                 else:
                     is_touched = False
                     touch_status = "⏳ MENUNGGU JEMPUTAN"
