@@ -1,5 +1,7 @@
 """Compact public signal board. Research stays behind the scenes."""
 import time
+import json
+from pathlib import Path
 from html import escape
 from decimal import Decimal
 from datetime import datetime,timezone,timedelta
@@ -48,6 +50,10 @@ def bias_data():
     # Top 20 crypto with ATR and conditional plans, schema v4: EMA limit pullback plans.
     return engine.bias_snapshot()
 
+def limit_validation():
+    try:return json.loads((Path(__file__).parent/'limit_validation.json').read_text())
+    except (OSError,ValueError):return {}
+
 def bias_cards():
     try:observations=bias_data()
     except Exception:
@@ -84,7 +90,9 @@ def bias_cards():
                     st.caption(name+' LIMIT · '+plan['reason'])
                     st.caption(f"R:R {plan['rr']:.2f} · {'beli di bawah' if direction==1 else 'jual di atas'} close referensi")
                     level_row(plan['entry'],plan['tp'],plan['sl'])
-                st.caption('WR 90%: BELUM TERBUKTI untuk rencana ini. Bukan sinyal entry tervalidasi. Level dihitung ulang saat candle berganti.')
+                measured=limit_validation().get('coins',{}).get(r['symbol'],{}).get('1')
+                if measured:st.caption(f"Uji limit 1 tahun: WR {measured['wr']:.1f}% / {measured['n']} trade · GAGAL target 90%. Rencana riset, bukan sinyal live tervalidasi.")
+                else:st.caption('WR 90% belum terbukti. Rencana riset, bukan sinyal live tervalidasi.')
     st.caption('Bias mengikuti keselarasan tren EMA50/100, momentum 12 jam, dan RSI. Limit menunggu retest EMA20/50 atau support/resistance terdekat, SL 1,5 ATR; target dibatasi level lawan dengan R:R minimal 1,5 dan maksimal 2. Rencana dilewati jika ruang target sempit atau RSI ekstrem. Harga mengacu candle tertutup; limit tidak menjamin fill. Berlaku sampai candle berikutnya; bukan order bursa atau bukti WR 90%.')
 
 @st.fragment(run_every=60)
@@ -134,6 +142,10 @@ def render():
                 if unknown:st.warning('Pemeriksaan harga gagal; status TP/SL belum diketahui.')
     st.caption('Pantauan level harga, bukan bukti order terisi. WR historis ≥90% tidak menjamin hasil berikutnya. Pembaruan setiap 60 detik selama halaman terbuka.')
     with st.expander('Status data & validasi',expanded=False):
+        validation=limit_validation()
+        for row in validation.get('summary',[]):
+            st.write(f"Uji limit {row['years']} tahun · {'biaya diperberat' if row['stress'] else 'biaya dasar'}: {row['coins']} koin, {row['n']:,} trade, WR {row['wr']:.2f}%, PF {row['pf']:.3f}.")
+        st.caption('Data candle MEXC 27 Okt 2024–27 Okt 2026. Uji 2 tahun mengecualikan Q dan HYPE karena riwayat belum penuh. Funding sebelum rentang API memakai estimasi adverse; fee historis dan mark-price funding tidak direkonstruksi penuh. Ini replay retrospektif top 20 saat riset, bukan bukti forward atau PnL portofolio.')
         errors=sum(bool(r.get('error')) for r in state['results'].values())
         st.write(f"{len(state['results'])} / {len(coins)} kontrak kripto sudah diperiksa pada sesi ini; {errors} gagal dibaca. Pemindaian berjalan bertahap menurut volume. Bagian yang belum diperiksa tidak dianggap tanpa sinyal.")
         st.caption('Kartu dipantau sejak diterbitkan dalam sesi browser ini; riwayat sesi dapat hilang saat browser/server dimulai ulang. Pemeriksaan memakai candle 1 menit penuh setelah penerbitan, sehingga sentuhan pada menit pertama dapat terlewat. Jika TP/SL kena di menit yang sama, urutannya tidak diasumsikan.')
