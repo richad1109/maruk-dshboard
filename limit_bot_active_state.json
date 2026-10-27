@@ -282,10 +282,10 @@
     "limit_p": 1.684,
     "tp_p": 1.71347,
     "sl_p": 1.66716,
-    "status": "TOUCHED",
+    "status": "TP_HIT",
     "created_at": 1793136879.5740514,
     "touch_time": 1793136879.5740514,
-    "closed_at": null
+    "closed_at": 1793137019.029752
   },
   "FET": {
     "coin": "FET",

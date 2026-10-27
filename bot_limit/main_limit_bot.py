@@ -17,7 +17,16 @@ import os
 import sys
 import io
 import time
-import sniper_limit_engine
+from pathlib import Path
+
+try:
+    import engine as sniper_limit_engine
+except ImportError:
+    try:
+        import sniper_limit_engine
+    except ImportError:
+        sys.path.insert(0, str(Path(__file__).parent))
+        import engine as sniper_limit_engine
 
 if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
     try: sys.stdout.reconfigure(encoding='utf-8', errors='replace')
