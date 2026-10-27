@@ -186,10 +186,15 @@
     "limit_p": 0.167505,
     "tp_p": 0.170436,
     "sl_p": 0.16583,
-    "status": "SL_HIT",
-    "created_at": 1793136879.4876592,
-    "touch_time": 1793136879.4876592,
-    "closed_at": 1793136879.4876592
+    "status": "WAITING",
+    "created_at": 1793137765.269863,
+    "touch_time": null,
+    "last_outcome": {
+      "outcome": "SL",
+      "roe": -20.0,
+      "pnl_usd": -0.4,
+      "closed_at": 1793137765.269863
+    }
   },
   "NEAR": {
     "coin": "NEAR",
@@ -215,13 +220,13 @@
     "lev": 20,
     "side": "LONG",
     "potensi": "POTENSI LONG (BUY)",
-    "limit_p": 0.6826,
-    "tp_p": 0.694546,
-    "sl_p": 0.675774,
-    "status": "TP_HIT",
-    "created_at": 1793136879.5014544,
-    "touch_time": 1793136879.5014544,
-    "closed_at": 1793136879.5014544
+    "limit_p": 0.68515,
+    "tp_p": 0.69714,
+    "sl_p": 0.678298,
+    "status": "TOUCHED",
+    "created_at": 1793137572.149017,
+    "touch_time": 1793137572.149017,
+    "closed_at": null
   },
   "PEPE": {
     "coin": "PEPE",
@@ -266,10 +271,15 @@
     "limit_p": 8.0775,
     "tp_p": 8.218856,
     "sl_p": 7.996725,
-    "status": "SL_HIT",
-    "created_at": 1793136879.5720487,
-    "touch_time": 1793136879.5720487,
-    "closed_at": 1793136879.5720487
+    "status": "WAITING",
+    "created_at": 1793137765.3534093,
+    "touch_time": null,
+    "last_outcome": {
+      "outcome": "SL",
+      "roe": -20.0,
+      "pnl_usd": -0.4,
+      "closed_at": 1793137765.3534093
+    }
   },
   "RENDER": {
     "coin": "RENDER",
@@ -279,13 +289,18 @@
     "lev": 20,
     "side": "LONG",
     "potensi": "POTENSI LONG (BUY)",
-    "limit_p": 1.684,
-    "tp_p": 1.71347,
-    "sl_p": 1.66716,
-    "status": "TP_HIT",
-    "created_at": 1793136879.5740514,
-    "touch_time": 1793136879.5740514,
-    "closed_at": 1793137019.029752
+    "limit_p": 1.686,
+    "tp_p": 1.715505,
+    "sl_p": 1.66914,
+    "status": "TOUCHED",
+    "created_at": 1793137765.349401,
+    "touch_time": 1793137765.349401,
+    "last_outcome": {
+      "outcome": "TP",
+      "roe": 35.0,
+      "pnl_usd": 0.7,
+      "closed_at": 1793137765.349401
+    }
   },
   "FET": {
     "coin": "FET",
@@ -318,5 +333,34 @@
     "created_at": 1793136879.6013942,
     "touch_time": 1793136879.6013942,
     "closed_at": null
-  }
+  },
+  "_HISTORY_TRADES": [
+    {
+      "coin": "ARB",
+      "sym": "ARB-USDT",
+      "outcome": "SL",
+      "pnl_usd": -0.4,
+      "roe": -20.0,
+      "exit_price": 0.16824,
+      "closed_at": 1793137572.1873577
+    },
+    {
+      "coin": "RENDER",
+      "sym": "RENDER-USDT",
+      "outcome": "TP",
+      "pnl_usd": 0.7,
+      "roe": 35.0,
+      "exit_price": 1.703,
+      "closed_at": 1793137019.029752
+    },
+    {
+      "coin": "INJ",
+      "sym": "INJ-USDT",
+      "outcome": "SL",
+      "pnl_usd": -0.4,
+      "roe": -20.0,
+      "exit_price": 8.069,
+      "closed_at": 1793137572.1846764
+    }
+  ]
 }

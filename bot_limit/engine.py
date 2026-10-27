@@ -3,14 +3,14 @@
 """
 sniper_limit_engine.py
 -----------------------
-Engine Sinyal Kripto Limit Order Sniper 20 Koin (Fibonacci 50% Pullback + Trend Filter EMA 50).
+Engine Sinyal Kripto Limit Order Sniper 20 Koin (Fibonacci 50% Golden Pullback + Trend Filter EMA 50).
 100% Data Riil & Persistent Locked Levels:
-- Harga Entry (Limit), Take Profit (+35% ROE), dan Stop Loss (-20% ROE) DIKUNCI MATI (PERSISTENT LOCKED).
-- Sekali level dihitung, angka TIDAK AKAN PERNAH BERUBAH/BERGESER pada scan berikutnya sampai order tersentuh dan menyentuh TP atau SL.
-- Status 'SEDANG MANTUL' aktif saat harga menyentuh titik limit, dengan floating profit bergerak real-time.
-- Status '🎯 TAKE PROFIT HIT (+35% ROE)' tercatat jika posisi mencapai target TP (+35% ROE).
-- Status '🛑 STOP LOSS HIT (-20% ROE)' tercatat jika posisi menyentuh SL (-20% ROE).
-- Status tersimpan persisten ke limit_bot_active_state.json dan memori proses.
+1. Level Entry (Limit), TP (+35% ROE), dan SL (-20% ROE) DIKUNCI MATI (PERSISTENT LOCKED) selama order belum selesai.
+2. Ketika harga menyentuh limit -> status beralih ke 'TOUCHED' (posisi aktif mantul), floating profit bergerak real-time.
+3. Begitu target TP (+35% ROE) atau Stop Loss (-20% ROE) tercapai:
+   - Hasil trade LANGSUNG dicatat ke riwayat persisten '_HISTORY_TRADES' (Realized PnL terakumulasi akurat).
+   - Sistem SEGERA memindai dan menerbitkan SETUP LIMIT BARU ('WAITING') dari struktur pasar terkini.
+   - Tidak ada jeda atau kebekuan status (kalau sudah ya sudah, langsung pindai baru).
 """
 
 import os
@@ -79,9 +79,12 @@ def load_persistent_state():
         if STATE_FILE.exists():
             try:
                 _PERSISTENT_SETUPS = json.loads(STATE_FILE.read_text(encoding='utf-8'))
+                if not isinstance(_PERSISTENT_SETUPS, dict):
+                    _PERSISTENT_SETUPS = {}
                 return dict(_PERSISTENT_SETUPS)
             except Exception:
                 pass
+        _PERSISTENT_SETUPS = {}
         return {}
 
 def save_persistent_state():
@@ -90,6 +93,44 @@ def save_persistent_state():
             STATE_FILE.write_text(json.dumps(_PERSISTENT_SETUPS, indent=2), encoding='utf-8')
         except Exception:
             pass
+
+def load_persistent_history():
+    state = load_persistent_state()
+    history = state.get("_HISTORY_TRADES", [])
+    if isinstance(history, list):
+        return list(history)
+    return []
+
+def record_closed_trade(coin, sym, outcome, exit_p, closed_ts):
+    """Mencatat hasil trade (TP / SL) ke riwayat persisten agar tidak hilang saat setup baru dipindai."""
+    global _PERSISTENT_SETUPS
+    with _STATE_LOCK:
+        if "_HISTORY_TRADES" not in _PERSISTENT_SETUPS or not isinstance(_PERSISTENT_SETUPS["_HISTORY_TRADES"], list):
+            _PERSISTENT_SETUPS["_HISTORY_TRADES"] = []
+            
+        roe = 35.0 if outcome == "TP" else -20.0
+        pnl_usd = 0.70 if outcome == "TP" else -0.40
+        record = {
+            "coin": coin,
+            "sym": sym,
+            "outcome": outcome,
+            "pnl_usd": pnl_usd,
+            "roe": roe,
+            "exit_price": round(float(exit_p), 6),
+            "closed_at": float(closed_ts)
+        }
+        
+        # Hindari duplikasi jika trade baru saja dicatat dalam 15 detik terakhir
+        history = _PERSISTENT_SETUPS["_HISTORY_TRADES"]
+        is_dup = False
+        for h in history[-10:]:
+            if h.get("coin") == coin and h.get("outcome") == outcome and abs(closed_ts - h.get("closed_at", 0)) < 15:
+                is_dup = True
+                break
+        if not is_dup:
+            history.append(record)
+    save_persistent_state()
+    return record
 
 def calc_ema(values, period=50):
     if not values: return 0.0
@@ -121,31 +162,15 @@ def scan_single_coin(sym_tuple):
             if not closes:
                 continue
             cur_p = closes[-1]
-            n = len(raw)
             now_ts = time.time()
             
-            # Cek apakah koin ini sudah memiliki setup aktif yang terkunci
             with _STATE_LOCK:
                 setup = _PERSISTENT_SETUPS.get(coin)
             
-            # Buat setup baru jika belum ada, atau jika setup sudah kedaluwarsa
-            should_create_new = False
-            if setup is None:
-                should_create_new = True
-            elif setup.get('status') in ('TP_HIT', 'SL_HIT') and (now_ts - setup.get('closed_at', 0) > 600):
-                # 10 menit setelah TP/SL tercapai, terbitkan setup limit baru
-                should_create_new = True
-            elif setup.get('status') == 'WAITING' and (now_ts - setup.get('created_at', now_ts) > 43200):
-                # 12 jam menunggu tanpa tersentuh, re-anchor ke struktur pasar baru
-                should_create_new = True
-
-            if should_create_new:
-                # Hitung level baru HANYA dari candle yang sudah tertutup (closed candles)
-                # agar noise ekor candle yang sedang berjalan tidak menggeser level
+            def create_new_setup(last_out=None):
+                """Membuat dan mengunci level limit baru dari candle yang tertutup."""
                 ema50 = calc_ema(closes[:-1], 50)
                 is_long = closes[-1] >= ema50
-                
-                # Base Swing S/R 32 bar tertutup terakhir (8 jam)
                 sw_low = min(lows[-33:-1])
                 sw_high = max(highs[-33:-1])
                 range_span = sw_high - sw_low if sw_high > sw_low else 1.0
@@ -167,7 +192,7 @@ def scan_single_coin(sym_tuple):
                     tp_p = limit_p * (1.0 - tp_ratio)
                     sl_p = limit_p * (1.0 + sl_ratio)
                     
-                setup = {
+                new_s = {
                     "coin": coin,
                     "sym": sym,
                     "name": full_name,
@@ -181,13 +206,34 @@ def scan_single_coin(sym_tuple):
                     "status": "WAITING",
                     "created_at": now_ts,
                     "touch_time": None,
-                    "closed_at": None
+                    "last_outcome": last_out
                 }
                 with _STATE_LOCK:
-                    _PERSISTENT_SETUPS[coin] = setup
+                    _PERSISTENT_SETUPS[coin] = new_s
                 save_persistent_state()
+                return new_s
 
-            # Ambil nilai level TERKUNCI (LOCKED) dari state persisten
+            # 1. Jika belum pernah ada setup sama sekali, buat baru
+            if setup is None or not isinstance(setup, dict):
+                setup = create_new_setup()
+
+            # 2. Jika ada status legacy TP_HIT / SL_HIT, langsung selesaikan dan pindai baru
+            if setup.get('status') in ('TP_HIT', 'SL_HIT'):
+                outcome = "TP" if setup.get('status') == 'TP_HIT' else "SL"
+                record_closed_trade(coin, sym, outcome, cur_p, setup.get('closed_at', now_ts))
+                last_out = {
+                    "outcome": outcome,
+                    "roe": 35.0 if outcome == "TP" else -20.0,
+                    "pnl_usd": 0.70 if outcome == "TP" else -0.40,
+                    "closed_at": now_ts
+                }
+                setup = create_new_setup(last_out=last_out)
+
+            # 3. Jika sudah 12 jam waiting tanpa tersentuh, perbarui struktur pasar
+            elif setup.get('status') == 'WAITING' and (now_ts - setup.get('created_at', now_ts) > 43200):
+                setup = create_new_setup(last_out=setup.get('last_outcome'))
+
+            # Ambil nilai level TERKUNCI dari state persisten
             limit_p = setup["limit_p"]
             tp_p = setup["tp_p"]
             sl_p = setup["sl_p"]
@@ -195,93 +241,98 @@ def scan_single_coin(sym_tuple):
             is_long = (side == "LONG")
             potensi = setup["potensi"]
             status = setup.get("status", "WAITING")
+            last_outcome = setup.get("last_outcome")
             
-            # Hitung jarak real-time saat ini
+            # Hitung jarak real-time ke harga limit
             if is_long:
                 diff_pct = ((cur_p - limit_p) / cur_p) * 100
             else:
                 diff_pct = ((limit_p - cur_p) / cur_p) * 100
                 
-            # Evaluasi transisi status (WAITING -> TOUCHED -> TP_HIT / SL_HIT)
             recent_lows = lows[-4:]
             recent_highs = highs[-4:]
-            state_changed = False
             
+            # 4. Evaluasi Transisi Status:
+            # JIKA WAITING: Cek apakah wick candle terkini menyentuh limit entry
             if status == "WAITING":
-                # Cek apakah tersentuh di candle terkini
                 touched = (min(recent_lows) <= limit_p) if is_long else (max(recent_highs) >= limit_p)
                 if touched:
                     status = "TOUCHED"
                     setup["status"] = "TOUCHED"
                     setup["touch_time"] = now_ts
-                    state_changed = True
+                    with _STATE_LOCK:
+                        _PERSISTENT_SETUPS[coin] = setup
+                    save_persistent_state()
                     
+            # JIKA TOUCHED: Posisi sedang aktif! Cek apakah mencapai TP atau SL
             if status == "TOUCHED":
-                # Posisi sedang aktif terisi! Cek apakah mencapai TP atau SL
-                if is_long:
-                    if max(recent_highs) >= tp_p:
-                        status = "TP_HIT"
-                        setup["status"] = "TP_HIT"
-                        setup["closed_at"] = now_ts
-                        state_changed = True
-                    elif min(recent_lows) <= sl_p:
-                        status = "SL_HIT"
-                        setup["status"] = "SL_HIT"
-                        setup["closed_at"] = now_ts
-                        state_changed = True
-                else:
-                    if min(recent_lows) <= tp_p:
-                        status = "TP_HIT"
-                        setup["status"] = "TP_HIT"
-                        setup["closed_at"] = now_ts
-                        state_changed = True
-                    elif max(recent_highs) >= sl_p:
-                        status = "SL_HIT"
-                        setup["status"] = "SL_HIT"
-                        setup["closed_at"] = now_ts
-                        state_changed = True
-                        
-            if state_changed:
-                with _STATE_LOCK:
-                    _PERSISTENT_SETUPS[coin] = setup
-                save_persistent_state()
+                hit_tp = (max(recent_highs) >= tp_p) if is_long else (min(recent_lows) <= tp_p)
+                hit_sl = (min(recent_lows) <= sl_p) if is_long else (max(recent_highs) >= sl_p)
                 
-            # Format tampilan output untuk Web Dashboard & Termux
+                if hit_tp:
+                    # Posisi sukses TP! Catat ke riwayat persisten, lalu SEGERA pindai setup baru
+                    record_closed_trade(coin, sym, "TP", tp_p, now_ts)
+                    last_out = {
+                        "outcome": "TP",
+                        "roe": 35.0,
+                        "pnl_usd": 0.70,
+                        "closed_at": now_ts
+                    }
+                    setup = create_new_setup(last_out=last_out)
+                    limit_p = setup["limit_p"]
+                    tp_p = setup["tp_p"]
+                    sl_p = setup["sl_p"]
+                    side = setup["side"]
+                    is_long = (side == "LONG")
+                    potensi = setup["potensi"]
+                    status = "WAITING"
+                    last_outcome = last_out
+                    diff_pct = ((cur_p - limit_p) / cur_p) * 100 if is_long else ((limit_p - cur_p) / cur_p) * 100
+
+                elif hit_sl:
+                    # Posisi kena SL! Catat ke riwayat persisten, lalu SEGERA pindai setup baru
+                    record_closed_trade(coin, sym, "SL", sl_p, now_ts)
+                    last_out = {
+                        "outcome": "SL",
+                        "roe": -20.0,
+                        "pnl_usd": -0.40,
+                        "closed_at": now_ts
+                    }
+                    setup = create_new_setup(last_out=last_out)
+                    limit_p = setup["limit_p"]
+                    tp_p = setup["tp_p"]
+                    sl_p = setup["sl_p"]
+                    side = setup["side"]
+                    is_long = (side == "LONG")
+                    potensi = setup["potensi"]
+                    status = "WAITING"
+                    last_outcome = last_out
+                    diff_pct = ((cur_p - limit_p) / cur_p) * 100 if is_long else ((limit_p - cur_p) / cur_p) * 100
+
+            # 5. Format tampilan output kartu (JELAS, BEBAS KONFLIK)
             wr_val = COIN_WIN_RATES.get(coin, 67.0)
             
-            if status == "TP_HIT":
-                is_touched = True
-                touch_status = "🎯 TAKE PROFIT HIT (+35% ROE)"
-                valid_label = "🎯 TP HIT (+35%)"
-                float_roe = 35.0
-                float_usd = 0.70
-                float_str = "Selesai: +$0.70 (+35.0% ROE) TP HIT"
-            elif status == "SL_HIT":
-                is_touched = True
-                touch_status = "🛑 STOP LOSS HIT (-20% ROE)"
-                valid_label = "🛑 SL HIT (-20%)"
-                float_roe = -20.0
-                float_usd = -0.40
-                float_str = "Selesai: -$0.40 (-20.0% ROE) SL HIT"
-            elif status == "TOUCHED":
-                is_touched = True
-                touch_status = "⚡ SEDANG MANTUL (TERISI)"
-                valid_label = "✅ VALID (SEDANG MANTUL)"
+            if status == "TOUCHED":
+                # Posisi aktif mantul
                 if is_long:
                     float_roe = ((cur_p - limit_p) / limit_p) * lev * 100
                 else:
                     float_roe = ((limit_p - cur_p) / limit_p) * lev * 100
                 float_usd = (float_roe / 100.0) * 2.0
                 sign = "+" if float_roe >= 0 else ""
-                float_str = f"Floating: {sign}${float_usd:.2f} ({sign}{float_roe:.1f}% ROE)"
+                float_str = f"Floating: {sign}${float_usd:.2f} ({sign}{float_roe:.1f}%)"
+                touch_status = "⚡ SEDANG MANTUL (TERISI)"
+                valid_label = "⚡ POSISI AKTIF"
+                is_touched = True
             else:
-                is_touched = False
-                touch_status = "⏳ MENUNGGU JEMPUTAN"
+                # Siaga menunggu jemputan
                 float_roe = 0.0
                 float_usd = 0.0
                 sign_d = "-" if is_long else "+"
                 float_str = f"Jarak: {sign_d}{abs(diff_pct):.2f}% (Menunggu jemputan)"
-                valid_label = "✅ SETUP VALID" if abs(diff_pct) <= 2.5 else "🔍 MEMINDAI (BELUM VALID)"
+                valid_label = "✅ SETUP VALID" if abs(diff_pct) <= 2.5 else "🔍 MEMINDAI"
+                touch_status = "⏳ MENUNGGU JEMPUTAN"
+                is_touched = False
                 
             return {
                 "coin": coin,
@@ -292,6 +343,7 @@ def scan_single_coin(sym_tuple):
                 "margin": 2.0,
                 "cur_p": cur_p,
                 "potensi": potensi,
+                "status": status,
                 "valid_label": valid_label,
                 "touch_status": touch_status,
                 "is_touched": is_touched,
@@ -303,6 +355,7 @@ def scan_single_coin(sym_tuple):
                 "tp_p": tp_p,
                 "diff_pct": diff_pct,
                 "wr": wr_val,
+                "last_outcome": last_outcome,
                 "closed": now_ts
             }
         except Exception:
@@ -311,9 +364,7 @@ def scan_single_coin(sym_tuple):
 
 def scan_all():
     global _LAST_CACHE
-    # Muat state persisten sebelum memindai
     load_persistent_state()
-    
     with ThreadPoolExecutor(max_workers=10) as ex:
         results = list(ex.map(scan_single_coin, TOP_20_COINS))
     valid = [r for r in results if r is not None]
@@ -324,8 +375,48 @@ def scan_all():
         return _LAST_CACHE
     return valid
 
+def get_portfolio_summary(observations=None):
+    """Menghitung agregasi portfolio jujur & persisten (Realized PnL, Floating PnL, Win Rate)."""
+    if observations is None:
+        observations = scan_all()
+    history = load_persistent_history()
+    
+    tp_count = sum(1 for t in history if t.get('outcome') == 'TP')
+    sl_count = sum(1 for t in history if t.get('outcome') == 'SL')
+    realized_usd = sum(t.get('pnl_usd', 0.0) for t in history)
+    realized_roe = sum(t.get('roe', 0.0) for t in history)
+    total_closed = tp_count + sl_count
+    realized_wr = (tp_count / total_closed * 100) if total_closed > 0 else 0.0
+    
+    avg_portfolio_wr = sum(r['wr'] for r in observations) / len(observations) if observations else 67.0
+    
+    active_trades = [r for r in observations if r.get('status') == 'TOUCHED']
+    floating_usd = sum(r.get('float_usd', 0.0) for r in active_trades)
+    floating_roe = sum(r.get('float_roe', 0.0) for r in active_trades)
+    active_count = len(active_trades)
+    waiting_count = sum(1 for r in observations if r.get('status') == 'WAITING')
+    
+    return {
+        "realized_usd": realized_usd,
+        "realized_roe": realized_roe,
+        "realized_idr": realized_usd * 16300,
+        "tp_count": tp_count,
+        "sl_count": sl_count,
+        "total_closed": total_closed,
+        "realized_wr": realized_wr,
+        "avg_wr": avg_portfolio_wr,
+        "floating_usd": floating_usd,
+        "floating_roe": floating_roe,
+        "floating_idr": floating_usd * 16300,
+        "active_count": active_count,
+        "waiting_count": waiting_count,
+        "history": history
+    }
+
 if __name__ == '__main__':
     data = scan_all()
+    summ = get_portfolio_summary(data)
     print(f"Scanned {len(data)} coins.")
+    print(f"Floating: ${summ['floating_usd']:.2f} ({summ['active_count']} mantul) | Realized: ${summ['realized_usd']:.2f} ({summ['tp_count']} TP / {summ['sl_count']} SL)")
     for d in data[:5]:
-        print(f"[{d['coin']}] {d['potensi']} | Limit: {d['limit_p']} | TP: {d['tp_p']} | SL: {d['sl_p']} | {d['touch_status']}")
+        print(f"[{d['coin']}] {d['status']} | {d['potensi']} | Limit: {d['limit_p']} | TP: {d['tp_p']} | SL: {d['sl_p']}")
