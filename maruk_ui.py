@@ -23,11 +23,9 @@ PALETTE=["#b9df8a","#91b4c8","#d8bb87"]
 PAGE={"Ringkasan":("Semua akun. Satu pandangan.","Pantau portofolio, pergerakan pasar, dan posisi dalam satu ruang."),
       "Posisi & Bursa":("Setiap posisi, lebih jelas.","Detail eksposur dan koneksi delapan wallet di tiga bursa."),
       "Bot Sakti":("Satu sistem. Setiap langkah terpantau.","Jurnal Termux terenkripsi, peringatan proteksi, dan status Bot Final."),
-      "Kantor 3D":("Welcome to your trading floor.","Tiga meja. Delapan wallet. Satu ruang untuk melihat semuanya."),
-      "Studio Animasi":("Tiga suasana. Pilih kantormu.","Bandingkan tiga konsep bergerak sebelum memilih tampilan utama."),
       "Sinyal & Skenario":("Baca kondisi. Siapkan rencana.","BTC, SOL, DOGE · skenario harga, TP/SL dan konteks pasar dari data publik."),
-      "Riset Quantum":("Riset di balik istilahnya.","Apa yang diteliti, apa yang tersedia, dan batas penggunaannya dalam trading."),
-      "Market Intel":("Konteks sebelum keputusan.","Pergerakan pasar dan asisten untuk membaca konteks makro.")}
+      "Sinyal Kripto":("Cari peluang. Periksa buktinya.","Seluruh kontrak MEXC USDT · setup teknikal, TP/SL, dan pengujian kronologis.")}
+
 
 
 def icon(name):
@@ -182,7 +180,7 @@ def overview(snapshot,info,summary,base):
         complete="Delapan koneksi" if summary["complete"] and summary["expected"]==8 else f'{summary["known"]}/{summary["expected"]} wallet terbaca'
         html(f'<div class="hero"><div class="hero-top"><span class="hero-label">{icon("wallet")}Total equity futures</span><span class="chip neutral">USDT</span></div><div class="hero-value">{money(summary["equity"])}<small>USDT</small></div><div class="hero-sub"><span class="dot"></span>{complete} · {"data ilustrasi" if snapshot["mode"]=="demo" else "saldo yang berhasil dibaca"}</div><div class="hero-bottom"><div><span>Saldo tersedia</span><strong>{money(summary["free"])}</strong></div><div><span>Margin posisi</span><strong>{money(summary["margin"]) if summary["positions"] else "—"}</strong></div><div><span>Dana tersisih tercatat</span><strong>{money(snapshot["reserved"])}</strong></div></div><div class="hero-watermark">RAKUS</div></div>')
     with right:
-        office()
+        html('<div class="hero"><div class="eyebrow">MEXC / SIGNAL RESEARCH</div><h2>Harga. Setup. Bukti.</h2><p>Buka Sinyal Kripto untuk mencari kontrak, memeriksa TP/SL, dan melihat hasil uji kronologis.</p><p>Label akurasi berasal dari transaksi uji, bukan target yang dijanjikan.</p></div>')
     cols=st.columns(4)
     with cols[0]:kpi("Floating PnL",money(summary["floating"],True),"Posisi bursa yang terbaca","activity",tone(summary["floating"]))
     with cols[1]:kpi("Posisi terbaca",str(len(summary["positions"])),"Termasuk posisi manual · monitor saja","layers")
@@ -392,19 +390,17 @@ def main():
     html("<style>"+(ROOT/"assets/terminal.css").read_text(encoding="utf8")+"</style>")
     settings=secrets();stamp=datetime.now(WIB).strftime("%d %b %Y · %H:%M WIB")
     html(f'<div class="masthead"><div class="brand-wrap"><div class="brand-symbol"><svg viewBox="0 0 32 32"><path d="M6 6v20m0-10L24 6M12 13l13 13M21 7h5v7"/></svg></div><div><div class="brand">KANTOR<span>rakus.</span></div><div class="brand-sub">BOT SAKTI / PERSONAL TRADING FLOOR</div></div></div><div class="top-meta"><span>{stamp}</span><span class="chip neutral"><span class="dot"></span>REAL ACCOUNT MONITOR</span></div></div>')
-    nav=st.radio("Navigasi",list(PAGE),index=list(PAGE).index('Sinyal & Skenario') if st.query_params.get('view')=='sinyal-auto' else list(PAGE).index('Studio Animasi') if st.query_params.get('studio')=='1' else 0,horizontal=True,key="navigation")
+    nav=st.radio("Navigasi",list(PAGE),index=list(PAGE).index('Sinyal Kripto') if st.query_params.get('view')=='sinyal-kripto' else list(PAGE).index('Sinyal & Skenario') if st.query_params.get('view')=='sinyal-auto' else 0,horizontal=True,key="navigation")
     html('<div class="nav-line"></div>')
     title,description=PAGE[nav]
     html(f'<div class="page-intro"><div><div class="eyebrow">KANTOR RAKUS / {escape(nav.upper())}</div><h1>{title}</h1><p>{description}</p></div><div class="page-count">03 ACCOUNTS<br><span style="color:#bac9d7;display:block;margin-top:6px">08 WALLETS / 03 EXCHANGES</span></div></div>')
-    if nav=='Studio Animasi':
-        animation_studio()
+    if nav=='Sinyal Kripto':
+        import mexc_signal_ui
+        mexc_signal_ui.render()
         return
     if nav=='Sinyal & Skenario':
         import signal_ui
         signal_ui.render()
-        return
-    if nav=='Riset Quantum':
-        quantum_desk()
         return
     controls=st.columns([1.3,1,1.2,.7])
     with controls[0]:account_label=st.selectbox("Tampilan akun",["Semua akun","Akun 1","Akun 2","Akun 3"],key="account_filter")
@@ -436,9 +432,5 @@ def main():
         if nav=='Ringkasan':overview(snapshot,info,summary,base)
         elif nav=='Posisi & Bursa':positions_page(snapshot,summary)
         elif nav=='Bot Sakti':strategy_page(snapshot)
-        elif nav=='Kantor 3D':
-            office();account_cards(snapshot)
-            st.caption('Kantor 3D adalah visual ruang kerja. Saldo dan status akun di bawahnya berasal dari koneksi bursa yang ditampilkan. Geser ruang atau gunakan tombol panah; animasi dapat dijeda.')
-        else:intel_page(info,base,settings)
         html(f'<div class="footnote"><span>KANTOR RAKUS · BOT FINAL</span><span>MONITOR SAJA · TANPA ORDER / CANCEL · {datetime.now(WIB).strftime("%H:%M:%S WIB")}</span></div>')
     body()
