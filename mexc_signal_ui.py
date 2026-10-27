@@ -81,10 +81,10 @@ def bias_cards():
     # HITUNG TOTAL STATISTIK FLOATING PROFIT SE-PORTOFOLIO 20 KOIN
     total_floating_usd = sum(r['float_usd'] for r in observations if r['is_touched'])
     total_floating_roe = sum(r['float_roe'] for r in observations if r['is_touched'])
-    active_floating_count = sum(1 for r in observations if r['is_touched'])
-    tp_count = sum(1 for r in observations if "TP SEBELUMNYA" in r['touch_status'])
-    sl_count = sum(1 for r in observations if "SL SEBELUMNYA" in r['touch_status'])
-    valid_count = sum(1 for r in observations if "SETUP VALID" in r['valid_label'])
+    active_floating_count = sum(1 for r in observations if "SEDANG MANTUL" in r['valid_label'])
+    tp_count = sum(1 for r in observations if "TP" in r['touch_status'])
+    sl_count = sum(1 for r in observations if "SL" in r['touch_status'])
+    valid_count = sum(1 for r in observations if "SETUP VALID" in r['valid_label'] or "PINDAI" in r['valid_label'])
     memindai_count = sum(1 for r in observations if "MEMINDAI" in r['valid_label'])
     longs = sum(1 for r in observations if "LONG" in r['potensi'])
     shorts = sum(1 for r in observations if "SHORT" in r['potensi'])
@@ -148,18 +148,18 @@ def bias_cards():
         with columns[i%3]:
             with st.container(border=True):
                 # 1. ATASNYA: BANNER FLOATING / STATUS SIKLUS MANTUL & PEMBARUAN SETUP BARU
-                if "TP SEBELUMNYA" in r['touch_status']:
+                if "TP" in r['touch_status']:
                     st.markdown(f'''
                     <div style="background: rgba(16, 185, 129, 0.20); border: 1px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: 700; color: #10b981; font-size: 11px;">🎯 TP SEBELUMNYA HIT (+35% ROE)!</span>
-                        <span style="font-weight: 700; color: #34d399; font-size: 11px;">⚡ Setup Baru Siaga ({r['diff_pct']:.2f}%)</span>
+                        <span style="font-weight: 700; color: #34d399; font-size: 11px;">⚡ Setup Baru Siaga ({abs(r['diff_pct']):.2f}%)</span>
                     </div>
                     ''', unsafe_allow_html=True)
-                elif "SL SEBELUMNYA" in r['touch_status']:
+                elif "SL" in r['touch_status']:
                     st.markdown(f'''
                     <div style="background: rgba(239, 68, 68, 0.18); border: 1px solid #ef4444; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-weight: 700; color: #f87171; font-size: 11px;">🛑 SL SEBELUMNYA KENA (-36% ROE)</span>
-                        <span style="font-weight: 700; color: #f87171; font-size: 11px;">⚡ Setup Baru Siaga ({r['diff_pct']:.2f}%)</span>
+                        <span style="font-weight: 700; color: #f87171; font-size: 11px;">⚡ Setup Baru Siaga ({abs(r['diff_pct']):.2f}%)</span>
                     </div>
                     ''', unsafe_allow_html=True)
                 elif r['is_touched']:
