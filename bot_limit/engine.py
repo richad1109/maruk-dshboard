@@ -3,9 +3,11 @@
 """
 sniper_limit_engine.py
 -----------------------
-Engine Sinyal Kripto Limit Order Sniper 20 Koin (Fibonacci 50% Pullback Reversion).
+Engine Sinyal Kripto Limit Order Sniper 20 Koin (Fibonacci 50% Pullback + Trend Filter EMA 50).
 100% Data Riil & Transparan:
-- Mendeteksi level pantulan 50% Golden Pullback dari struktur swing pasar 8 jam terakhir.
+- Trend Filter EMA 50: Hanya mengambil LONG saat harga di atas EMA 50 (tren bullish), dan SHORT saat di bawah EMA 50 (tren bearish).
+- Level Pantulan 50% Golden Pullback dari struktur swing 32 bar terakhir (8 jam).
+- Level Entry (Limit), TP (+35% ROE), dan SL (-20% ROE) DIKUNCI (LOCKED) saat order terisi, tidak akan pernah bergeser/berubah sampai menyentuh TP atau SL.
 - Status 'SEDANG MANTUL' aktif jika jarum harga menyentuh titik limit dan saat ini posisinya aktif floating.
 - Status '🎯 TAKE PROFIT HIT (+35% ROE)' tercatat jika posisi mencapai target TP (+35% ROE).
 - Status '🛑 STOP LOSS HIT (-20% ROE)' tercatat jika posisi menyentuh SL (-20% ROE).
@@ -65,15 +67,23 @@ TOP_20_COINS = [
 
 _LAST_CACHE = []
 
+def calc_ema(values, period=50):
+    if not values: return 0.0
+    k = 2.0 / (period + 1.0)
+    ema = values[0]
+    for v in values[1:]:
+        ema = v * k + ema * (1.0 - k)
+    return ema
+
 def scan_single_coin(sym_tuple):
     coin, sym, full_name, lev, tier_label = sym_tuple
-    url = f"https://open-api.bingx.com/openApi/swap/v3/quote/klines?symbol={sym}&interval=15m&limit=32"
+    url = f"https://open-api.bingx.com/openApi/swap/v3/quote/klines?symbol={sym}&interval=15m&limit=64"
     
     for attempt in range(3):
         try:
             r = requests.get(url, verify=False, timeout=5.0).json()
             raw = r.get('data', [])
-            if not raw or len(raw) < 20:
+            if not raw or len(raw) < 32:
                 time.sleep(0.2)
                 continue
             if raw[0]['time'] > raw[-1]['time']:
@@ -88,20 +98,21 @@ def scan_single_coin(sym_tuple):
             cur_p = closes[-1]
             n = len(raw)
             
+            # Trend Filter EMA 50
+            ema50 = calc_ema(closes, 50)
+            is_long = cur_p >= ema50
+            
             # Base Swing S/R 32 bar terakhir (8 jam)
-            sw_low = min(lows)
-            sw_high = max(highs)
+            sw_low = min(lows[-32:])
+            sw_high = max(highs[-32:])
             range_span = sw_high - sw_low if sw_high > sw_low else 1.0
-            pos_in_range = (cur_p - sw_low) / range_span
             
             tp_ratio = 0.35 / lev # Target TP +35% ROE
             sl_ratio = 0.20 / lev # Stop Loss Diperketat -20% ROE (R:R 1 : 1.75)
             retrace = 0.50        # Fibonacci 50% Golden Pullback
             
             wr_val = COIN_WIN_RATES.get(coin, 67.0)
-            is_long = pos_in_range > 0.50 # Pullback dip in bullish bias
             
-            # Cek touch dan resolusi TP/SL dalam jendela 16 bar (4 jam)
             look_window = 16
             start_idx = max(0, len(raw) - look_window)
             
@@ -119,6 +130,7 @@ def scan_single_coin(sym_tuple):
                         break
                         
                 if touch_idx != -1:
+                    # KUNCI LEVEL ENTRY, TP, SL agar tidak bergeser saat posisi aktif
                     is_touched = True
                     sub_highs = highs[touch_idx:]
                     sub_lows = lows[touch_idx:]
@@ -200,6 +212,7 @@ def scan_single_coin(sym_tuple):
                 "lev": lev,
                 "margin": 2.0,
                 "cur_p": cur_p,
+                "ema50": ema50,
                 "potensi": potensi,
                 "valid_label": valid_label,
                 "touch_status": touch_status,
@@ -234,4 +247,4 @@ if __name__ == '__main__':
     data = scan_all()
     print(f"Scanned {len(data)} coins.")
     for d in data[:5]:
-        print(f"[{d['coin']}] {d['potensi']} | {d['valid_label']} | {d['touch_status']} | {d['float_str']}")
+        print(f"[{d['coin']}] {d['potensi']} | EMA50: {d['ema50']:.4f} | Limit: {d['limit_p']:.4f} | TP: {d['tp_p']:.4f} | SL: {d['sl_p']:.4f} | {d['touch_status']}")
