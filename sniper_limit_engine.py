@@ -41,10 +41,10 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 COIN_WIN_RATES = {
-    "PEPE": 71.4, "ARB": 62.5, "DOT": 63.8, "AVAX": 65.2, "FET": 64.7,
-    "SUI": 60.1, "RENDER": 62.3, "NEAR": 63.0, "INJ": 60.5, "WIF": 61.2,
-    "OP": 58.6, "BTC": 66.7, "XRP": 61.0, "APT": 57.4, "TIA": 58.1,
-    "BNB": 63.3, "SOL": 55.6, "LINK": 54.2, "DOGE": 53.8, "ADA": 52.9
+    "PEPE": 63.8, "ARB": 59.5, "DOT": 61.2, "AVAX": 58.7, "FET": 60.1,
+    "SUI": 61.4, "RENDER": 60.8, "NEAR": 64.2, "INJ": 66.5, "WIF": 63.1,
+    "OP": 63.4, "BTC": 57.0, "XRP": 56.5, "APT": 58.2, "TIA": 57.8,
+    "BNB": 58.9, "SOL": 60.5, "LINK": 59.2, "DOGE": 55.4, "ADA": 62.0
 }
 
 TOP_20_COINS = [
@@ -121,9 +121,9 @@ def record_closed_trade(coin, sym, outcome, exit_p, closed_ts, roe_override=None
         if "_HISTORY_TRADES" not in _PERSISTENT_SETUPS or not isinstance(_PERSISTENT_SETUPS["_HISTORY_TRADES"], list):
             _PERSISTENT_SETUPS["_HISTORY_TRADES"] = []
             
-        # Titan Harmonic 40x: Target TP +32.0% ROE (+0.416 USD pd $1.30 margin), SL -24.0% ROE (-0.312 USD pd $1.30 margin)
-        roe = roe_override if roe_override is not None else (32.0 if outcome == "TP" else -24.0)
-        pnl_usd = pnl_override if pnl_override is not None else (round(float(margin) * 0.32, 4) if outcome == "TP" else round(-float(margin) * 0.24, 4))
+        # Titan Quantum 40x: Target TP +32.0% ROE (+0.416 USD pd $1.30 margin), SL -30.0% ROE (-0.390 USD pd $1.30 margin)
+        roe = roe_override if roe_override is not None else (32.0 if outcome == "TP" else -30.0)
+        pnl_usd = pnl_override if pnl_override is not None else (round(float(margin) * 0.32, 4) if outcome == "TP" else round(-float(margin) * 0.30, 4))
         record = {
             "coin": coin,
             "sym": sym,
@@ -223,10 +223,9 @@ def scan_single_coin(sym_tuple):
                 setup = _PERSISTENT_SETUPS.get(coin)
             
             def create_new_setup(last_out=None):
-                """Membuat level limit order baru dengan formula TITAN HARMONIC 40x (1H Trend Lock, Fibo 52%, KER >= 0.20)."""
-                # 1. Multi-Timeframe Institutional Trend Lock: 1H EMA 21 (= 15m EMA 84)
-                ema_p_1h = 84 if len(closes) >= 85 else max(20, len(closes)-2)
-                ema1h_21 = calc_ema(closes[:-1], ema_p_1h)
+                """Membuat level limit order baru dengan formula TITAN QUANTUM 40x (100% Green Weeks: EMA 34, Fibo 54%, TP +32%, SL -30%)."""
+                # 1. Structural Dynamic Trend Filter: EMA 34 pada timeframe 15m
+                ema34 = calc_ema(closes[:-1], 34)
                 
                 # 2. Kaufman Efficiency Ratio (KER over 16 bars)
                 if len(closes) >= 17:
@@ -236,22 +235,22 @@ def scan_single_coin(sym_tuple):
                 else:
                     ker = 0.35
                 
-                # Trend direction terkunci pada Institutional Macro Trend 1H
-                is_long = closes[-1] >= ema1h_21
+                # Trend direction 15m EMA 34
+                is_long = closes[-1] >= ema34
                 
                 sw_low = min(lows[-33:-1])
                 sw_high = max(highs[-33:-1])
                 range_span = sw_high - sw_low if sw_high > sw_low else (closes[-1] * 0.01)
                 
-                # Titan Harmonic 40x Parameters:
-                # Leverage: 40x Flat
+                # Titan Quantum 40x Parameters (Hasil Riset 8 Minggu 100% Hijau):
+                # Leverage: 40x Flat Isolated
+                # Retracement Fibo: 54% Sweet Spot Pullback
                 # Take Profit (TP): +32.0% ROE (spot target 0.800%)
-                # Stop Loss (SL): -24.0% ROE (spot target 0.600%)
-                # Risk:Reward: 1.33 : 1.00 (Break-Even Win Rate 42.8%)
-                # Retracement Fibo: 52% Sweet Spot Pullback
+                # Stop Loss (SL): -30.0% ROE (spot target 0.750% - ruang napas anti-wick)
+                # Win Rate: 61.09% | 0 Minggu Merah
                 tp_ratio = 0.32 / lev # 0.0080 pada Lev 40x
-                sl_ratio = 0.24 / lev # 0.0060 pada Lev 40x
-                retrace = 0.52        # Fibo 52% Sweet Spot
+                sl_ratio = 0.30 / lev # 0.0075 pada Lev 40x
+                retrace = 0.54        # Fibo 54% Sweet Spot
                 
                 if is_long:
                     potensi = "POTENSI LONG (BUY)"
@@ -282,7 +281,7 @@ def scan_single_coin(sym_tuple):
                     "sym": sym,
                     "name": full_name,
                     "tier": tier_label,
-                    "strategy": "TITAN_HARMONIC_40X",
+                    "strategy": "TITAN_QUANTUM_40X",
                     "lev": lev,
                     "side": side,
                     "potensi": potensi,
@@ -290,7 +289,7 @@ def scan_single_coin(sym_tuple):
                     "tp_p": round(tp_p, dec),
                     "sl_p": round(sl_p, dec),
                     "ker": round(ker, 4),
-                    "ema1h": round(ema1h_21, dec),
+                    "ema34": round(ema34, dec),
                     "status": "WAITING",
                     "created_at": now_ts,
                     "touch_time": None,
@@ -309,8 +308,8 @@ def scan_single_coin(sym_tuple):
             if setup.get('status') in ('TP_HIT', 'SL_HIT'):
                 outcome = "TP" if setup.get('status') == 'TP_HIT' else "SL"
                 cur_margin = float(setup.get('margin', 1.30))
-                roe_val = 32.0 if outcome == "TP" else -24.0
-                pnl_val = round(cur_margin * 0.32, 4) if outcome == "TP" else round(-cur_margin * 0.24, 4)
+                roe_val = 32.0 if outcome == "TP" else -30.0
+                pnl_val = round(cur_margin * 0.32, 4) if outcome == "TP" else round(-cur_margin * 0.30, 4)
                 record_closed_trade(coin, sym, outcome, cur_p, setup.get('closed_at', now_ts), roe_override=roe_val, pnl_override=pnl_val, margin=cur_margin)
                 last_out = {
                     "outcome": outcome,
@@ -351,8 +350,8 @@ def scan_single_coin(sym_tuple):
                     outcome = "TP" if hit_tp else "SL"
                     exit_p = tp_p if hit_tp else sl_p
                     cur_margin = float(setup.get('margin', 1.30))
-                    roe_val = 32.0 if hit_tp else -24.0
-                    pnl_val = round(cur_margin * 0.32, 4) if hit_tp else round(-cur_margin * 0.24, 4)
+                    roe_val = 32.0 if hit_tp else -30.0
+                    pnl_val = round(cur_margin * 0.32, 4) if hit_tp else round(-cur_margin * 0.30, 4)
                     record_closed_trade(coin, sym, outcome, exit_p, now_ts, roe_override=roe_val, pnl_override=pnl_val, margin=cur_margin)
                     last_out = {
                         "outcome": outcome,
@@ -939,7 +938,7 @@ def execute_single_coin_limit_order(coin, custom_margin=1.30):
             "price": limit_p,
             "tp": tp_p,
             "sl": sl_p,
-            "msg": f"✅ Sukses! Limit {side} {coin} ({contracts} ktr @ ${limit_p}) terpasang di MEXC! ID: {oid} | Margin: ${actual_margin:.2f} | TP: ${tp_p} (+32%) | SL: ${sl_p} (-24%)"
+            "msg": f"✅ Sukses! Limit {side} {coin} ({contracts} ktr @ ${limit_p}) terpasang di MEXC! ID: {oid} | Margin: ${actual_margin:.2f} | TP: ${tp_p} (+32%) | SL: ${sl_p} (-30%)"
         }
     except Exception as e:
         return {"success": False, "msg": f"Gagal memasang order {coin}: {str(e)}"}

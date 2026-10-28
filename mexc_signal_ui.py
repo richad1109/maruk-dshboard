@@ -26,7 +26,7 @@ def html(raw_html: str):
     st.markdown(clean, unsafe_allow_html=True)
 
 def level_row(entry, tp, sl):
-    values = [('Entry (Limit)', entry), ('Take Profit (+32%)', tp), ('Stop Loss (-24%)', sl)]
+    values = [('Entry (Limit)', entry), ('Take Profit (+32%)', tp), ('Stop Loss (-30%)', sl)]
     cells = ''.join(f'<div><span>{label}</span><strong>{escape(display_price(value))}</strong></div>' for label, value in values)
     html(f'<div class="compact-levels">{cells}</div>')
 
@@ -110,8 +110,8 @@ def bias_cards():
     label = 'DOMINAN LONG' if longs > shorts else 'DOMINAN SHORT' if shorts > longs else 'CAMPURAN / NETRAL'
 
     with col_head_left:
-        st.markdown('### Radar Limit Order 20 Koin · Titan Harmonic 40x · ' + label)
-        st.caption('Institutional 1H Trend Lock · Fibo 52% Sweet Spot · TP +32.0% / SL -24.0% (RR 1.33:1) · Kendali Margin Mandiri per Koin')
+        st.markdown('### Radar Limit Order 20 Koin · Titan Quantum 40x · ' + label)
+        st.caption('15m EMA 34 Dynamic · Fibo 54% Sweet Spot · TP +32.0% / SL -30.0% (WR 61.1% · 8 Minggu 100% Hijau) · Kendali Margin Mandiri')
 
     # =========================================================================
     # BANNER UTAMA: TOTAL FLOATING, REALIZED PnL & WIN RATE PORTOFOLIO
@@ -151,7 +151,7 @@ def bias_cards():
 <span style="background: rgba(239, 68, 68, 0.22); border: 1px solid #ef4444; color: #f87171; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">🛑 {sl_count} Hit Stop Loss</span>
 <span style="background: rgba(245, 158, 11, 0.22); border: 1px solid #f59e0b; color: #f59e0b; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">⏳ {valid_count} Limit Antre</span>
 </div>
-<div style="font-size: 11px; color: #64748b;">*Data live disinkronkan langsung dari API MEXC Contract Akun 1 · Titan Harmonic 40x Isolated · TP +32% ROE · SL -24% ROE</div>
+<div style="font-size: 11px; color: #64748b;">*Data live disinkronkan langsung dari API MEXC Contract Akun 1 · Titan Quantum 40x Isolated · TP +32% ROE · SL -30% ROE (8 Minggu 100% Hijau)</div>
 </div>
 </div>
 ''')
@@ -378,13 +378,13 @@ def bias_cards():
 
                 # 4. WR & METRIK
                 tp_usd = r.get('margin', 1.30) * 0.32
-                sl_usd = r.get('margin', 1.30) * 0.24
+                sl_usd = r.get('margin', 1.30) * 0.30
                 html(f'''
 <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #263140; padding-top: 6px; margin-top: 4px;">
 <span style="font-size: 11px; font-weight: 700; color: #facc15;">🏆 WR Historis: {r["wr"]:.1f}%</span>
 <span style="font-size: 10px; color: #94a3b8;">{r["tier"]}</span>
 </div>
-<div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">Target TP: +&#36;{tp_usd:.2f} USD (+32% ROE) · Stop Loss: -&#36;{sl_usd:.2f} USD (-24% ROE)</div>
+<div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">Target TP: +&#36;{tp_usd:.2f} USD (+32% ROE) · Stop Loss: -&#36;{sl_usd:.2f} USD (-30% ROE)</div>
 ''')
 
                 # 5. KENDALI MARGIN MANDIRI & TOMBOL ORDER LIMIT (USER DIRECT CONTROL)

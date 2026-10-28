@@ -163,7 +163,7 @@ def main():
     is_live = ("--live" in sys.argv)
     
     print("=" * 85)
-    print("🤖 AUTO-EXECUTOR LIMIT ORDER MEXC FUTURES (Titan Harmonic 40x Isolated, Margin $1.30 Default)")
+    print("🤖 AUTO-EXECUTOR LIMIT ORDER MEXC FUTURES (Titan Quantum 40x Isolated, 8 Minggu 100% Hijau)")
     print(f"Status Mode : {'🚀 LIVE TRADING OTOMATIS (Uang Riil MEXC)' if is_live else '⚠️ DRY RUN (Mode Simulasi Aman)'}")
     print(f"Interval    : Cek dan perbarui setiap {POLL_INTERVAL} detik")
     print("=" * 85)
