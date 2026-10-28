@@ -38,33 +38,35 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 COIN_WIN_RATES = {
-    "BTC": 69.6, "ETH": 68.8, "SOL": 71.4, "DOGE": 67.8, "BNB": 65.7,
-    "XRP": 67.2, "ADA": 66.8, "AVAX": 68.1, "LINK": 77.8, "SUI": 66.4,
-    "NEAR": 67.0, "PEPE": 65.2, "WIF": 66.5, "APT": 65.8, "ARB": 66.1,
-    "OP": 65.9, "TIA": 65.4, "RENDER": 66.3, "INJ": 65.7, "FET": 66.0
+    "PEPE": 69.8, "ARB": 59.4, "DOT": 61.1, "AVAX": 63.0, "FET": 63.0,
+    "SUI": 57.6, "RENDER": 60.4, "NEAR": 60.9, "INJ": 57.7, "WIF": 58.7,
+    "OP": 55.2, "BTC": 64.0, "XRP": 58.3, "APT": 54.7, "TIA": 54.7,
+    "BNB": 60.0, "SOL": 51.0, "LINK": 50.0, "DOGE": 50.0, "ADA": 49.0
 }
 
 TOP_20_COINS = [
-    ("BTC", "BTC-USDT", "Bitcoin", 30, "🔥 ALPHA"),
-    ("ETH", "ETH-USDT", "Ethereum", 30, "🔥 ALPHA"),
-    ("SOL", "SOL-USDT", "Solana", 30, "🔥 ALPHA"),
-    ("DOGE", "DOGE-USDT", "Dogecoin", 30, "🔥 ALPHA"),
-    ("BNB", "BNB-USDT", "Binance Coin", 30, "🔥 ALPHA"),
+    # --- TOP 12 ELITE CASH COW (WR >55%, Profit Tinggi, Rendah WS) ---
+    ("PEPE", "PEPE-USDT", "Pepe", 30, "⭐ ELITE CASH COW"),
+    ("ARB", "ARB-USDT", "Arbitrum", 30, "⭐ ELITE CASH COW"),
+    ("DOT", "DOT-USDT", "Polkadot", 30, "⭐ ELITE CASH COW"),
+    ("AVAX", "AVAX-USDT", "Avalanche", 30, "⭐ ELITE CASH COW"),
+    ("FET", "FET-USDT", "Artificial Superintelligence", 30, "⭐ ELITE CASH COW"),
+    ("SUI", "SUI-USDT", "Sui Network", 30, "⭐ ELITE CASH COW"),
+    ("RENDER", "RENDER-USDT", "Render", 30, "⭐ ELITE CASH COW"),
+    ("NEAR", "NEAR-USDT", "Near Protocol", 30, "⭐ ELITE CASH COW"),
+    ("INJ", "INJ-USDT", "Injective", 30, "⭐ ELITE CASH COW"),
+    ("WIF", "WIF-USDT", "Dogwifhat", 30, "⭐ ELITE CASH COW"),
+    ("OP", "OP-USDT", "Optimism", 30, "⭐ ELITE CASH COW"),
+    ("BTC", "BTC-USDT", "Bitcoin", 30, "⭐ ELITE CASH COW"),
+    # --- KOIN PENDUKUNG PROFITABLE ---
     ("XRP", "XRP-USDT", "Ripple", 30, "⚡ TIER 2"),
-    ("ADA", "ADA-USDT", "Cardano", 30, "⚡ TIER 2"),
-    ("AVAX", "AVAX-USDT", "Avalanche", 30, "⚡ TIER 2"),
+    ("APT", "APT-USDT", "Aptos", 30, "⚡ TIER 2"),
+    ("TIA", "TIA-USDT", "Celestia", 30, "⚡ TIER 2"),
+    ("BNB", "BNB-USDT", "Binance Coin", 30, "🔥 ALPHA"),
+    ("SOL", "SOL-USDT", "Solana", 30, "🔥 ALPHA"),
     ("LINK", "LINK-USDT", "Chainlink", 30, "⚡ TIER 2"),
-    ("SUI", "SUI-USDT", "Sui Network", 30, "⚡ TIER 2"),
-    ("NEAR", "NEAR-USDT", "Near Protocol", 30, "⚡ TIER 2"),
-    ("PEPE", "1000PEPE-USDT", "Pepe", 30, "⚠️ VOLATILE"),
-    ("WIF", "WIF-USDT", "Dogwifhat", 30, "⚠️ VOLATILE"),
-    ("APT", "APT-USDT", "Aptos", 30, "⚠️ VOLATILE"),
-    ("ARB", "ARB-USDT", "Arbitrum", 30, "⚠️ VOLATILE"),
-    ("OP", "OP-USDT", "Optimism", 30, "⚠️ VOLATILE"),
-    ("TIA", "TIA-USDT", "Celestia", 30, "⚠️ VOLATILE"),
-    ("RENDER", "RENDER-USDT", "Render", 30, "⚠️ VOLATILE"),
-    ("INJ", "INJ-USDT", "Injective", 30, "⚠️ VOLATILE"),
-    ("FET", "FET-USDT", "Artificial Superintelligence", 30, "⚠️ VOLATILE")
+    ("DOGE", "DOGE-USDT", "Dogecoin", 30, "🔥 ALPHA"),
+    ("ADA", "ADA-USDT", "Cardano", 30, "⚡ TIER 2")
 ]
 
 STATE_FILE = Path(__file__).parent / "limit_bot_active_state.json"
@@ -211,15 +213,15 @@ def scan_single_coin(sym_tuple):
             
             def create_new_setup(last_out=None):
                 """Membuat level limit order baru yang segar (fresh) dan selalu diskon/premium sejati."""
-                ema50 = calc_ema(closes[:-1], 50)
-                is_long = closes[-1] >= ema50
+                ema34 = calc_ema(closes[:-1], 34)
+                is_long = closes[-1] >= ema34
                 sw_low = min(lows[-33:-1])
                 sw_high = max(highs[-33:-1])
                 range_span = sw_high - sw_low if sw_high > sw_low else 1.0
                 
-                tp_ratio = 0.50 / lev # Target TP +50.0% ROE (+1.667% jarak harga pada Lev 30x)
+                tp_ratio = 0.35 / lev # Target TP +35.0% ROE (+1.167% jarak harga pada Lev 30x)
                 sl_ratio = 0.30 / lev # Stop Loss -30.0% ROE (-1.000% jarak harga pada Lev 30x)
-                retrace = 0.50        # Fibonacci 50% Golden Pullback
+                retrace = 0.55        # Fibonacci 55% Sweet Spot Pullback
                 
                 if is_long:
                     potensi = "POTENSI LONG (BUY)"
@@ -315,8 +317,8 @@ def scan_single_coin(sym_tuple):
                     record_closed_trade(coin, sym, outcome, exit_p, now_ts)
                     last_out = {
                         "outcome": outcome,
-                        "roe": 50.0 if hit_tp else -30.0,
-                        "pnl_usd": 1.00 if hit_tp else -0.60,
+                        "roe": 35.0 if hit_tp else -30.0,
+                        "pnl_usd": 0.70 if hit_tp else -0.60,
                         "closed_at": now_ts
                     }
                     setup = create_new_setup(last_out=last_out)

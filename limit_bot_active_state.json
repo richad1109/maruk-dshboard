@@ -185,9 +185,9 @@
     "limit_p": 0.1805,
     "tp_p": 0.183508,
     "sl_p": 0.178695,
-    "status": "WAITING",
+    "status": "TOUCHED",
     "created_at": 1793154559.948188,
-    "touch_time": null,
+    "touch_time": 1793166794.53059,
     "last_outcome": {
       "outcome": "TP",
       "roe": 35.0,
@@ -482,5 +482,21 @@
       "exit_price": 1.7141,
       "closed_at": 1793159849.725091
     }
-  ]
+  ],
+  "DOT": {
+    "coin": "DOT",
+    "sym": "DOT-USDT",
+    "name": "Polkadot",
+    "tier": "\u2b50 ELITE CASH COW",
+    "lev": 30,
+    "side": "SHORT",
+    "potensi": "POTENSI SHORT (SELL)",
+    "limit_p": 1.004235,
+    "tp_p": 0.992519,
+    "sl_p": 1.014277,
+    "status": "WAITING",
+    "created_at": 1793166794.5858767,
+    "touch_time": null,
+    "last_outcome": null
+  }
 }
