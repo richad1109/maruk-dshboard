@@ -143,24 +143,64 @@ def calc_ema(values, period=50):
 def scan_single_coin(sym_tuple):
     global _PERSISTENT_SETUPS
     coin, sym, full_name, lev, tier_label = sym_tuple
-    url = f"https://open-api.bingx.com/openApi/swap/v3/quote/klines?symbol={sym}&interval=15m&limit=64"
     
-    for attempt in range(3):
+    raw = []
+    # 1. Prioritaskan MEXC Contract API (Data Bursa Riil Akun)
+    mexc_sym = f"{coin}_USDT"
+    mexc_url = f"https://contract.mexc.com/api/v1/contract/kline/{mexc_sym}?interval=Min15"
+    for attempt in range(2):
         try:
-            r = requests.get(url, verify=False, timeout=5.0).json()
-            raw = r.get('data', [])
-            if not raw or len(raw) < 32:
-                time.sleep(0.2)
-                continue
-            if raw[0]['time'] > raw[-1]['time']:
-                raw.reverse()
+            r = requests.get(mexc_url, verify=False, timeout=4.0).json()
+            if r.get("success") and r.get("data"):
+                kl = r["data"]
+                times = kl.get("time", [])
+                if len(times) >= 32:
+                    m_opens = [float(x) for x in kl.get("open", [])]
+                    m_highs = [float(x) for x in kl.get("high", [])]
+                    m_lows = [float(x) for x in kl.get("low", [])]
+                    m_closes = [float(x) for x in kl.get("close", [])]
+                    raw = [
+                        {
+                            "time": int(times[i]) * 1000,
+                            "open": m_opens[i],
+                            "high": m_highs[i],
+                            "low": m_lows[i],
+                            "close": m_closes[i]
+                        }
+                        for i in range(len(times))
+                    ]
+                    raw = raw[-64:]
+                    break
+        except Exception:
+            time.sleep(0.15)
+            
+    # 2. Cadangan ke BingX jika MEXC sementara unreachable
+    if not raw or len(raw) < 32:
+        url = f"https://open-api.bingx.com/openApi/swap/v3/quote/klines?symbol={sym}&interval=15m&limit=64"
+        for attempt in range(2):
+            try:
+                r = requests.get(url, verify=False, timeout=4.0).json()
+                data_list = r.get("data", [])
+                if data_list and len(data_list) >= 32:
+                    if data_list[0]["time"] > data_list[-1]["time"]:
+                        data_list.reverse()
+                    raw = data_list
+                    break
+            except Exception:
+                time.sleep(0.15)
                 
-            opens = [float(k['open']) for k in raw]
-            highs = [float(k['high']) for k in raw]
-            lows = [float(k['low']) for k in raw]
-            closes = [float(k['close']) for k in raw]
-            if not closes:
-                continue
+    if not raw or len(raw) < 32:
+        return None
+
+    opens = [float(k["open"]) for k in raw]
+    highs = [float(k["high"]) for k in raw]
+    lows = [float(k["low"]) for k in raw]
+    closes = [float(k["close"]) for k in raw]
+    if not closes:
+        return None
+
+    for attempt in range(1):
+        try:
             cur_p = closes[-1]
             cur_low = lows[-1]
             cur_high = highs[-1]
@@ -204,6 +244,7 @@ def scan_single_coin(sym_tuple):
                     tp_p = limit_p * (1.0 - tp_ratio)
                     sl_p = limit_p * (1.0 + sl_ratio)
                     
+                dec = 8 if coin == "PEPE" else 6
                 new_s = {
                     "coin": coin,
                     "sym": sym,
@@ -212,9 +253,9 @@ def scan_single_coin(sym_tuple):
                     "lev": lev,
                     "side": side,
                     "potensi": potensi,
-                    "limit_p": round(limit_p, 6),
-                    "tp_p": round(tp_p, 6),
-                    "sl_p": round(sl_p, 6),
+                    "limit_p": round(limit_p, dec),
+                    "tp_p": round(tp_p, dec),
+                    "sl_p": round(sl_p, dec),
                     "status": "WAITING",
                     "created_at": now_ts,
                     "touch_time": None,
@@ -298,9 +339,8 @@ def scan_single_coin(sym_tuple):
                 wait_high = max(float(k["high"]) for k in wait_candles)
                 wait_low = min(float(k["low"]) for k in wait_candles)
                 
-                # Toleransi spread antar-bursa (MEXC vs BingX) sebesar 0.15% agar wick jemputan di MEXC tidak terlewat
-                tolerance = 0.0015
-                touched = (wait_low <= limit_p * (1.0 + tolerance)) if is_long else (wait_high >= limit_p * (1.0 - tolerance))
+                # Eksekusi persis sesuai orderbook MEXC:
+                touched = (wait_low <= limit_p) if is_long else (wait_high >= limit_p)
                 if touched:
                     status = "TOUCHED"
                     setup["status"] = "TOUCHED"

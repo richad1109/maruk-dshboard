@@ -84,7 +84,7 @@ def bias_cards():
 
     observations = limit_radar_data()
     if not observations:
-        st.warning('Radar limit order sedang menyinkronkan data bursa BingX...')
+        st.warning('Radar limit order sedang menyinkronkan data bursa MEXC Futures...')
         return
 
     # SUMMARY RESMI & PERSISTEN DARI ENGINE

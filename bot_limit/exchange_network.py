@@ -14,7 +14,7 @@ import threading
 import time
 import requests
 
-HOSTS = frozenset({"api.bitget.com", "api.mexc.com", "open-api.bingx.com"})
+HOSTS = frozenset({"api.bitget.com", "api.mexc.com", "contract.mexc.com", "open-api.bingx.com"})
 RESOLVERS = ("https://dns.google/resolve", "https://cloudflare-dns.com/dns-query")
 ENDPOINTS = {
     "bitget": "https://api.bitget.com/api/v2/mix/market/contracts?productType=USDT-FUTURES",
