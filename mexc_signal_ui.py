@@ -242,19 +242,13 @@ def bias_cards():
         sig_rows_html = []
         for s in new_signals:
             is_mexc = s.get('is_mexc_order', False)
-            is_expired = s.get('is_expired_order', False)
-            is_fresh_rescan = s.get('is_fresh_rescan', False)
             order_id = s.get('order_id', '-')
-            t_str = s.get('order_time_str', '-')
+            t_str = s.get('time_str', s.get('order_time_str', '-'))
+            valid_until = s.get('valid_until_str', '-')
+            rem_min = s.get('remaining_min', 120)
             
-            if is_mexc and is_expired:
-                exp_reason = s.get('expired_reason', 'Basi')
-                status_badge = f'<span style="background: rgba(239, 68, 68, 0.25); border: 1px solid #ef4444; color: #fca5a5; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;" title="{exp_reason}">🛑 ORDER BASI / BATALKAN (ID: {order_id})</span>'
-            elif is_mexc:
+            if is_mexc:
                 status_badge = f'<span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🟢 SUDAH LIMIT DI MEXC (ID: {order_id})</span>'
-            elif is_fresh_rescan:
-                prev_p = s.get('prev_limit_p', '-')
-                status_badge = f'<span style="background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;" title="Level lama ${prev_p} sempat kesentuh saat offline. Otomatis dipindai ulang ke level baru!">🔄 FRESH RE-SCAN (LEVEL BARU)</span>'
             else:
                 status_badge = '<span style="background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fbbf24; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🟡 SIAP PASANG (FRESH)</span>'
 
@@ -268,7 +262,10 @@ def bias_cards():
   <td style="padding: 8px 10px; font-family: monospace; font-weight: 700; color: #38bdf8;">${s['limit_p']}</td>
   <td style="padding: 8px 10px; font-family: monospace; color: #34d399;">${s['tp_p']}</td>
   <td style="padding: 8px 10px; font-family: monospace; color: #f87171;">${s['sl_p']}</td>
-  <td style="padding: 8px 10px; color: #fde047; font-size: 11px; font-weight: 700;">🕒 {t_str}</td>
+  <td style="padding: 8px 10px; font-size: 11px;">
+    <div style="color: #fde047; font-weight: 800;">🕒 Terbit: {t_str}</div>
+    <div style="font-size: 10px; color: #38bdf8; margin-top: 1px;">⏳ Valid s/d {valid_until} ({rem_min}m)</div>
+  </td>
   <td style="padding: 8px 10px; text-align: right;">{status_badge}</td>
 </tr>
 ''')
@@ -279,9 +276,9 @@ def bias_cards():
     <div>
       <div style="display: flex; align-items: center; gap: 8px;">
         <span style="font-size: 13.5px; font-weight: 800; color: #60a5fa; letter-spacing: 0.5px;">⚡ RADAR SINYAL LIMIT BARU & VERIFIKASI STATUS ORDER DI MEXC</span>
-        <span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 10px; padding: 2px 6px; border-radius: 4px;">🛡️ SMART ANTI-SL GUARD AKTIF</span>
+        <span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 10px; padding: 2px 6px; border-radius: 4px;">🛡️ MASA VALID: 2 JAM / AUTO RE-SCAN</span>
       </div>
-      <div style="font-size: 11px; color: #94a3b8; margin-top: 1px;">Pantauan Langsung Orderbook MEXC Akun 1 · Deteksi Otomatis Jemputan Basi, Order Expired & Auto Re-Scan Level Fresh</div>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 1px;">Setiap sinyal berlaku 2 jam penuh. Begitu lewat 2 jam atau level kesentuh, mesin OTOMATIS memindai ulang ke level baru!</div>
     </div>
     <span style="background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #93c5fd; font-weight: 800; font-size: 11.5px; padding: 3px 10px; border-radius: 6px;">● {len(new_signals)} SINYAL LIMIT AKTIF</span>
   </div>
@@ -294,7 +291,7 @@ def bias_cards():
           <th style="padding: 6px 10px;">Entry Limit</th>
           <th style="padding: 6px 10px;">Take Profit</th>
           <th style="padding: 6px 10px;">Stop Loss</th>
-          <th style="padding: 6px 10px;">Jam Order/Sinyal</th>
+          <th style="padding: 6px 10px;">Waktu & Masa Valid Sinyal</th>
           <th style="padding: 6px 10px; text-align: right;">Status di MEXC</th>
         </tr>
       </thead>
@@ -306,20 +303,14 @@ def bias_cards():
 </div>
 ''')
 
-        # NOTIFIKASI ORDER BASI JIKA ADA
-        stale_signals = [s for s in new_signals if s.get('is_expired_order')]
-        if stale_signals:
-            st.markdown(f'''
-<div style="background: rgba(239, 68, 68, 0.15); border: 1.5px solid #ef4444; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-  <div>
-    <span style="font-weight: 800; color: #fca5a5; font-size: 12px;">⚠️ PERINGATAN: DITEMUKAN {len(stale_signals)} ORDER LIMIT BASI / KADALUARSA DI MEXC!</span>
-    <div style="font-size: 11px; color: #cbd5e1; margin-top: 2px;">Order ini sudah antre > 4 jam atau target TP sudah tercapai duluan tanpa terjemput. Segera batalkan agar tidak terjemput pada jemputan kedua yang rawan Stop Loss!</div>
-  </div>
-</div>
-''', unsafe_allow_html=True)
-            if st.button(f"🛑 Batalkan Semua {len(stale_signals)} Order Basi di MEXC Sekarang", key="btn_cancel_all_stale", type="secondary", use_container_width=True):
-                with st.spinner("Membatalkan seluruh order limit basi dari MEXC Futures..."):
-                    res = sniper_limit_engine.execute_cancel_all_stale_orders()
+        # TOMBOL RE-SCAN MANUAL
+        col_res_l, col_res_r = st.columns([2.2, 1.8])
+        with col_res_l:
+            st.caption("🔄 Sinyal basi/lewat 2 jam otomatis dibatalkan & dipindai ulang. Jika ingin update detik ini juga:")
+        with col_res_r:
+            if st.button("🔄 Re-Scan Semua Koin (Update Fresh Sekarang)", key="btn_force_rescan_all", type="secondary", use_container_width=True):
+                with st.spinner("Memindai ulang seluruh koin ke data pasar detik ini..."):
+                    res = sniper_limit_engine.execute_force_rescan_all_signals()
                     if res['success']:
                         st.success(res['msg'])
                     else:

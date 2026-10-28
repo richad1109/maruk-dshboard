@@ -292,6 +292,9 @@ def scan_single_coin(sym_tuple):
                     "ema34": round(ema34, dec),
                     "status": "WAITING",
                     "created_at": now_ts,
+                    "valid_until": now_ts + 7200,
+                    "time_str": datetime.fromtimestamp(now_ts, WIB).strftime('%H:%M:%S WIB'),
+                    "valid_until_str": datetime.fromtimestamp(now_ts + 7200, WIB).strftime('%H:%M WIB'),
                     "touch_time": None,
                     "last_outcome": last_out
                 }
@@ -319,8 +322,13 @@ def scan_single_coin(sym_tuple):
                 }
                 setup = create_new_setup(last_out=last_out)
 
-            # 3. Jika sudah 12 jam waiting tanpa tersentuh, perbarui struktur pasar
-            elif setup.get('status') == 'WAITING' and (now_ts - setup.get('created_at', now_ts) > 43200):
+            # 3. Jika sudah 2 jam (7.200s / 8 candle 15m) waiting tanpa terisi, otomatis batalkan order lama & perbarui struktur pasar ke sinyal FRESH
+            elif setup.get('status') == 'WAITING' and (now_ts - setup.get('created_at', now_ts) > 7200):
+                if setup.get('is_mexc_order') and setup.get('order_id'):
+                    try:
+                        execute_cancel_order(coin, setup.get('order_id'))
+                    except Exception:
+                        pass
                 setup = create_new_setup(last_out=setup.get('last_outcome'))
 
             limit_p = setup["limit_p"]
@@ -470,6 +478,10 @@ def scan_single_coin(sym_tuple):
                 "prev_limit_p": setup.get("prev_limit_p"),
                 "rescan_note": setup.get("rescan_note"),
                 "was_missed_touch": setup.get("was_missed_touch", False),
+                "created_at": setup.get("created_at", now_ts),
+                "time_str": datetime.fromtimestamp(setup.get("created_at", now_ts), WIB).strftime('%H:%M:%S WIB'),
+                "valid_until_str": datetime.fromtimestamp(setup.get("created_at", now_ts) + 7200, WIB).strftime('%H:%M WIB'),
+                "remaining_min": max(0, int((setup.get("created_at", now_ts) + 7200 - now_ts) // 60)),
                 "closed": now_ts
             }
         except Exception:
@@ -682,36 +694,10 @@ def scan_all():
                 r['diff_pct'] = diff_pct
                 sign_d = "-" if is_long else "+"
                 r['float_str'] = f"Jarak: {sign_d}{abs(diff_pct):.2f}% (Antre di MEXC)"
-                
-                # DETEKSI ORDER BASI / EXPIRED DI MEXC:
-                # 1. Target TP sudah tercapai tanpa jemput limit
-                # 2. Order antre sudah lebih dari 4 jam (14.400 detik)
-                o_ts = float(o.get('timestamp') or 0)
-                now_sec = time.time()
-                age_sec = now_sec - (o_ts / 1000.0) if o_ts > 0 else 0
-                tp_val = r.get('tp_p', 0.0)
-                
-                tp_hit_without_fill = False
-                if tp_val > 0:
-                    if is_long and cur_p >= tp_val:
-                        tp_hit_without_fill = True
-                    elif (not is_long) and cur_p <= tp_val:
-                        tp_hit_without_fill = True
-                
-                is_too_old = (age_sec >= 14400) # > 4 jam
-                
-                if tp_hit_without_fill or is_too_old:
-                    r['is_expired_order'] = True
-                    reason = "Target TP sudah tercapai duluan!" if tp_hit_without_fill else f"Antre > 4 jam ({int(age_sec//3600)}j {int((age_sec%3600)//60)}m)"
-                    r['expired_reason'] = reason
-                    r['mexc_badge'] = f"🛑 ORDER BASI ({reason}) - BATALKAN (ID: {o['id']})"
-                    r['valid_label'] = "🛑 ORDER BASI / BATALKAN"
-                    r['touch_status'] = "🛑 ORDER BASI (PERLU CANCEL)"
-                else:
-                    r['is_expired_order'] = False
-                    r['mexc_badge'] = f"🟢 SUDAH LIMIT DI MEXC (ID: {o['id']})"
-                    r['touch_status'] = "⏳ MENUNGGU JEMPUTAN"
-                    r['valid_label'] = "🟢 SUDAH LIMIT DI MEXC"
+                r['mexc_badge'] = f"🟢 SUDAH LIMIT DI MEXC (ID: {o['id']})"
+                r['touch_status'] = "⏳ MENUNGGU JEMPUTAN (MEXC)"
+                r['valid_label'] = "🟢 SUDAH LIMIT DI MEXC"
+                r['is_expired_order'] = False
             
             # 3. Koin setup valid tapi belum antre di MEXC
             else:
@@ -727,18 +713,11 @@ def scan_all():
                 is_long = "LONG" in r.get('potensi', 'LONG')
                 diff_pct = ((cur_p - r['limit_p']) / cur_p) * 100 if is_long and cur_p > 0 else 0.0
                 r['diff_pct'] = diff_pct
-                
-                if r.get('is_fresh_rescan'):
-                    prev_p = r.get('prev_limit_p', '-')
-                    r['mexc_badge'] = f"🔄 FRESH RE-SCAN (Level lama ${prev_p} sempat kesentuh)"
-                    r['valid_label'] = "🔄 RE-SCAN SELESAI"
-                    r['float_str'] = f"Jarak: {diff_pct:.2f}% (Fresh Re-Scan)"
-                    r['touch_status'] = "🔄 DIPINDAI ULANG KE LEVEL BARU"
-                else:
-                    r['mexc_badge'] = "🟡 SIAP PASANG (FRESH)"
-                    r['valid_label'] = "🟡 BELUM LIMIT"
-                    r['float_str'] = f"Jarak: {diff_pct:.2f}% (Siap Pasang)"
-                    r['touch_status'] = "⏳ SIAP PASANG"
+                r['mexc_badge'] = "🟡 SIAP PASANG (FRESH)"
+                r['valid_label'] = "🟡 SIAP PASANG"
+                r['float_str'] = f"Jarak: {diff_pct:.2f}% (Siap Pasang)"
+                r['touch_status'] = "⏳ SIAP PASANG"
+                r['is_expired_order'] = False
 
         with _STATE_LOCK:
             _PERSISTENT_SETUPS['_MEXC_LIVE_TELEMETRY'] = mexc_live
@@ -1066,6 +1045,38 @@ def execute_place_all_waiting_limits(custom_margin=1.30):
             results.append((c, res))
             time.sleep(0.2)
     return results
+
+def execute_force_rescan_all_signals():
+    """Memaksa pemindaian ulang seluruh koin yang belum aktif menjadi sinyal fresh 100%."""
+    try:
+        tele = fetch_mexc_live_telemetry()
+        op_ord = tele.get('open_orders', {}) if tele else {}
+        act_pos = tele.get('active_positions', {}) if tele else {}
+        
+        with _STATE_LOCK:
+            for c_tuple in TOP_20_COINS:
+                c = c_tuple[0]
+                # Jangan ganggu posisi yang sedang mantul/aktif di MEXC
+                if c not in act_pos:
+                    # Jika ada limit order antre di MEXC, batalkan dari MEXC
+                    if c in op_ord:
+                        try:
+                            execute_cancel_order(c, op_ord[c]['id'])
+                        except Exception:
+                            pass
+                    # Reset setup agar langsung di-re-scan ulang ke level terkini
+                    _PERSISTENT_SETUPS[c] = None
+        save_persistent_state()
+        
+        # Scan ulang seluruh koin dengan data candle terkini detik ini
+        fresh_data = scan_all()
+        return {
+            "success": True,
+            "msg": f"✅ Berhasil memindai ulang seluruh 20 koin ke struktur pasar terkini (100% Fresh)!",
+            "data": fresh_data
+        }
+    except Exception as e:
+        return {"success": False, "msg": f"Gagal memindai ulang: {str(e)}"}
 
 if __name__ == '__main__':
     data = scan_all()
