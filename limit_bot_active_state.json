@@ -42,9 +42,9 @@
     "limit_p": 745.925,
     "tp_p": 754.627458,
     "sl_p": 740.952167,
-    "status": "WAITING",
+    "status": "TOUCHED",
     "created_at": 1793158493.8284097,
-    "touch_time": null,
+    "touch_time": 1793159142.271287,
     "last_outcome": {
       "outcome": "SL",
       "roe": -20.0,
@@ -79,9 +79,9 @@
     "limit_p": 1.3174,
     "tp_p": 1.335844,
     "sl_p": 1.306861,
-    "status": "WAITING",
+    "status": "TOUCHED",
     "created_at": 1793136879.3146138,
-    "touch_time": null,
+    "touch_time": 1793159142.2118511,
     "closed_at": null
   },
   "ADA": {
@@ -275,9 +275,9 @@
     "limit_p": 0.5323,
     "tp_p": 0.541615,
     "sl_p": 0.526977,
-    "status": "WAITING",
+    "status": "TOUCHED",
     "created_at": 1793136879.5600543,
-    "touch_time": null,
+    "touch_time": 1793159142.7163856,
     "closed_at": null
   },
   "INJ": {

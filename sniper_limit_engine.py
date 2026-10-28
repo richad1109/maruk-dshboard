@@ -298,7 +298,9 @@ def scan_single_coin(sym_tuple):
                 wait_high = max(float(k["high"]) for k in wait_candles)
                 wait_low = min(float(k["low"]) for k in wait_candles)
                 
-                touched = (wait_low <= limit_p) if is_long else (wait_high >= limit_p)
+                # Toleransi spread antar-bursa (MEXC vs BingX) sebesar 0.15% agar wick jemputan di MEXC tidak terlewat
+                tolerance = 0.0015
+                touched = (wait_low <= limit_p * (1.0 + tolerance)) if is_long else (wait_high >= limit_p * (1.0 - tolerance))
                 if touched:
                     status = "TOUCHED"
                     setup["status"] = "TOUCHED"
