@@ -5,10 +5,12 @@
   "poll_interval": 20,
   "strategy": "APEX_CASH_COW_PRO",
   "status": "RUNNING",
-  "last_cycle_time": "02:05:19 WIB",
-  "last_action": "Siklus selesai: 5 Posisi Aktif, 9 Limit Antre, 7 Cooldown, 0 Order Baru Terpasang.",
+  "last_cycle_time": "02:08:57 WIB",
+  "last_action": "\ud83e\udd16 Bot Auto-Pilot MEXC Dimulai! Margin: $1.00 | Leverage: 40x | Cooldown: 2 Jam | Interval: 20s",
   "cooldown_coins_count": 7,
   "active_positions_count": 5,
   "open_orders_count": 9,
-  "recent_events": []
+  "recent_events": [
+    "[02:08:57 WIB] [START] \ud83e\udd16 Bot Auto-Pilot MEXC Dimulai! Margin: $1.00 | Leverage: 40x | Cooldown: 2 Jam | Interval: 20s"
+  ]
 }

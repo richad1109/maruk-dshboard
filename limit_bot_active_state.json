@@ -527,8 +527,8 @@
         "side": "SHORT",
         "entry": 0.2046,
         "margin": 1.03529498688,
-        "unpnl": -0.0784,
-        "roe": -7.572720914670791,
+        "unpnl": 0.0392,
+        "roe": 3.7863604573353955,
         "contracts": 196.0,
         "time_str": "01:36:44 WIB",
         "create_ts": 1793212604087.0
@@ -538,8 +538,8 @@
         "side": "LONG",
         "entry": 8.902,
         "margin": 1.0335222,
-        "unpnl": 0.189,
-        "roe": 18.286980192588025,
+        "unpnl": 0.1485,
+        "roe": 14.368341579890592,
         "contracts": 45.0,
         "time_str": "01:56:01 WIB",
         "create_ts": 1793213761334.0
@@ -549,8 +549,8 @@
         "side": "SHORT",
         "entry": 11.685,
         "margin": 1.0256756472,
-        "unpnl": -0.1462,
-        "roe": -14.254018841054922,
+        "unpnl": -0.0918,
+        "roe": -8.950197876941465,
         "contracts": 34.0,
         "time_str": "01:36:09 WIB",
         "create_ts": 1793212569043.0
@@ -560,8 +560,8 @@
         "side": "LONG",
         "entry": 0.07941,
         "margin": 1.024389,
-        "unpnl": 0.14,
-        "roe": 13.666683261924915,
+        "unpnl": 0.115,
+        "roe": 11.22620410800975,
         "contracts": 5.0,
         "time_str": "01:39:06 WIB",
         "create_ts": 1793212746573.0
@@ -1079,9 +1079,9 @@
         "time_str": "01:02:44 WIB"
       }
     ],
-    "total_floating_usd": 0.1844,
-    "total_floating_roe": 16.437572278665762,
-    "timestamp": 1793214315.5318828
+    "total_floating_usd": 0.2909,
+    "total_floating_roe": 26.74135684817281,
+    "timestamp": 1793214546.3741658
   },
   "_HISTORY_TRADES": [
     {

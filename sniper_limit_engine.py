@@ -607,46 +607,7 @@ def fetch_mexc_live_telemetry():
     except Exception:
         pass
 
-    client = None
-    # 1. Coba dari D:\bot_final\akun_privat.json
-    local_p = Path(r'D:\bot_final\akun_privat.json')
-    if local_p.exists():
-        try:
-            cfg = json.loads(local_p.read_text(encoding='utf-8-sig'))
-            m = cfg.get('akun_1', {}).get('MEXC', {})
-            if m.get('apiKey'):
-                import ccxt
-                client = ccxt.mexc({'apiKey': m['apiKey'], 'secret': m['secret'], 'options': {'defaultType': 'swap'}, 'timeout': 10000})
-        except Exception:
-            pass
-
-    # 2. Coba dari Streamlit secrets
-    if client is None:
-        try:
-            import streamlit as st
-            sec = getattr(st, 'secrets', {})
-            accs = json.loads(sec.get('accounts_json', '{}'))
-            m = accs.get('akun_1', {}).get('MEXC', {})
-            if m.get('apiKey'):
-                import ccxt
-                client = ccxt.mexc({'apiKey': m['apiKey'], 'secret': m['secret'], 'options': {'defaultType': 'swap'}, 'timeout': 10000})
-        except Exception:
-            pass
-
-    # 3. Coba dari secrets.toml lokal
-    if client is None:
-        sec_path = Path(__file__).parent / ".streamlit" / "secrets.toml"
-        if sec_path.exists():
-            try:
-                import toml, ccxt
-                sec = toml.loads(sec_path.read_text(encoding='utf-8'))
-                accs = json.loads(sec.get('accounts_json', '{}'))
-                m = accs.get('akun_1', {}).get('MEXC', {})
-                if m.get('apiKey'):
-                    client = ccxt.mexc({'apiKey': m['apiKey'], 'secret': m['secret'], 'options': {'defaultType': 'swap'}, 'timeout': 10000})
-            except Exception:
-                pass
-
+    client = get_mexc_trading_client()
     if client is None:
         return None
 
@@ -998,24 +959,32 @@ def get_mexc_trading_client():
     except Exception:
         pass
 
-    # 1. Coba dari D:\bot_final\akun_privat.json
-    local_p = Path(r'D:\bot_final\akun_privat.json')
-    if local_p.exists():
-        try:
-            cfg = json.loads(local_p.read_text(encoding='utf-8-sig'))
-            m = cfg.get('akun_1', {}).get('MEXC', {})
-            if m.get('apiKey'):
-                import ccxt
-                _MEXC_CLIENT_SINGLETON = ccxt.mexc({
-                    'apiKey': m['apiKey'],
-                    'secret': m['secret'],
-                    'options': {'defaultType': 'swap'},
-                    'timeout': 15000,
-                    'enableRateLimit': True
-                })
-                return _MEXC_CLIENT_SINGLETON
-        except Exception:
-            pass
+    # 1. Coba dari akun_privat.json di berbagai path (Kompatibel Termux Android, Linux, Windows)
+    cfg_paths = [
+        Path(__file__).parent / "akun_privat.json",
+        Path.home() / "akun_privat.json",
+        Path.home() / "bot_final" / "akun_privat.json",
+        Path.home() / "maruk-dshboard" / "akun_privat.json",
+        Path(r'D:\bot_final\akun_privat.json'),
+        Path(r'c:\Users\adee\Documents\antigravity\splendid-hopper\secret_keys.json')
+    ]
+    for p in cfg_paths:
+        if p.exists():
+            try:
+                cfg = json.loads(p.read_text(encoding='utf-8-sig'))
+                m = cfg.get('akun_1', {}).get('MEXC', {})
+                if m.get('apiKey') and m.get('secret'):
+                    import ccxt
+                    _MEXC_CLIENT_SINGLETON = ccxt.mexc({
+                        'apiKey': m['apiKey'],
+                        'secret': m['secret'],
+                        'options': {'defaultType': 'swap'},
+                        'timeout': 15000,
+                        'enableRateLimit': True
+                    })
+                    return _MEXC_CLIENT_SINGLETON
+            except Exception:
+                pass
 
     # 2. Coba dari Streamlit secrets
     try:

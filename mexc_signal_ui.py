@@ -94,55 +94,11 @@ def bias_cards():
     label = 'DOMINAN LONG' if longs > shorts else 'DOMINAN SHORT' if shorts > longs else 'CAMPURAN / NETRAL'
 
     with col_head_left:
-        st.markdown('### ⚡ Titan Quantum 40x · Radar Limit Order MEXC · ' + label)
-        st.caption('15m EMA 34 Dynamic Trend · Fibo 54% Sweet Spot · TP +32.0% / SL -30.0% (WR 61.1% · 8 Minggu 100% Hijau) · Kendali Margin Mandiri')
+        st.markdown('### ⚡ Apex Cash Cow Pro 40x · Radar Limit Order MEXC · ' + label)
+        st.caption('15m Dynamic Trend EMA 34+100 · Fibo 48% · TP +22.0% / SL -28.0% · 2H Post-Loss Cooldown · Margin Mandiri $1.00 USD')
 
     # =========================================================================
-    # BANNER 1: AUDIT RESMI 6 BULAN & HASIL RISET TARGET RP 500.000 / MINGGU
-    # =========================================================================
-    html('''
-<div style="background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.9)); border: 2px solid #3b82f6; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-  <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 12px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
-    <div>
-      <span style="background: #1d4ed8; color: #eff6ff; font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 4px; letter-spacing: 0.5px;">AUDIT RESMI BURSA</span>
-      <strong style="color: #60a5fa; font-size: 16px; margin-left: 6px;">TITAN QUANTUM 40x: 8/8 MINGGU 100% HIJAU & AUDIT 6 BULAN</strong>
-    </div>
-    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-      <span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 5px;">● 8 Minggu 100% Hijau (0 Merah)</span>
-      <span style="background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #93c5fd; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 5px;">● 364.800 Candle Riil MEXC</span>
-      <span style="background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fbbf24; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 5px;">● Win Rate 61.09%</span>
-    </div>
-  </div>
-  
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 12px;">
-    <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 8px; padding: 10px 14px;">
-      <div style="font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">MARGIN $1.00 USD (MANDIRI)</div>
-      <div style="font-size: 18px; font-weight: 800; color: #f8fafc; font-family: monospace; margin: 2px 0;">+$15.65 <span style="font-size: 12px; color: #94a3b8;">/ minggu</span></div>
-      <div style="font-size: 11px; color: #34d399; font-weight: 700;">~Rp 255.000 / minggu</div>
-      <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Total 8W: +$125.22 USD (~Rp 2.041.000)</div>
-    </div>
-    <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 8px; padding: 10px 14px;">
-      <div style="font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">MARGIN $1.30 USD (STANDAR)</div>
-      <div style="font-size: 18px; font-weight: 800; color: #f8fafc; font-family: monospace; margin: 2px 0;">+$20.35 <span style="font-size: 12px; color: #94a3b8;">/ minggu</span></div>
-      <div style="font-size: 11px; color: #34d399; font-weight: 700;">~Rp 331.000 / minggu</div>
-      <div style="font-size: 10px; color: #64748b; margin-top: 2px;">Total 8W: +$162.79 USD (~Rp 2.653.000)</div>
-    </div>
-    <div style="background: rgba(16, 185, 129, 0.12); border: 1.5px solid #10b981; border-radius: 8px; padding: 10px 14px;">
-      <div style="font-size: 10px; color: #34d399; font-weight: 800; text-transform: uppercase;">🎯 TARGET RP 500.000/MGG (REKOMENDASI)</div>
-      <div style="font-size: 18px; font-weight: 900; color: #34d399; font-family: monospace; margin: 2px 0;">+$31.31 <span style="font-size: 12px; color: #a7f3d0;">/ minggu</span></div>
-      <div style="font-size: 11px; color: #fde047; font-weight: 800;">~Rp 510.000 / minggu (TEMBUS TARGET!)</div>
-      <div style="font-size: 10px; color: #cbd5e1; margin-top: 2px;">Total 8W: <strong>+$250.45 USD (~Rp 4.082.000)</strong></div>
-    </div>
-  </div>
-  <div style="font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; flex-wrap: wrap;">
-    <span>⚡ <em>Rumus: Sweet Spot Fibo 54% + Dynamic EMA 34 + Kaufman KER &ge; 0.20 + Bracket TP/SL Native Server MEXC.</em></span>
-    <span style="color: #60a5fa; font-weight: 700;">Tanpa Termux · Eksekusi Langsung dari Web Browser</span>
-  </div>
-</div>
-''')
-
-    # =========================================================================
-    # BANNER 2: TOTAL FLOATING, REALIZED PnL & WIN RATE PORTOFOLIO
+    # BANNER: TOTAL FLOATING, REALIZED PnL & WIN RATE PORTOFOLIO
     # =========================================================================
     sign_tot = "+" if total_floating_usd >= 0 else ""
     tot_bg = "rgba(16, 185, 129, 0.16)" if total_floating_usd >= 0 else "rgba(239, 68, 68, 0.16)"
