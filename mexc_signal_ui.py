@@ -244,8 +244,13 @@ def bias_cards():
             is_mexc = s.get('is_mexc_order', False)
             order_id = s.get('order_id', '-')
             t_str = s.get('time_str', s.get('order_time_str', '-'))
-            valid_until = s.get('valid_until_str', '-')
-            rem_min = s.get('remaining_min', 120)
+            created_ts = s.get('created_at', time.time())
+            valid_until = s.get('valid_until_str')
+            if not valid_until or valid_until == '-':
+                valid_until = datetime.fromtimestamp(created_ts + 43200, WIB).strftime('%H:%M WIB')
+            rem_min = s.get('remaining_min')
+            if rem_min is None:
+                rem_min = max(0, int((created_ts + 43200 - time.time()) // 60))
             
             if is_mexc:
                 status_badge = f'<span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🟢 SUDAH LIMIT DI MEXC (ID: {order_id})</span>'
@@ -276,9 +281,9 @@ def bias_cards():
     <div>
       <div style="display: flex; align-items: center; gap: 8px;">
         <span style="font-size: 13.5px; font-weight: 800; color: #60a5fa; letter-spacing: 0.5px;">⚡ RADAR SINYAL LIMIT BARU & VERIFIKASI STATUS ORDER DI MEXC</span>
-        <span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 10px; padding: 2px 6px; border-radius: 4px;">🛡️ MASA VALID: 2 JAM / AUTO RE-SCAN</span>
+        <span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 10px; padding: 2px 6px; border-radius: 4px;">🛡️ MASA VALID: 12 JAM / AUTO RE-SCAN</span>
       </div>
-      <div style="font-size: 11px; color: #94a3b8; margin-top: 1px;">Setiap sinyal berlaku 2 jam penuh. Begitu lewat 2 jam atau level kesentuh, mesin OTOMATIS memindai ulang ke level baru!</div>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 1px;">Setiap sinyal berlaku 12 jam penuh. Begitu lewat 12 jam atau level kesentuh, mesin OTOMATIS memindai ulang ke level baru!</div>
     </div>
     <span style="background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #93c5fd; font-weight: 800; font-size: 11.5px; padding: 3px 10px; border-radius: 6px;">● {len(new_signals)} SINYAL LIMIT AKTIF</span>
   </div>
@@ -306,7 +311,7 @@ def bias_cards():
         # TOMBOL RE-SCAN MANUAL
         col_res_l, col_res_r = st.columns([2.2, 1.8])
         with col_res_l:
-            st.caption("🔄 Sinyal basi/lewat 2 jam otomatis dibatalkan & dipindai ulang. Jika ingin update detik ini juga:")
+            st.caption("🔄 Sinyal basi/lewat 12 jam otomatis dibatalkan & dipindai ulang. Jika ingin update detik ini juga:")
         with col_res_r:
             if st.button("🔄 Re-Scan Semua Koin (Update Fresh Sekarang)", key="btn_force_rescan_all", type="secondary", use_container_width=True):
                 with st.spinner("Memindai ulang seluruh koin ke data pasar detik ini..."):
