@@ -73,7 +73,7 @@ TOP_20_COINS = [
 ]
 
 STATE_FILE = Path(__file__).parent / "limit_bot_active_state.json"
-_STATE_LOCK = threading.Lock()
+_STATE_LOCK = threading.RLock()
 _PERSISTENT_SETUPS = {}
 _LAST_CACHE = []
 _LAST_MTIME = 0.0
@@ -1053,26 +1053,27 @@ def execute_force_rescan_all_signals():
         op_ord = tele.get('open_orders', {}) if tele else {}
         act_pos = tele.get('active_positions', {}) if tele else {}
         
+        # 1. Batalkan order antre di MEXC untuk koin yang belum aktif
+        for c, o in op_ord.items():
+            if c not in act_pos:
+                try:
+                    execute_cancel_order(c, o['id'])
+                except Exception:
+                    pass
+        
+        # 2. Reset setups ke None agar di-re-scan dari candle terbaru
         with _STATE_LOCK:
             for c_tuple in TOP_20_COINS:
                 c = c_tuple[0]
-                # Jangan ganggu posisi yang sedang mantul/aktif di MEXC
                 if c not in act_pos:
-                    # Jika ada limit order antre di MEXC, batalkan dari MEXC
-                    if c in op_ord:
-                        try:
-                            execute_cancel_order(c, op_ord[c]['id'])
-                        except Exception:
-                            pass
-                    # Reset setup agar langsung di-re-scan ulang ke level terkini
                     _PERSISTENT_SETUPS[c] = None
         save_persistent_state()
         
-        # Scan ulang seluruh koin dengan data candle terkini detik ini
+        # 3. Scan ulang seluruh koin dengan data candle terkini detik ini
         fresh_data = scan_all()
         return {
             "success": True,
-            "msg": f"✅ Berhasil memindai ulang seluruh 20 koin ke struktur pasar terkini (100% Fresh)!",
+            "msg": "✅ Berhasil memindai ulang seluruh koin ke struktur pasar terkini (100% Fresh)!",
             "data": fresh_data
         }
     except Exception as e:
