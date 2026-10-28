@@ -26,7 +26,7 @@ def html(raw_html: str):
     st.markdown(clean, unsafe_allow_html=True)
 
 def level_row(entry, tp, sl):
-    values = [('Entry (Limit)', entry), ('Take Profit (+35%)', tp), ('Stop Loss (-20%)', sl)]
+    values = [('Entry (Limit)', entry), ('Take Profit (+50%)', tp), ('Stop Loss (-30%)', sl)]
     cells = ''.join(f'<div><span>{label}</span><strong>{escape(display_price(value))}</strong></div>' for label, value in values)
     html(f'<div class="compact-levels">{cells}</div>')
 
@@ -110,7 +110,7 @@ def bias_cards():
 
     with col_head_left:
         st.markdown('### Radar Limit Order 20 Koin · ' + label)
-        st.caption('Top 20 Likuiditas Kripto · Margin &#36;2.00 USD Isolated per Posisi · Leverage 20x-30x')
+        st.caption('Top 20 Likuiditas Kripto · Margin &#36;2.00 USD Isolated per Posisi · Leverage 30x Flat')
 
     # =========================================================================
     # BANNER UTAMA: TOTAL FLOATING, REALIZED PnL & WIN RATE PORTOFOLIO
@@ -149,7 +149,7 @@ def bias_cards():
 <span style="background: rgba(239, 68, 68, 0.22); border: 1px solid #ef4444; color: #f87171; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">🛑 {sl_count} Hit Stop Loss</span>
 <span style="background: rgba(245, 158, 11, 0.22); border: 1px solid #f59e0b; color: #f59e0b; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">⏳ {valid_count} Setup Baru Siap Pasang</span>
 </div>
-<div style="font-size: 11px; color: #64748b;">*Margin &#36;2.00 per posisi isolated · TP +35% ROE (+&#36;0.70) · SL -20% ROE (-&#36;0.40)</div>
+<div style="font-size: 11px; color: #64748b;">*Margin &#36;2.00 per posisi isolated · Leverage 30x Flat · TP +50% ROE (+&#36;1.00) · SL -30% ROE (-&#36;0.60)</div>
 </div>
 </div>
 ''')
@@ -180,14 +180,14 @@ def bias_cards():
                     if last_out.get('outcome') == 'TP':
                         html(f'''
 <div style="background: rgba(16, 185, 129, 0.18); border: 1.5px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-<span style="font-weight: 700; color: #34d399; font-size: 11px;">🎯 HIT TP (+35%) · SETUP BARU FRESH</span>
+<span style="font-weight: 700; color: #34d399; font-size: 11px;">🎯 HIT TP (+50%) · SETUP BARU FRESH</span>
 <span style="font-weight: 700; color: #94a3b8; font-size: 11px; font-family: monospace;">{r["float_str"]}</span>
 </div>
 ''')
                     else:
                         html(f'''
 <div style="background: rgba(239, 68, 68, 0.18); border: 1.5px solid #ef4444; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-<span style="font-weight: 700; color: #f87171; font-size: 11px;">🛑 HIT SL (-20%) · SETUP BARU FRESH</span>
+<span style="font-weight: 700; color: #f87171; font-size: 11px;">🛑 HIT SL (-30%) · SETUP BARU FRESH</span>
 <span style="font-weight: 700; color: #94a3b8; font-size: 11px; font-family: monospace;">{r["float_str"]}</span>
 </div>
 ''')

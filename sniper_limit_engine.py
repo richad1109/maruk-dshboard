@@ -50,21 +50,21 @@ TOP_20_COINS = [
     ("SOL", "SOL-USDT", "Solana", 30, "🔥 ALPHA"),
     ("DOGE", "DOGE-USDT", "Dogecoin", 30, "🔥 ALPHA"),
     ("BNB", "BNB-USDT", "Binance Coin", 30, "🔥 ALPHA"),
-    ("XRP", "XRP-USDT", "Ripple", 25, "⚡ TIER 2"),
-    ("ADA", "ADA-USDT", "Cardano", 25, "⚡ TIER 2"),
-    ("AVAX", "AVAX-USDT", "Avalanche", 25, "⚡ TIER 2"),
-    ("LINK", "LINK-USDT", "Chainlink", 25, "⚡ TIER 2"),
-    ("SUI", "SUI-USDT", "Sui Network", 25, "⚡ TIER 2"),
-    ("NEAR", "NEAR-USDT", "Near Protocol", 25, "⚡ TIER 2"),
-    ("PEPE", "1000PEPE-USDT", "Pepe", 20, "⚠️ VOLATILE"),
-    ("WIF", "WIF-USDT", "Dogwifhat", 20, "⚠️ VOLATILE"),
-    ("APT", "APT-USDT", "Aptos", 20, "⚠️ VOLATILE"),
-    ("ARB", "ARB-USDT", "Arbitrum", 20, "⚠️ VOLATILE"),
-    ("OP", "OP-USDT", "Optimism", 20, "⚠️ VOLATILE"),
-    ("TIA", "TIA-USDT", "Celestia", 20, "⚠️ VOLATILE"),
-    ("RENDER", "RENDER-USDT", "Render", 20, "⚠️ VOLATILE"),
-    ("INJ", "INJ-USDT", "Injective", 20, "⚠️ VOLATILE"),
-    ("FET", "FET-USDT", "Artificial Superintelligence", 20, "⚠️ VOLATILE")
+    ("XRP", "XRP-USDT", "Ripple", 30, "⚡ TIER 2"),
+    ("ADA", "ADA-USDT", "Cardano", 30, "⚡ TIER 2"),
+    ("AVAX", "AVAX-USDT", "Avalanche", 30, "⚡ TIER 2"),
+    ("LINK", "LINK-USDT", "Chainlink", 30, "⚡ TIER 2"),
+    ("SUI", "SUI-USDT", "Sui Network", 30, "⚡ TIER 2"),
+    ("NEAR", "NEAR-USDT", "Near Protocol", 30, "⚡ TIER 2"),
+    ("PEPE", "1000PEPE-USDT", "Pepe", 30, "⚠️ VOLATILE"),
+    ("WIF", "WIF-USDT", "Dogwifhat", 30, "⚠️ VOLATILE"),
+    ("APT", "APT-USDT", "Aptos", 30, "⚠️ VOLATILE"),
+    ("ARB", "ARB-USDT", "Arbitrum", 30, "⚠️ VOLATILE"),
+    ("OP", "OP-USDT", "Optimism", 30, "⚠️ VOLATILE"),
+    ("TIA", "TIA-USDT", "Celestia", 30, "⚠️ VOLATILE"),
+    ("RENDER", "RENDER-USDT", "Render", 30, "⚠️ VOLATILE"),
+    ("INJ", "INJ-USDT", "Injective", 30, "⚠️ VOLATILE"),
+    ("FET", "FET-USDT", "Artificial Superintelligence", 30, "⚠️ VOLATILE")
 ]
 
 STATE_FILE = Path(__file__).parent / "limit_bot_active_state.json"
@@ -109,8 +109,8 @@ def record_closed_trade(coin, sym, outcome, exit_p, closed_ts):
         if "_HISTORY_TRADES" not in _PERSISTENT_SETUPS or not isinstance(_PERSISTENT_SETUPS["_HISTORY_TRADES"], list):
             _PERSISTENT_SETUPS["_HISTORY_TRADES"] = []
             
-        roe = 35.0 if outcome == "TP" else -20.0
-        pnl_usd = 0.70 if outcome == "TP" else -0.40
+        roe = 50.0 if outcome == "TP" else -30.0
+        pnl_usd = 1.00 if outcome == "TP" else -0.60
         record = {
             "coin": coin,
             "sym": sym,
@@ -177,8 +177,8 @@ def scan_single_coin(sym_tuple):
                 sw_high = max(highs[-33:-1])
                 range_span = sw_high - sw_low if sw_high > sw_low else 1.0
                 
-                tp_ratio = 0.35 / lev # Target TP +35% ROE
-                sl_ratio = 0.20 / lev # Stop Loss Diperketat -20% ROE
+                tp_ratio = 0.50 / lev # Target TP +50.0% ROE (+1.667% jarak harga pada Lev 30x)
+                sl_ratio = 0.30 / lev # Stop Loss -30.0% ROE (-1.000% jarak harga pada Lev 30x)
                 retrace = 0.50        # Fibonacci 50% Golden Pullback
                 
                 if is_long:
@@ -274,8 +274,8 @@ def scan_single_coin(sym_tuple):
                     record_closed_trade(coin, sym, outcome, exit_p, now_ts)
                     last_out = {
                         "outcome": outcome,
-                        "roe": 35.0 if hit_tp else -20.0,
-                        "pnl_usd": 0.70 if hit_tp else -0.40,
+                        "roe": 50.0 if hit_tp else -30.0,
+                        "pnl_usd": 1.00 if hit_tp else -0.60,
                         "closed_at": now_ts
                     }
                     setup = create_new_setup(last_out=last_out)
