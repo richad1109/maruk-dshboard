@@ -245,12 +245,10 @@ def bias_cards():
             order_id = s.get('order_id', '-')
             t_str = s.get('time_str', s.get('order_time_str', '-'))
             created_ts = s.get('created_at', time.time())
-            valid_until = s.get('valid_until_str')
-            if not valid_until or valid_until == '-':
-                valid_until = datetime.fromtimestamp(created_ts + 43200, WIB).strftime('%H:%M WIB')
-            rem_min = s.get('remaining_min')
-            if rem_min is None:
-                rem_min = max(0, int((created_ts + 43200 - time.time()) // 60))
+            # Jaminan matematis: Masa valid selalu presisi 12 jam (43.200 detik) dari waktu terbit
+            valid_until_ts = created_ts + 43200
+            valid_until = datetime.fromtimestamp(valid_until_ts, WIB).strftime('%H:%M WIB')
+            rem_min = max(0, int((valid_until_ts - time.time()) // 60))
             
             if is_mexc:
                 status_badge = f'<span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🟢 SUDAH LIMIT DI MEXC (ID: {order_id})</span>'
@@ -307,21 +305,6 @@ def bias_cards():
   </div>
 </div>
 ''')
-
-        # TOMBOL RE-SCAN MANUAL
-        col_res_l, col_res_r = st.columns([2.2, 1.8])
-        with col_res_l:
-            st.caption("🔄 Sinyal basi/lewat 12 jam otomatis dibatalkan & dipindai ulang. Jika ingin update detik ini juga:")
-        with col_res_r:
-            if st.button("🔄 Re-Scan Semua Koin (Update Fresh Sekarang)", key="btn_force_rescan_all", type="secondary", use_container_width=True):
-                with st.spinner("Memindai ulang seluruh koin ke data pasar detik ini..."):
-                    res = sniper_limit_engine.execute_force_rescan_all_signals()
-                    if res['success']:
-                        st.success(res['msg'])
-                    else:
-                        st.error(res['msg'])
-                    st.cache_data.clear()
-                    st.rerun()
 
         # =====================================================================
         # TOOLBAR BATCH ORDER KENDALI MARGIN + PRESET TARGET RP 500RB

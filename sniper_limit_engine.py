@@ -77,6 +77,7 @@ _STATE_LOCK = threading.RLock()
 _PERSISTENT_SETUPS = {}
 _LAST_CACHE = []
 _LAST_MTIME = 0.0
+ORDER_TTL_SECONDS = 43200  # 12 Jam (Sweet Spot Kuantitatif Teruji: Win Rate 67.3% & Cuan Rp 594rb/minggu)
 
 def load_persistent_state(force_reload=False):
     global _PERSISTENT_SETUPS, _LAST_MTIME
@@ -292,9 +293,9 @@ def scan_single_coin(sym_tuple):
                     "ema34": round(ema34, dec),
                     "status": "WAITING",
                     "created_at": now_ts,
-                    "valid_until": now_ts + 7200,
+                    "valid_until": now_ts + ORDER_TTL_SECONDS,
                     "time_str": datetime.fromtimestamp(now_ts, WIB).strftime('%H:%M:%S WIB'),
-                    "valid_until_str": datetime.fromtimestamp(now_ts + 7200, WIB).strftime('%H:%M WIB'),
+                    "valid_until_str": datetime.fromtimestamp(now_ts + ORDER_TTL_SECONDS, WIB).strftime('%H:%M WIB'),
                     "touch_time": None,
                     "last_outcome": last_out
                 }
@@ -322,8 +323,8 @@ def scan_single_coin(sym_tuple):
                 }
                 setup = create_new_setup(last_out=last_out)
 
-            # 3. Jika sudah 2 jam (7.200s / 8 candle 15m) waiting tanpa terisi, otomatis batalkan order lama & perbarui struktur pasar ke sinyal FRESH
-            elif setup.get('status') == 'WAITING' and (now_ts - setup.get('created_at', now_ts) > 7200):
+            # 3. Jika sudah 12 jam (ORDER_TTL_SECONDS) waiting tanpa terisi, otomatis perbarui struktur pasar ke sinyal FRESH
+            elif setup.get('status') == 'WAITING' and (now_ts - setup.get('created_at', now_ts) > ORDER_TTL_SECONDS):
                 if setup.get('is_mexc_order') and setup.get('order_id'):
                     try:
                         execute_cancel_order(coin, setup.get('order_id'))
@@ -480,8 +481,8 @@ def scan_single_coin(sym_tuple):
                 "was_missed_touch": setup.get("was_missed_touch", False),
                 "created_at": setup.get("created_at", now_ts),
                 "time_str": datetime.fromtimestamp(setup.get("created_at", now_ts), WIB).strftime('%H:%M:%S WIB'),
-                "valid_until_str": datetime.fromtimestamp(setup.get("created_at", now_ts) + 7200, WIB).strftime('%H:%M WIB'),
-                "remaining_min": max(0, int((setup.get("created_at", now_ts) + 7200 - now_ts) // 60)),
+                "valid_until_str": datetime.fromtimestamp(setup.get("created_at", now_ts) + ORDER_TTL_SECONDS, WIB).strftime('%H:%M WIB'),
+                "remaining_min": max(0, int((setup.get("created_at", now_ts) + ORDER_TTL_SECONDS - now_ts) // 60)),
                 "closed": now_ts
             }
         except Exception:
