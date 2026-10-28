@@ -38,9 +38,12 @@ POLL_INTERVAL = 20     # Cek siklus setiap 20 detik
 
 def get_mexc_client():
     cfg_paths = [
-        Path(r'D:\bot_final\akun_privat.json'),
+        Path.home() / 'bot_final' / 'akun_privat.json',
+        Path.home() / 'bot_limit' / 'akun_privat.json',
+        Path(__file__).parent / 'akun_privat.json',
         Path(__file__).parent / 'accounts_config.json',
         Path(__file__).parent / 'bot_limit' / 'accounts_config.json',
+        Path(r'D:\bot_final\akun_privat.json'),
         Path(r'c:\Users\adee\Documents\antigravity\splendid-hopper\secret_keys.json')
     ]
     
