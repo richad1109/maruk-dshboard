@@ -827,7 +827,7 @@ def get_mexc_trading_client():
 def execute_single_coin_limit_order(coin, custom_margin=1.30):
     """
     Memasang Limit Order tunggal ke MEXC Akun 1 dengan margin custom yang dikendalikan pengguna.
-    Formula: Titan Harmonic 40x Isolated, TP +32.0% ROE, SL -24.0% ROE.
+    Formula: Titan Quantum 40x Isolated, TP +32.0% ROE, SL -30.0% ROE (8 Minggu 100% Hijau & Audit 6 Bulan).
     TP dan SL langsung di-attach native di MEXC server.
     """
     try:
@@ -892,9 +892,7 @@ def execute_single_coin_limit_order(coin, custom_margin=1.30):
             
         notional_usd = custom_margin * lev
         base_qty = notional_usd / limit_p
-        contracts = round(base_qty / cs)
-        if contracts < min_a:
-            contracts = min_a
+        contracts = int(max(min_a if min_a > 0 else 1, round(base_qty / cs)))
             
         actual_notional = contracts * cs * limit_p
         actual_margin = actual_notional / lev

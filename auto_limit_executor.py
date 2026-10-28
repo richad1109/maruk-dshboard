@@ -5,10 +5,10 @@ auto_limit_executor.py
 -----------------------
 Bot Eksekutor Otomatis Limit Order Sniper MEXC (Mode 24/7 Auto-Pilot).
 100% Mengotomatiskan Trading:
-1. Memindai Sinyal Optimal: Retrace 55%, TP +35.0% ROE, SL -30.0% ROE, KER >= 0.22, EMA 34.
+1. Memindai Sinyal Optimal: Titan Quantum 40x (Retrace 54%, TP +32.0% ROE, SL -30.0% ROE, KER >= 0.20, EMA 34).
 2. Memeriksa Akun MEXC: Cek posisi aktif & antrean order limit secara real-time.
-3. Otomatis Pasang Limit: Menghitung ukuran kontrak pas ($2.00 USD Margin Isolated x 30x Leverage = $60 notional) dan langsung menembak order limit ke MEXC.
-4. Otomatis Kunci TP/SL: Begitu posisi terisi (mantul), bot memasang plan order TP (+35%) & SL (-30%) native di server MEXC.
+3. Otomatis Pasang Limit: Menghitung ukuran kontrak pas ($2.00 USD Margin Isolated x 40x Leverage = $80 notional) dan langsung menembak order limit ke MEXC.
+4. Otomatis Kunci TP/SL: Begitu posisi terisi (mantul), bot memasang plan order TP (+32%) & SL (-30%) native di server MEXC.
 5. Otomatis Refresh Order Basi: Membatalkan order antrean lama (>12 jam belum terjemput) dan menggantikannya dengan level harga segar.
 """
 
@@ -32,8 +32,8 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
     try: sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     except Exception: pass
 
-MARGIN_PER_COIN = 1.30 # $1.30 USD Margin Isolated per Koin (Bisa disesuaikan di UI)
-LEVERAGE = 40          # 40x Flat (Titan Harmonic)
+MARGIN_PER_COIN = 2.00 # $2.00 USD Margin Isolated per Koin (Target Rp 500rb/mgg)
+LEVERAGE = 40          # 40x Flat Isolated (Titan Quantum 40x)
 POLL_INTERVAL = 20     # Cek siklus setiap 20 detik
 
 def get_mexc_client():
