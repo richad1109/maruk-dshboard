@@ -386,6 +386,7 @@ def scan_single_coin(sym_tuple):
                 "name": full_name,
                 "tier": tier_label,
                 "lev": lev,
+                "side": side,
                 "margin": 2.0,
                 "cur_p": cur_p,
                 "potensi": potensi,
