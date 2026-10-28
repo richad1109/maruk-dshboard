@@ -254,11 +254,19 @@ def scan_single_coin(sym_tuple):
             status = setup.get("status", "WAITING")
             last_outcome = setup.get("last_outcome")
             
-            # Evaluasi Transisi Status (HANYA BERDASARKAN CANDLE BERJALAN SAAT INI):
-            # JIKA TOUCHED: Posisi sedang aktif! Cek apakah mencapai TP atau SL
+            # Evaluasi Transisi Status:
+            # JIKA TOUCHED: Posisi sedang aktif! Cek apakah mencapai TP atau SL sejak posisi terisi
             if status == "TOUCHED":
-                hit_tp = (cur_high >= tp_p) if is_long else (cur_low <= tp_p)
-                hit_sl = (cur_low <= sl_p) if is_long else (cur_high >= sl_p)
+                touch_time_ms = int(setup.get("touch_time", setup.get("created_at", now_ts)) * 1000)
+                active_candles = [k for k in raw if int(k["time"]) + 900000 >= touch_time_ms]
+                if not active_candles:
+                    active_candles = raw[-1:]
+                
+                eval_high = max(float(k["high"]) for k in active_candles)
+                eval_low = min(float(k["low"]) for k in active_candles)
+
+                hit_tp = (eval_high >= tp_p) if is_long else (eval_low <= tp_p)
+                hit_sl = (eval_low <= sl_p) if is_long else (eval_high >= sl_p)
                 
                 if hit_tp or hit_sl:
                     outcome = "TP" if hit_tp else "SL"
@@ -280,9 +288,17 @@ def scan_single_coin(sym_tuple):
                     status = "WAITING"
                     last_outcome = last_out
 
-            # JIKA WAITING: Cek apakah wick candle saat ini menjemput level limit
+            # JIKA WAITING: Cek apakah wick candle menjemput level limit sejak dibuat
             elif status == "WAITING":
-                touched = (cur_low <= limit_p) if is_long else (cur_high >= limit_p)
+                created_ms = int(setup.get("created_at", now_ts) * 1000)
+                wait_candles = [k for k in raw if int(k["time"]) + 900000 >= created_ms]
+                if not wait_candles:
+                    wait_candles = raw[-1:]
+                
+                wait_high = max(float(k["high"]) for k in wait_candles)
+                wait_low = min(float(k["low"]) for k in wait_candles)
+                
+                touched = (wait_low <= limit_p) if is_long else (wait_high >= limit_p)
                 if touched:
                     status = "TOUCHED"
                     setup["status"] = "TOUCHED"

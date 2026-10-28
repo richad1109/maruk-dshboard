@@ -39,13 +39,18 @@
     "lev": 30,
     "side": "LONG",
     "potensi": "POTENSI LONG (BUY)",
-    "limit_p": 747.285,
-    "tp_p": 756.003325,
-    "sl_p": 742.3031,
-    "status": "TOUCHED",
-    "created_at": 1793136879.304298,
-    "touch_time": 1793136879.304298,
-    "closed_at": null
+    "limit_p": 745.925,
+    "tp_p": 754.627458,
+    "sl_p": 740.952167,
+    "status": "WAITING",
+    "created_at": 1793158493.8284097,
+    "touch_time": null,
+    "last_outcome": {
+      "outcome": "SL",
+      "roe": -20.0,
+      "pnl_usd": -0.4,
+      "closed_at": 1793158493.8284097
+    }
   },
   "SUI": {
     "coin": "SUI",
@@ -87,13 +92,18 @@
     "lev": 25,
     "side": "LONG",
     "potensi": "POTENSI LONG (BUY)",
-    "limit_p": 0.20445,
-    "tp_p": 0.207312,
-    "sl_p": 0.202814,
-    "status": "TOUCHED",
-    "created_at": 1793136879.3425658,
-    "touch_time": 1793136879.3425658,
-    "closed_at": null
+    "limit_p": 0.2057,
+    "tp_p": 0.20858,
+    "sl_p": 0.204054,
+    "status": "WAITING",
+    "created_at": 1793154559.5258713,
+    "touch_time": null,
+    "last_outcome": {
+      "outcome": "TP",
+      "roe": 35.0,
+      "pnl_usd": 0.7,
+      "closed_at": 1793154559.5258713
+    }
   },
   "ETH": {
     "coin": "ETH",
@@ -167,13 +177,18 @@
     "lev": 20,
     "side": "LONG",
     "potensi": "POTENSI LONG (BUY)",
-    "limit_p": 0.1787,
-    "tp_p": 0.181827,
-    "sl_p": 0.176913,
-    "status": "TOUCHED",
-    "created_at": 1793136879.4857652,
-    "touch_time": 1793136879.4857652,
-    "closed_at": null
+    "limit_p": 0.1805,
+    "tp_p": 0.183659,
+    "sl_p": 0.178695,
+    "status": "WAITING",
+    "created_at": 1793154559.948188,
+    "touch_time": null,
+    "last_outcome": {
+      "outcome": "TP",
+      "roe": 35.0,
+      "pnl_usd": 0.7,
+      "closed_at": 1793154559.948188
+    }
   },
   "ARB": {
     "coin": "ARB",
@@ -183,17 +198,17 @@
     "lev": 20,
     "side": "LONG",
     "potensi": "POTENSI LONG (BUY)",
-    "limit_p": 0.167505,
-    "tp_p": 0.170436,
-    "sl_p": 0.16583,
+    "limit_p": 0.16799,
+    "tp_p": 0.17093,
+    "sl_p": 0.16631,
     "status": "WAITING",
-    "created_at": 1793137765.269863,
+    "created_at": 1793154560.1266475,
     "touch_time": null,
     "last_outcome": {
-      "outcome": "SL",
-      "roe": -20.0,
-      "pnl_usd": -0.4,
-      "closed_at": 1793137765.269863
+      "outcome": "TP",
+      "roe": 35.0,
+      "pnl_usd": 0.7,
+      "closed_at": 1793154560.1266475
     }
   },
   "NEAR": {
@@ -220,13 +235,18 @@
     "lev": 20,
     "side": "LONG",
     "potensi": "POTENSI LONG (BUY)",
-    "limit_p": 0.68515,
-    "tp_p": 0.69714,
-    "sl_p": 0.678298,
-    "status": "TOUCHED",
-    "created_at": 1793137572.149017,
-    "touch_time": 1793137572.149017,
-    "closed_at": null
+    "limit_p": 0.69145,
+    "tp_p": 0.70355,
+    "sl_p": 0.684535,
+    "status": "WAITING",
+    "created_at": 1793154560.1223845,
+    "touch_time": null,
+    "last_outcome": {
+      "outcome": "TP",
+      "roe": 35.0,
+      "pnl_usd": 0.7,
+      "closed_at": 1793154560.1223845
+    }
   },
   "PEPE": {
     "coin": "PEPE",
@@ -266,19 +286,19 @@
     "name": "Injective",
     "tier": "\u26a0\ufe0f VOLATILE",
     "lev": 20,
-    "side": "LONG",
-    "potensi": "POTENSI LONG (BUY)",
-    "limit_p": 8.0775,
-    "tp_p": 8.218856,
-    "sl_p": 7.996725,
+    "side": "SHORT",
+    "potensi": "POTENSI SHORT (SELL)",
+    "limit_p": 8.0305,
+    "tp_p": 7.889966,
+    "sl_p": 8.110805,
     "status": "WAITING",
-    "created_at": 1793137765.3534093,
+    "created_at": 1793158494.4005084,
     "touch_time": null,
     "last_outcome": {
       "outcome": "SL",
       "roe": -20.0,
       "pnl_usd": -0.4,
-      "closed_at": 1793137765.3534093
+      "closed_at": 1793158494.4005084
     }
   },
   "RENDER": {
@@ -326,13 +346,18 @@
     "lev": 20,
     "side": "LONG",
     "potensi": "POTENSI LONG (BUY)",
-    "limit_p": 0.110785,
-    "tp_p": 0.112724,
-    "sl_p": 0.109677,
-    "status": "TOUCHED",
-    "created_at": 1793136879.6013942,
-    "touch_time": 1793136879.6013942,
-    "closed_at": null
+    "limit_p": 0.11195,
+    "tp_p": 0.113909,
+    "sl_p": 0.11083,
+    "status": "WAITING",
+    "created_at": 1793154560.1333787,
+    "touch_time": null,
+    "last_outcome": {
+      "outcome": "TP",
+      "roe": 35.0,
+      "pnl_usd": 0.7,
+      "closed_at": 1793154560.1333787
+    }
   },
   "_HISTORY_TRADES": [
     {
@@ -361,6 +386,78 @@
       "roe": -20.0,
       "exit_price": 7.996,
       "closed_at": 1793137572
+    },
+    {
+      "coin": "INJ",
+      "sym": "INJ-USDT",
+      "outcome": "SL",
+      "pnl_usd": -0.4,
+      "roe": -20.0,
+      "exit_price": 7.996725,
+      "closed_at": 1793139489.3047116
+    },
+    {
+      "coin": "ADA",
+      "sym": "ADA-USDT",
+      "outcome": "TP",
+      "pnl_usd": 0.7,
+      "roe": 35.0,
+      "exit_price": 0.207312,
+      "closed_at": 1793154559.5258713
+    },
+    {
+      "coin": "WIF",
+      "sym": "WIF-USDT",
+      "outcome": "TP",
+      "pnl_usd": 0.7,
+      "roe": 35.0,
+      "exit_price": 0.181827,
+      "closed_at": 1793154559.948188
+    },
+    {
+      "coin": "APT",
+      "sym": "APT-USDT",
+      "outcome": "TP",
+      "pnl_usd": 0.7,
+      "roe": 35.0,
+      "exit_price": 0.69714,
+      "closed_at": 1793154560.1223845
+    },
+    {
+      "coin": "ARB",
+      "sym": "ARB-USDT",
+      "outcome": "TP",
+      "pnl_usd": 0.7,
+      "roe": 35.0,
+      "exit_price": 0.170436,
+      "closed_at": 1793154560.1266475
+    },
+    {
+      "coin": "OP",
+      "sym": "OP-USDT",
+      "outcome": "TP",
+      "pnl_usd": 0.7,
+      "roe": 35.0,
+      "exit_price": 0.112724,
+      "closed_at": 1793154560.1333787
+    },
+    {
+      "coin": "BNB",
+      "sym": "BNB-USDT",
+      "outcome": "SL",
+      "pnl_usd": -0.4,
+      "roe": -20.0,
+      "exit_price": 742.3031,
+      "closed_at": 1793158493.8284097
+    },
+    {
+      "coin": "INJ",
+      "sym": "INJ-USDT",
+      "outcome": "SL",
+      "pnl_usd": -0.4,
+      "roe": -20.0,
+      "exit_price": 7.906536,
+      "closed_at": 1793158494.4005084
     }
   ]
 }
