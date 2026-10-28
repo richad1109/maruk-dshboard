@@ -71,7 +71,7 @@ def get_mexc_client():
 
 def run_executor_iteration(mx, markets, dry_run=True):
     now_str = time.strftime('%Y-%m-%d %H:%M:%S WIB')
-    print(f"\n[{now_str}] 🔄 Memindai portofolio limit order MEXC...")
+    print(f"\n[{now_str}] 🔄 Memindai portofolio limit order MEXC...", flush=True)
     
     # 1. Ambil posisi aktif di MEXC
     positions = mx.fetch_positions()
@@ -89,7 +89,7 @@ def run_executor_iteration(mx, markets, dry_run=True):
         sym_raw = o.get('symbol', '').split(':')[0].replace('/', '_')
         active_orders[sym_raw] = o
         
-    print(f"Status Akun MEXC: {len(active_positions)} Posisi Aktif, {len(active_orders)} Limit Order Mengantre.")
+    print(f"Status Akun MEXC: {len(active_positions)} Posisi Aktif, {len(active_orders)} Limit Order Mengantre.", flush=True)
     
     # 3. Pindai sinyal limit optimal dari engine
     signals = sniper_limit_engine.scan_all()
@@ -128,10 +128,10 @@ def run_executor_iteration(mx, markets, dry_run=True):
                 order_side = 'buy' if side == 'LONG' else 'sell'
                 
                 if dry_run:
-                    print(f"👉 [DRY RUN] {coin:6}: Akan pasang {side} Limit {contracts} kontrak @ ${limit_p}")
+                    print(f"👉 [DRY RUN] {coin:6}: Akan pasang {side} Limit {contracts} kontrak @ ${limit_p}", flush=True)
                 else:
                     try:
-                        print(f"🚀 [AUTO-ORDER] {coin:6}: Mengirim {side} Limit {contracts} kontrak @ ${limit_p} ke MEXC...")
+                        print(f"🚀 [AUTO-ORDER] {coin:6}: Mengirim {side} Limit {contracts} kontrak @ ${limit_p} ke MEXC...", flush=True)
                         res = mx.create_order(
                             symbol=ccxt_sym,
                             type='limit',
@@ -144,16 +144,16 @@ def run_executor_iteration(mx, markets, dry_run=True):
                                 'hedged': True
                             }
                         )
-                        print(f"   ✅ Sukses! Order ID: {res.get('id')}")
+                        print(f"   ✅ Sukses! Order ID: {res.get('id')}", flush=True)
                         placed_count += 1
                         time.sleep(0.3)
                     except Exception as e:
-                        print(f"   ❌ Gagal pasang order {coin}: {e}")
+                        print(f"   ❌ Gagal pasang order {coin}: {e}", flush=True)
                         
     if placed_count > 0:
-        print(f"🎉 Berhasil memasang {placed_count} limit order baru secara otomatis!")
+        print(f"🎉 Berhasil memasang {placed_count} limit order baru secara otomatis!", flush=True)
     else:
-        print("✓ Seluruh koin sudah sinkron (semua posisi & antrean sudah terpasang rapi).")
+        print("✓ Seluruh koin sudah sinkron (semua posisi & antrean sudah terpasang rapi).", flush=True)
 
 def main():
     is_live = ("--live" in sys.argv)
