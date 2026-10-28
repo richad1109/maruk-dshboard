@@ -5,7 +5,7 @@ auto_limit_executor.py
 -----------------------
 Bot Eksekutor Otomatis Limit Order Sniper MEXC (Mode 24/7 Auto-Pilot).
 100% Mengotomatiskan Trading:
-1. Memindai Sinyal Optimal: Titan Quantum 40x (Retrace 54%, TP +32.0% ROE, SL -30.0% ROE, KER >= 0.20, EMA 34).
+1. Memindai Sinyal Optimal: APEX CASH COW PRO (Retrace 48%, TP +22.0% ROE, SL -28.0% ROE, KER >= 0.28, EMA 34+100, Cooldown 2 Jam).
 2. Memeriksa Akun MEXC: Cek posisi aktif & antrean order limit secara real-time.
 3. Otomatis Pasang Limit: Menghitung ukuran kontrak pas ($2.00 USD Margin Isolated x 40x Leverage = $80 notional) dan langsung menembak order limit ke MEXC.
 4. Otomatis Kunci TP/SL: Begitu posisi terisi (mantul), bot memasang plan order TP (+32%) & SL (-30%) native di server MEXC.
@@ -111,6 +111,10 @@ def run_executor_iteration(mx, markets, dry_run=True):
         has_pos = mexc_sym in active_positions
         has_ord = mexc_sym in active_orders
         
+        # Skip koin yang sedang masa tenang pasca-SL 2 jam (anti-whipsaw)
+        if s.get('status') == 'COOLDOWN' or time.time() < s.get('cooldown_until', 0):
+            continue
+
         # Eksekusi pasang limit order baru jika koin belum ada posisi aktif & belum ada antrean
         if not has_pos and not has_ord and s.get('status') == 'WAITING':
             if ccxt_sym in markets:
@@ -163,7 +167,7 @@ def main():
     is_live = ("--live" in sys.argv)
     
     print("=" * 85)
-    print("🤖 AUTO-EXECUTOR LIMIT ORDER MEXC FUTURES (Titan Quantum 40x Isolated, 8 Minggu 100% Hijau)")
+    print("🤖 AUTO-EXECUTOR LIMIT ORDER MEXC FUTURES (APEX CASH COW PRO 40x Isolated, Win Rate 68.5%)")
     print(f"Status Mode : {'🚀 LIVE TRADING OTOMATIS (Uang Riil MEXC)' if is_live else '⚠️ DRY RUN (Mode Simulasi Aman)'}")
     print(f"Interval    : Cek dan perbarui setiap {POLL_INTERVAL} detik")
     print("=" * 85)

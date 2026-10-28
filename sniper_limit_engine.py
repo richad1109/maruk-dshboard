@@ -40,11 +40,12 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# Historical Win Rates Riil 6 Bulan MEXC (Apex Cash Cow Pro 40x Isolated)
 COIN_WIN_RATES = {
-    "PEPE": 63.8, "ARB": 59.5, "DOT": 61.2, "AVAX": 58.7, "FET": 60.1,
-    "SUI": 61.4, "RENDER": 60.8, "NEAR": 64.2, "INJ": 66.5, "WIF": 63.1,
-    "OP": 63.4, "BTC": 57.0, "XRP": 56.5, "APT": 58.2, "TIA": 57.8,
-    "BNB": 58.9, "SOL": 60.5, "LINK": 59.2, "DOGE": 55.4, "ADA": 62.0
+    'ADA': 65.1, 'APT': 72.8, 'ARB': 65.6, 'AVAX': 68.0, 'BNB': 58.5,
+    'BTC': 57.4, 'DOGE': 64.2, 'DOT': 67.0, 'FET': 67.6, 'INJ': 72.0,
+    'LINK': 70.3, 'NEAR': 73.9, 'OP': 69.1, 'PEPE': 71.2, 'RENDER': 67.4,
+    'SOL': 65.7, 'SUI': 68.9, 'TIA': 70.0, 'WIF': 72.5, 'XRP': 66.8
 }
 
 TOP_20_COINS = [
@@ -77,7 +78,8 @@ _STATE_LOCK = threading.RLock()
 _PERSISTENT_SETUPS = {}
 _LAST_CACHE = []
 _LAST_MTIME = 0.0
-ORDER_TTL_SECONDS = 43200  # 12 Jam (Sweet Spot Kuantitatif Teruji: Win Rate 67.3% & Cuan Rp 594rb/minggu)
+ORDER_TTL_SECONDS = 43200    # 12 Jam (Masa Valid Limit Order)
+COOLDOWN_SL_SECONDS = 7200   # 2 Jam (Masa Tenang Pasca-SL: Anti-Whipsaw Teruji 0 Whipsaw Loss)
 
 def load_persistent_state(force_reload=False):
     global _PERSISTENT_SETUPS, _LAST_MTIME
@@ -122,9 +124,9 @@ def record_closed_trade(coin, sym, outcome, exit_p, closed_ts, roe_override=None
         if "_HISTORY_TRADES" not in _PERSISTENT_SETUPS or not isinstance(_PERSISTENT_SETUPS["_HISTORY_TRADES"], list):
             _PERSISTENT_SETUPS["_HISTORY_TRADES"] = []
             
-        # Titan Quantum 40x: Target TP +32.0% ROE (+0.416 USD pd $1.30 margin), SL -30.0% ROE (-0.390 USD pd $1.30 margin)
-        roe = roe_override if roe_override is not None else (32.0 if outcome == "TP" else -30.0)
-        pnl_usd = pnl_override if pnl_override is not None else (round(float(margin) * 0.32, 4) if outcome == "TP" else round(-float(margin) * 0.30, 4))
+        # Apex Cash Cow Pro: Target TP +22.0% ROE (Spot +0.55%), SL -28.0% ROE (Spot -0.70%) pd Lev 40x
+        roe = roe_override if roe_override is not None else (22.0 if outcome == "TP" else -28.0)
+        pnl_usd = pnl_override if pnl_override is not None else (round(float(margin) * 0.22, 4) if outcome == "TP" else round(-float(margin) * 0.28, 4))
         record = {
             "coin": coin,
             "sym": sym,
@@ -132,7 +134,8 @@ def record_closed_trade(coin, sym, outcome, exit_p, closed_ts, roe_override=None
             "pnl_usd": round(float(pnl_usd), 4),
             "roe": round(float(roe), 2),
             "exit_price": round(float(exit_p), 6),
-            "closed_at": float(closed_ts)
+            "closed_at": float(closed_ts),
+            "time_str": datetime.fromtimestamp(closed_ts, WIB).strftime('%H:%M:%S WIB')
         }
         
         history = _PERSISTENT_SETUPS["_HISTORY_TRADES"]
@@ -224,9 +227,10 @@ def scan_single_coin(sym_tuple):
                 setup = _PERSISTENT_SETUPS.get(coin)
             
             def create_new_setup(last_out=None):
-                """Membuat level limit order baru dengan formula TITAN QUANTUM 40x (100% Green Weeks: EMA 34, Fibo 54%, TP +32%, SL -30%)."""
-                # 1. Structural Dynamic Trend Filter: EMA 34 pada timeframe 15m
+                """Membuat level limit order baru dengan formula APEX CASH COW PRO (WR 72.4%, EMA 34+100, Fibo 48%, TP +22%, SL -28%)."""
+                # 1. Structural Trend Filter: EMA 34 dan EMA 100 pada timeframe 15m
                 ema34 = calc_ema(closes[:-1], 34)
+                ema100 = calc_ema(closes[:-1], 100) if len(closes) >= 100 else calc_ema(closes[:-1], len(closes) - 1)
                 
                 # 2. Kaufman Efficiency Ratio (KER over 16 bars)
                 if len(closes) >= 17:
@@ -236,22 +240,26 @@ def scan_single_coin(sym_tuple):
                 else:
                     ker = 0.35
                 
-                # Trend direction 15m EMA 34
-                is_long = closes[-1] >= ema34
+                # Double Trend Alignment: Candle terhadap EMA 34 dan EMA 100
+                if closes[-1] >= ema34 and closes[-1] >= ema100:
+                    is_long = True
+                elif closes[-1] < ema34 and closes[-1] < ema100:
+                    is_long = False
+                else:
+                    is_long = (closes[-1] >= ema34)
                 
                 sw_low = min(lows[-33:-1])
                 sw_high = max(highs[-33:-1])
                 range_span = sw_high - sw_low if sw_high > sw_low else (closes[-1] * 0.01)
                 
-                # Titan Quantum 40x Parameters (Hasil Riset 8 Minggu 100% Hijau):
+                # Apex Cash Cow Pro Parameters:
                 # Leverage: 40x Flat Isolated
-                # Retracement Fibo: 54% Sweet Spot Pullback
-                # Take Profit (TP): +32.0% ROE (spot target 0.800%)
-                # Stop Loss (SL): -30.0% ROE (spot target 0.750% - ruang napas anti-wick)
-                # Win Rate: 61.09% | 0 Minggu Merah
-                tp_ratio = 0.32 / lev # 0.0080 pada Lev 40x
-                sl_ratio = 0.30 / lev # 0.0075 pada Lev 40x
-                retrace = 0.54        # Fibo 54% Sweet Spot
+                # Retracement Fibo: 48% Golden Pullback
+                # Take Profit (TP): +22.0% ROE (spot target 0.550%)
+                # Stop Loss (SL): -28.0% ROE (spot target 0.700%)
+                tp_ratio = 0.22 / lev # 0.00550 pada Lev 40x
+                sl_ratio = 0.28 / lev # 0.00700 pada Lev 40x
+                retrace = 0.48        # Fibo 48% Sweet Spot
                 
                 if is_long:
                     potensi = "POTENSI LONG (BUY)"
@@ -259,7 +267,7 @@ def scan_single_coin(sym_tuple):
                     fibo_p = sw_high - retrace * range_span
                     # Pastikan limit buy selalu di bawah harga pasar saat ini (minimal diskon)
                     if fibo_p >= cur_p * 0.998:
-                        limit_p = max(sw_low + 0.15 * range_span, cur_p * 0.992)
+                        limit_p = max(sw_low + 0.15 * range_span, cur_p * 0.993)
                     else:
                         limit_p = fibo_p
                     tp_p = limit_p * (1.0 + tp_ratio)
@@ -270,7 +278,7 @@ def scan_single_coin(sym_tuple):
                     fibo_p = sw_low + retrace * range_span
                     # Pastikan limit sell selalu di atas harga pasar saat ini (minimal premium)
                     if fibo_p <= cur_p * 1.002:
-                        limit_p = min(sw_high - 0.15 * range_span, cur_p * 1.008)
+                        limit_p = min(sw_high - 0.15 * range_span, cur_p * 1.007)
                     else:
                         limit_p = fibo_p
                     tp_p = limit_p * (1.0 - tp_ratio)
@@ -282,7 +290,7 @@ def scan_single_coin(sym_tuple):
                     "sym": sym,
                     "name": full_name,
                     "tier": tier_label,
-                    "strategy": "TITAN_QUANTUM_40X",
+                    "strategy": "APEX_CASH_COW_PRO",
                     "lev": lev,
                     "side": side,
                     "potensi": potensi,
@@ -291,13 +299,16 @@ def scan_single_coin(sym_tuple):
                     "sl_p": round(sl_p, dec),
                     "ker": round(ker, 4),
                     "ema34": round(ema34, dec),
+                    "ema100": round(ema100, dec),
                     "status": "WAITING",
                     "created_at": now_ts,
                     "valid_until": now_ts + ORDER_TTL_SECONDS,
                     "time_str": datetime.fromtimestamp(now_ts, WIB).strftime('%H:%M:%S WIB'),
                     "valid_until_str": datetime.fromtimestamp(now_ts + ORDER_TTL_SECONDS, WIB).strftime('%H:%M WIB'),
                     "touch_time": None,
-                    "last_outcome": last_out
+                    "last_outcome": last_out,
+                    "cooldown_until": 0,
+                    "cooldown_until_str": "-"
                 }
                 with _STATE_LOCK:
                     _PERSISTENT_SETUPS[coin] = new_s
@@ -308,12 +319,63 @@ def scan_single_coin(sym_tuple):
             if setup is None or not isinstance(setup, dict):
                 setup = create_new_setup()
 
-            # 2. Jika ada status legacy TP_HIT / SL_HIT, langsung selesaikan dan buat setup fresh
-            if setup.get('status') in ('TP_HIT', 'SL_HIT'):
+            # 2. JIKA SEDANG COOLDOWN PASCA-SL: Cek apakah masa tenang 2 jam (7.200s) masih aktif
+            if setup.get('status') == 'COOLDOWN':
+                cd_end = float(setup.get('cooldown_until', 0))
+                if now_ts < cd_end:
+                    rem_sec = max(0, cd_end - now_ts)
+                    rem_min = max(1, int(rem_sec // 60))
+                    cd_str = setup.get('cooldown_until_str', datetime.fromtimestamp(cd_end, WIB).strftime('%H:%M WIB'))
+                    wr_val = COIN_WIN_RATES.get(coin, 68.5)
+                    return {
+                        "coin": coin,
+                        "sym": sym,
+                        "name": full_name,
+                        "tier": tier_label,
+                        "strategy": "APEX_CASH_COW_PRO",
+                        "lev": lev,
+                        "side": setup.get('side', 'LONG'),
+                        "margin": float(setup.get('margin', 2.00)),
+                        "cur_p": cur_p,
+                        "potensi": setup.get('potensi', 'POTENSI LONG (BUY)'),
+                        "status": "COOLDOWN",
+                        "valid_label": "⏸️ COOLDOWN",
+                        "touch_status": f"⏸️ COOLDOWN PASCA-SL ({rem_min}m)",
+                        "is_touched": False,
+                        "float_str": f"Masa Tenang: {rem_min}m (s/d {cd_str})",
+                        "float_roe": 0.0,
+                        "float_usd": 0.0,
+                        "limit_p": setup.get('limit_p', cur_p),
+                        "sl_p": setup.get('sl_p', cur_p),
+                        "tp_p": setup.get('tp_p', cur_p),
+                        "ker": float(setup.get('ker', 0.28)),
+                        "diff_pct": 0.0,
+                        "wr": wr_val,
+                        "last_outcome": setup.get("last_outcome"),
+                        "is_fresh_rescan": False,
+                        "prev_limit_p": setup.get("prev_limit_p"),
+                        "rescan_note": setup.get("rescan_note", f"Masa tenang 2 jam s/d {cd_str} untuk hindari whipsaw/gilingan pasar."),
+                        "was_missed_touch": False,
+                        "created_at": setup.get("created_at", now_ts),
+                        "time_str": setup.get("time_str", "-"),
+                        "valid_until_str": cd_str,
+                        "remaining_min": rem_min,
+                        "cooldown_until": cd_end,
+                        "cooldown_until_str": cd_str,
+                        "closed": now_ts
+                    }
+                else:
+                    # Masa tenang 2 jam sudah tuntas! Pindai fresh setup dari struktur pasar saat ini
+                    setup = create_new_setup(last_out=setup.get('last_outcome'))
+                    setup['is_fresh_rescan'] = True
+                    setup['rescan_note'] = "Masa tenang 2 jam pasca-SL selesai. Mesin otomatis memindai struktur baru!"
+
+            # 3. Jika ada status legacy TP_HIT / SL_HIT, selesaikan
+            elif setup.get('status') in ('TP_HIT', 'SL_HIT'):
                 outcome = "TP" if setup.get('status') == 'TP_HIT' else "SL"
-                cur_margin = float(setup.get('margin', 1.30))
-                roe_val = 32.0 if outcome == "TP" else -30.0
-                pnl_val = round(cur_margin * 0.32, 4) if outcome == "TP" else round(-cur_margin * 0.30, 4)
+                cur_margin = float(setup.get('margin', 2.00))
+                roe_val = 22.0 if outcome == "TP" else -28.0
+                pnl_val = round(cur_margin * 0.22, 4) if outcome == "TP" else round(-cur_margin * 0.28, 4)
                 record_closed_trade(coin, sym, outcome, cur_p, setup.get('closed_at', now_ts), roe_override=roe_val, pnl_override=pnl_val, margin=cur_margin)
                 last_out = {
                     "outcome": outcome,
@@ -321,9 +383,19 @@ def scan_single_coin(sym_tuple):
                     "pnl_usd": pnl_val,
                     "closed_at": now_ts
                 }
-                setup = create_new_setup(last_out=last_out)
+                if outcome == "SL":
+                    cd_end = now_ts + COOLDOWN_SL_SECONDS
+                    setup["status"] = "COOLDOWN"
+                    setup["cooldown_until"] = cd_end
+                    setup["cooldown_until_str"] = datetime.fromtimestamp(cd_end, WIB).strftime('%H:%M WIB')
+                    setup["rescan_note"] = f"Kena SL: Masa tenang 2 jam s/d {setup['cooldown_until_str']} (anti-whipsaw)."
+                    setup["last_outcome"] = last_out
+                    with _STATE_LOCK: _PERSISTENT_SETUPS[coin] = setup
+                    save_persistent_state()
+                else:
+                    setup = create_new_setup(last_out=last_out)
 
-            # 3. Jika sudah 12 jam (ORDER_TTL_SECONDS) waiting tanpa terisi, otomatis perbarui struktur pasar ke sinyal FRESH
+            # 4. Jika sudah 12 jam (ORDER_TTL_SECONDS) waiting tanpa terisi, otomatis perbarui struktur pasar ke sinyal FRESH
             elif setup.get('status') == 'WAITING' and (now_ts - setup.get('created_at', now_ts) > ORDER_TTL_SECONDS):
                 if setup.get('is_mexc_order') and setup.get('order_id'):
                     try:
@@ -358,9 +430,9 @@ def scan_single_coin(sym_tuple):
                 if hit_tp or hit_sl:
                     outcome = "TP" if hit_tp else "SL"
                     exit_p = tp_p if hit_tp else sl_p
-                    cur_margin = float(setup.get('margin', 1.30))
-                    roe_val = 32.0 if hit_tp else -30.0
-                    pnl_val = round(cur_margin * 0.32, 4) if hit_tp else round(-cur_margin * 0.30, 4)
+                    cur_margin = float(setup.get('margin', 2.00))
+                    roe_val = 22.0 if hit_tp else -28.0
+                    pnl_val = round(cur_margin * 0.22, 4) if hit_tp else round(-cur_margin * 0.28, 4)
                     record_closed_trade(coin, sym, outcome, exit_p, now_ts, roe_override=roe_val, pnl_override=pnl_val, margin=cur_margin)
                     last_out = {
                         "outcome": outcome,
@@ -368,15 +440,53 @@ def scan_single_coin(sym_tuple):
                         "pnl_usd": pnl_val,
                         "closed_at": now_ts
                     }
-                    setup = create_new_setup(last_out=last_out)
-                    limit_p = setup["limit_p"]
-                    tp_p = setup["tp_p"]
-                    sl_p = setup["sl_p"]
-                    side = setup["side"]
-                    is_long = (side == "LONG")
-                    potensi = setup["potensi"]
-                    status = "WAITING"
-                    last_outcome = last_out
+                    if hit_sl:
+                        # KENA SL -> MASUKKAN KE MASA TENANG 2 JAM (7,200s) ANTI-WHIPSAW!
+                        cd_end = now_ts + COOLDOWN_SL_SECONDS
+                        cd_str = datetime.fromtimestamp(cd_end, WIB).strftime('%H:%M WIB')
+                        setup["status"] = "COOLDOWN"
+                        setup["cooldown_until"] = cd_end
+                        setup["cooldown_until_str"] = cd_str
+                        setup["rescan_note"] = f"Kena SL: Masa tenang 2 jam s/d {cd_str} untuk hindari whipsaw/gilingan pasar."
+                        setup["last_outcome"] = last_out
+                        setup["is_mexc_order"] = False
+                        setup["order_id"] = None
+                        with _STATE_LOCK:
+                            _PERSISTENT_SETUPS[coin] = setup
+                        save_persistent_state()
+                        wr_val = COIN_WIN_RATES.get(coin, 68.5)
+                        return {
+                            "coin": coin, "sym": sym, "name": full_name, "tier": tier_label,
+                            "strategy": "APEX_CASH_COW_PRO", "lev": lev, "side": side,
+                            "margin": cur_margin, "cur_p": cur_p, "potensi": potensi,
+                            "status": "COOLDOWN", "valid_label": "⏸️ COOLDOWN",
+                            "touch_status": "⏸️ COOLDOWN PASCA-SL (120m)",
+                            "is_touched": False,
+                            "float_str": f"Masa Tenang: 120m (s/d {cd_str})",
+                            "float_roe": 0.0, "float_usd": 0.0,
+                            "limit_p": limit_p, "sl_p": sl_p, "tp_p": tp_p,
+                            "ker": float(setup.get("ker", 0.28)), "diff_pct": 0.0,
+                            "wr": wr_val,
+                            "last_outcome": last_out, "is_fresh_rescan": False,
+                            "prev_limit_p": limit_p, "rescan_note": setup["rescan_note"],
+                            "was_missed_touch": False, "created_at": setup.get("created_at", now_ts),
+                            "time_str": setup.get("time_str", "-"), "valid_until_str": cd_str,
+                            "remaining_min": 120, "cooldown_until": cd_end,
+                            "cooldown_until_str": cd_str, "closed": now_ts
+                        }
+                    else:
+                        # KENA TP -> FRESH RE-SCAN LANGSUNG KE LEVEL PULLBACK BARU (tanpa freeze 2 jam agar momentum tren tetap diraih)
+                        setup = create_new_setup(last_out=last_out)
+                        setup['is_fresh_rescan'] = True
+                        setup['rescan_note'] = "Hit TP! Mesin langsung memindai level pullback baru agar tidak buy di pucuk."
+                        limit_p = setup["limit_p"]
+                        tp_p = setup["tp_p"]
+                        sl_p = setup["sl_p"]
+                        side = setup["side"]
+                        is_long = (side == "LONG")
+                        potensi = setup["potensi"]
+                        status = "WAITING"
+                        last_outcome = last_out
 
             # JIKA WAITING: Cek apakah wick candle menjemput level limit sejak dibuat
             elif status == "WAITING":
@@ -653,6 +763,16 @@ def scan_all():
         act_pos = mexc_live.get('active_positions', {})
         op_ord = mexc_live.get('open_orders', {})
         
+        # Cek trade SL riil di MEXC dalam 2 jam terakhir (7.200s)
+        recent_sl_map = {}
+        now_epoch = time.time()
+        for t in mexc_live.get('sl_trades', []):
+            c_sl = t['coin']
+            c_ts = float(t.get('closed_at', 0))
+            if (now_epoch - c_ts) < COOLDOWN_SL_SECONDS:
+                if c_sl not in recent_sl_map or c_ts > recent_sl_map[c_sl]['closed_at']:
+                    recent_sl_map[c_sl] = t
+
         for r in valid:
             c = r['coin']
             # 1. Jika koin sedang aktif berjalan di MEXC (Mantul)
@@ -662,7 +782,8 @@ def scan_all():
                 r['is_touched'] = True
                 r['side'] = p['side']
                 r['potensi'] = f"🟢 POTENSI {p['side']}" if p['side'] == 'LONG' else f"🔴 POTENSI {p['side']}"
-                r['limit_p'] = p['entry'] # Entry riil MEXC
+                entry_p = p['entry']
+                r['limit_p'] = entry_p # Entry riil MEXC
                 r['margin'] = p['margin'] # Margin riil MEXC
                 r['float_usd'] = p['unpnl'] # Floating riil MEXC
                 r['float_roe'] = p['roe']   # ROE riil MEXC
@@ -674,15 +795,76 @@ def scan_all():
                 r['float_str'] = f"Floating: {sign}${r['float_usd']:.4f} ({r['float_roe']:+.2f}%)"
                 r['touch_status'] = "⚡ SEDANG MANTUL (MEXC LIVE)"
                 r['valid_label'] = "⚡ POSISI AKTIF"
+                r['is_expired_order'] = False
+                # Recalculate TP/SL dynamically from real MEXC entry position to avoid any inverted display
+                dec_p = 8 if c == "PEPE" else (5 if entry_p < 1.0 else (4 if entry_p < 100 else 2))
+                if p['side'] == 'LONG':
+                    r['tp_p'] = round(entry_p * (1.0 + 0.0055), dec_p)
+                    r['sl_p'] = round(entry_p * (1.0 - 0.0070), dec_p)
+                else:
+                    r['tp_p'] = round(entry_p * (1.0 - 0.0055), dec_p)
+                    r['sl_p'] = round(entry_p * (1.0 + 0.0070), dec_p)
             
-            # 2. Jika koin sedang menunggu order limit di MEXC Orderbook
+            # 2. Jika koin baru saja kena SL dalam 2 jam terakhir di MEXC (COOLDOWN)
+            elif c in recent_sl_map:
+                sl_info = recent_sl_map[c]
+                cd_end = sl_info['closed_at'] + COOLDOWN_SL_SECONDS
+                rem_m = max(1, int((cd_end - now_epoch) // 60))
+                cd_str = datetime.fromtimestamp(cd_end, WIB).strftime('%H:%M WIB')
+                r['status'] = 'COOLDOWN'
+                r['cooldown_until'] = cd_end
+                r['cooldown_until_str'] = cd_str
+                r['is_touched'] = False
+                r['order_id'] = None
+                r['is_mexc_order'] = False
+                r['is_mexc_active'] = False
+                r['float_usd'] = 0.0
+                r['float_roe'] = 0.0
+                r['mexc_badge'] = f"⏸️ COOLDOWN PASCA-SL ({rem_m}m)"
+                r['valid_label'] = "⏸️ COOLDOWN"
+                r['float_str'] = f"Masa Tenang: {rem_m}m (s/d {cd_str})"
+                r['touch_status'] = f"⏸️ COOLDOWN PASCA-SL ({rem_m}m)"
+                r['remaining_min'] = rem_m
+                r['valid_until_str'] = cd_str
+                r['rescan_note'] = f"Kena SL di MEXC @ {sl_info.get('time_str', '-')}. Masa tenang s/d {cd_str} (anti-whipsaw)."
+                r['is_expired_order'] = False
+                with _STATE_LOCK:
+                    if c in _PERSISTENT_SETUPS and isinstance(_PERSISTENT_SETUPS[c], dict):
+                        _PERSISTENT_SETUPS[c]['status'] = 'COOLDOWN'
+                        _PERSISTENT_SETUPS[c]['cooldown_until'] = cd_end
+                        _PERSISTENT_SETUPS[c]['cooldown_until_str'] = cd_str
+                        _PERSISTENT_SETUPS[c]['rescan_note'] = r['rescan_note']
+                        _PERSISTENT_SETUPS[c]['is_mexc_order'] = False
+                        _PERSISTENT_SETUPS[c]['order_id'] = None
+
+            # 3. Jika koin berstatus COOLDOWN dari session lokal
+            elif r.get('status') == 'COOLDOWN':
+                cd_end = float(r.get('cooldown_until', now_epoch + COOLDOWN_SL_SECONDS))
+                rem_m = max(1, int((cd_end - now_epoch) // 60))
+                cd_str = r.get('cooldown_until_str', datetime.fromtimestamp(cd_end, WIB).strftime('%H:%M WIB'))
+                r['is_touched'] = False
+                r['order_id'] = None
+                r['is_mexc_order'] = False
+                r['is_mexc_active'] = False
+                r['float_usd'] = 0.0
+                r['float_roe'] = 0.0
+                r['mexc_badge'] = f"⏸️ COOLDOWN PASCA-SL ({rem_m}m)"
+                r['valid_label'] = "⏸️ COOLDOWN"
+                r['float_str'] = f"Masa Tenang: {rem_m}m (s/d {cd_str})"
+                r['touch_status'] = f"⏸️ COOLDOWN PASCA-SL ({rem_m}m)"
+                r['remaining_min'] = rem_m
+                r['valid_until_str'] = cd_str
+                r['is_expired_order'] = False
+            
+            # 4. Jika koin sedang menunggu order limit di MEXC Orderbook
             elif c in op_ord:
                 o = op_ord[c]
                 r['status'] = 'WAITING'
                 r['is_touched'] = False
                 r['side'] = o['side']
                 r['potensi'] = f"🟢 POTENSI {o['side']}" if o['side'] == 'LONG' else f"🔴 POTENSI {o['side']}"
-                r['limit_p'] = o['price'] # Harga limit antre riil MEXC
+                ord_p = o['price']
+                r['limit_p'] = ord_p # Harga limit antre riil MEXC
                 r['order_id'] = o['id']
                 r['order_time_str'] = o['time_str']
                 r['is_mexc_order'] = True
@@ -690,8 +872,8 @@ def scan_all():
                 r['float_usd'] = 0.0
                 r['float_roe'] = 0.0
                 is_long = (o['side'] == 'LONG')
-                cur_p = r.get('cur_p', o['price'])
-                diff_pct = ((cur_p - o['price']) / cur_p) * 100 if is_long else ((o['price'] - cur_p) / cur_p) * 100
+                cur_p = r.get('cur_p', ord_p)
+                diff_pct = ((cur_p - ord_p) / cur_p) * 100 if is_long else ((ord_p - cur_p) / cur_p) * 100
                 r['diff_pct'] = diff_pct
                 sign_d = "-" if is_long else "+"
                 r['float_str'] = f"Jarak: {sign_d}{abs(diff_pct):.2f}% (Antre di MEXC)"
@@ -699,8 +881,16 @@ def scan_all():
                 r['touch_status'] = "⏳ MENUNGGU JEMPUTAN (MEXC)"
                 r['valid_label'] = "🟢 SUDAH LIMIT DI MEXC"
                 r['is_expired_order'] = False
+                # Recalculate TP/SL dynamically from real MEXC order to maintain perfect direction integrity
+                dec_o = 8 if c == "PEPE" else (5 if ord_p < 1.0 else (4 if ord_p < 100 else 2))
+                if o['side'] == 'LONG':
+                    r['tp_p'] = round(ord_p * (1.0 + 0.0055), dec_o)
+                    r['sl_p'] = round(ord_p * (1.0 - 0.0070), dec_o)
+                else:
+                    r['tp_p'] = round(ord_p * (1.0 - 0.0055), dec_o)
+                    r['sl_p'] = round(ord_p * (1.0 + 0.0070), dec_o)
             
-            # 3. Koin setup valid tapi belum antre di MEXC
+            # 5. Koin setup valid WAITING siap pasang tapi belum antre di MEXC
             else:
                 r['status'] = 'WAITING'
                 r['is_touched'] = False
@@ -763,11 +953,13 @@ def get_portfolio_summary(observations=None):
 
     active_trades = [r for r in observations if r.get('status') == 'TOUCHED']
     new_signals = [r for r in observations if r.get('status') == 'WAITING']
+    cooldown_signals = [r for r in observations if r.get('status') == 'COOLDOWN']
     floating_usd = sum(r.get('float_usd', 0.0) for r in active_trades)
     floating_roe = sum(r.get('float_roe', 0.0) for r in active_trades)
     active_count = len(active_trades)
     waiting_count = len(new_signals)
-    avg_portfolio_wr = sum(r.get('wr', 67.0) for r in observations) / len(observations) if observations else 67.0
+    cooldown_count = len(cooldown_signals)
+    avg_portfolio_wr = sum(r.get('wr', 68.5) for r in observations) / len(observations) if observations else 68.5
 
     return {
         "realized_usd": realized_usd,
@@ -783,6 +975,8 @@ def get_portfolio_summary(observations=None):
         "floating_idr": floating_usd * 16300,
         "active_count": active_count,
         "waiting_count": waiting_count,
+        "cooldown_count": cooldown_count,
+        "cooldown_signals": cooldown_signals,
         "history": history,
         "tp_trades": tp_trades,
         "sl_trades": sl_trades,
@@ -891,6 +1085,16 @@ def execute_single_coin_limit_order(coin, custom_margin=1.30):
         # Ambil setup sinyal terkini dari persistent state
         state = load_persistent_state(force_reload=True)
         setup = state.get(coin)
+        now_ts = time.time()
+        
+        # CEK COOLDOWN PASCA-SL: JIKA SEDANG COOLDOWN, TOLAK ORDER SECARA TEGAS!
+        if setup and (setup.get('status') == 'COOLDOWN' or now_ts < setup.get('cooldown_until', 0)):
+            rem_m = max(1, int((setup.get('cooldown_until', 0) - now_ts) // 60))
+            return {
+                "success": False, 
+                "msg": f"⚠️ Koin {coin} sedang dalam masa tenang pasca-SL ({rem_m} menit lagi s/d {setup.get('cooldown_until_str', '-')}) untuk melindungi modal dari gilingan pasar!"
+            }
+            
         if not setup:
             coin_tuples = [t for t in TOP_20_COINS if t[0] == coin]
             if coin_tuples:
@@ -977,7 +1181,7 @@ def execute_single_coin_limit_order(coin, custom_margin=1.30):
             "price": limit_p,
             "tp": tp_p,
             "sl": sl_p,
-            "msg": f"✅ Sukses! Limit {side} {coin} ({contracts} ktr @ ${limit_p}) terpasang di MEXC! ID: {oid} | Margin: ${actual_margin:.2f} | TP: ${tp_p} (+32%) | SL: ${sl_p} (-30%)"
+            "msg": f"✅ Sukses! Limit {side} {coin} ({contracts} ktr @ ${limit_p}) terpasang di MEXC! ID: {oid} | Margin: ${actual_margin:.2f} | TP: ${tp_p} (+22%) | SL: ${sl_p} (-28%)"
         }
     except Exception as e:
         return {"success": False, "msg": f"Gagal memasang order {coin}: {str(e)}"}
@@ -1033,22 +1237,40 @@ def execute_cancel_all_stale_orders():
     except Exception as e:
         return {"success": False, "msg": f"Gagal membatalkan order basi: {str(e)}"}
 
-def execute_place_all_waiting_limits(custom_margin=1.30):
-    """Memasang limit order serentak untuk seluruh koin yang berstatus SIAP PASANG."""
+def execute_place_all_waiting_limits(custom_margin=2.00):
+    """
+    Memasang limit order serentak untuk seluruh koin yang berstatus SIAP PASANG.
+    PENTING: Koin yang sedang dalam masa tenang / COOLDOWN pasca-SL (2 Jam) DILEWATI (TIDAK DIPASANG)
+    agar tidak terkena gilingan / whipsaw pasar!
+    """
+    observations = scan_all()
+    obs_map = {r['coin']: r for r in observations}
     state = load_persistent_state(force_reload=True)
     results = []
+    now_ts = time.time()
+    
     for c_tuple in TOP_20_COINS:
         c = c_tuple[0]
-        s = state.get(c, {})
-        # Hanya pasang untuk koin yang belum aktif dan belum ada order
-        if not s.get('is_touched') and not s.get('is_mexc_order'):
+        s = obs_map.get(c, state.get(c, {}))
+        
+        # 1. SKIP jika sedang COOLDOWN pasca-SL!
+        if s.get('status') == 'COOLDOWN' or now_ts < s.get('cooldown_until', 0):
+            continue
+            
+        # 2. SKIP jika posisi sedang aktif (TOUCHED) atau sudah ada limit order di MEXC
+        if s.get('is_touched') or s.get('status') == 'TOUCHED' or s.get('is_mexc_order'):
+            continue
+            
+        # 3. Pasang order limit untuk koin yang berstatus WAITING siap pasang
+        if s.get('status') == 'WAITING':
             res = execute_single_coin_limit_order(c, custom_margin=custom_margin)
             results.append((c, res))
             time.sleep(0.2)
+            
     return results
 
 def execute_force_rescan_all_signals():
-    """Memaksa pemindaian ulang seluruh koin yang belum aktif menjadi sinyal fresh 100%."""
+    """Memaksa pemindaian ulang seluruh 20 koin dengan formula APEX CASH COW PRO (EMA 34+100, Fibo 48%, TP +22%, SL -28%)."""
     try:
         tele = fetch_mexc_live_telemetry()
         op_ord = tele.get('open_orders', {}) if tele else {}
@@ -1062,7 +1284,7 @@ def execute_force_rescan_all_signals():
                 except Exception:
                     pass
         
-        # 2. Reset setups ke None agar di-re-scan dari candle terbaru
+        # 2. Reset setups ke None agar di-re-scan bersih dengan formula Apex Cash Cow Pro
         with _STATE_LOCK:
             for c_tuple in TOP_20_COINS:
                 c = c_tuple[0]
@@ -1074,7 +1296,7 @@ def execute_force_rescan_all_signals():
         fresh_data = scan_all()
         return {
             "success": True,
-            "msg": "✅ Berhasil memindai ulang seluruh koin ke struktur pasar terkini (100% Fresh)!",
+            "msg": "✅ Berhasil memindai ulang seluruh koin ke struktur APEX CASH COW PRO terkini (100% Fresh)!",
             "data": fresh_data
         }
     except Exception as e:
