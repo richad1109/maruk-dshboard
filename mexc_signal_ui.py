@@ -236,6 +236,89 @@ def bias_cards():
 ''')
 
     # =========================================================================
+    # PANEL KENDALI AUTO-PILOT EXECUTOR 24/7 (MARGIN $1.00 USD)
+    # =========================================================================
+    try:
+        import auto_limit_executor
+        exec_cfg = auto_limit_executor.load_config()
+        is_auto_running = exec_cfg.get("enabled", True)
+        curr_exec_margin = float(exec_cfg.get("margin_usd", 1.00))
+        if is_auto_running and not getattr(auto_limit_executor, "_DAEMON_RUNNING", False):
+            auto_limit_executor.start_background_daemon(margin_usd=curr_exec_margin)
+        last_act = exec_cfg.get("last_action", "Siap memindai")
+        last_ts = exec_cfg.get("last_cycle_time", "-")
+
+        badge_bg = 'rgba(16, 185, 129, 0.2)' if is_auto_running else 'rgba(100, 116, 139, 0.2)'
+        badge_border = '#10b981' if is_auto_running else '#64748b'
+        badge_col = '#34d399' if is_auto_running else '#94a3b8'
+        badge_text = '🟢 AKTIF BERJALAN (AUTO-LIMIT 24/7)' if is_auto_running else '⏸️ DIJEDA'
+        card_border = '#10b981' if is_auto_running else '#64748b'
+
+        html(f'''
+<div style="background: rgba(15, 23, 42, 0.85); border: 2px solid {card_border}; border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 14px; font-weight: 900; color: #f8fafc;">🤖 AUTO-PILOT EXECUTOR 24/7 (MEXC LIMIT SNIPER)</span>
+        <span style="background: {badge_bg}; border: 1px solid {badge_border}; color: {badge_col}; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">
+          {badge_text}
+        </span>
+        <span style="background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">
+          💰 MARGIN ${curr_exec_margin:.2f} USD
+        </span>
+      </div>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">
+        Formula: <strong>APEX CASH COW PRO</strong> (Lev 40x Isolated) · TP: <strong style="color: #34d399;">+22% ROE</strong> · SL: <strong style="color: #f87171;">-28% ROE</strong> · Cooldown Pasca-SL: <strong style="color: #c084fc;">2 Jam</strong>
+      </div>
+      <div style="font-size: 11px; color: #cbd5e1; margin-top: 2px;">
+        🕒 Siklus Terakhir: <strong style="color: #fde047;">{last_ts}</strong> · Telemetri: <em>{last_act}</em>
+      </div>
+    </div>
+  </div>
+</div>
+''')
+
+        col_ap1, col_ap2, col_ap3 = st.columns([1.5, 2.0, 1.5])
+        with col_ap1:
+            new_exec_m = st.number_input(
+                "Margin Auto-Pilot (USD):",
+                min_value=0.50,
+                max_value=50.00,
+                value=float(curr_exec_margin),
+                step=0.10,
+                format="%.2f",
+                key="auto_executor_margin_input"
+            )
+            if new_exec_m != curr_exec_margin:
+                exec_cfg["margin_usd"] = new_exec_m
+                auto_limit_executor.save_config(exec_cfg)
+                st.rerun()
+                
+        with col_ap2:
+            st.markdown("<div style='height: 27px;'></div>", unsafe_allow_html=True)
+            if is_auto_running:
+                if st.button("⏹️ Jeda Auto-Pilot 24/7", key="btn_stop_auto_exec", use_container_width=True):
+                    auto_limit_executor.stop_background_daemon()
+                    st.cache_data.clear()
+                    st.rerun()
+            else:
+                if st.button(f"▶️ Aktifkan Auto-Pilot 24/7 (${new_exec_m:.2f})", key="btn_start_auto_exec", type="primary", use_container_width=True):
+                    auto_limit_executor.start_background_daemon(margin_usd=new_exec_m)
+                    st.cache_data.clear()
+                    st.rerun()
+                    
+        with col_ap3:
+            st.markdown("<div style='height: 27px;'></div>", unsafe_allow_html=True)
+            if st.button("⚡ Eksekusi 1 Siklus Sekarang", key="btn_trigger_cycle", use_container_width=True):
+                with st.spinner("Menjalankan 1 siklus auto-pilot sekarang..."):
+                    cycle_res = auto_limit_executor.run_single_executor_cycle(dry_run=False)
+                    st.success(cycle_res.get("msg", "Siklus selesai!"))
+                    st.cache_data.clear()
+                    st.rerun()
+    except Exception:
+        pass
+
+    # =========================================================================
     # TABEL RADAR SINYAL LIMIT BARU & STATUS VERIFIKASI DI MEXC
     # =========================================================================
     new_signals = summary.get('new_signals', [])

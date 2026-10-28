@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "margin_usd": 1.0,
+  "leverage": 40,
+  "poll_interval": 20,
+  "strategy": "APEX_CASH_COW_PRO",
+  "status": "RUNNING",
+  "last_cycle_time": "02:05:19 WIB",
+  "last_action": "Siklus selesai: 5 Posisi Aktif, 9 Limit Antre, 7 Cooldown, 0 Order Baru Terpasang.",
+  "cooldown_coins_count": 7,
+  "active_positions_count": 5,
+  "open_orders_count": 9,
+  "recent_events": []
+}

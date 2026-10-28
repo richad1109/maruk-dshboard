@@ -42,15 +42,18 @@
     "ker": 0.107,
     "ema34": 7.8168,
     "ema100": 7.8925,
-    "status": "WAITING",
+    "status": "COOLDOWN",
     "created_at": 1793213743.1489894,
     "valid_until": 1793256943.1489894,
     "time_str": "01:55:43 WIB",
     "valid_until_str": "13:55 WIB",
     "touch_time": null,
     "last_outcome": null,
-    "cooldown_until": 0,
-    "cooldown_until_str": "-"
+    "cooldown_until": 1793221505.0,
+    "cooldown_until_str": "04:05 WIB",
+    "rescan_note": "Kena SL di MEXC @ 02:05:05 WIB. Masa tenang s/d 04:05 WIB (anti-whipsaw).",
+    "is_mexc_order": false,
+    "order_id": null
   },
   "SUI": {
     "coin": "SUI",
@@ -524,8 +527,8 @@
         "side": "SHORT",
         "entry": 0.2046,
         "margin": 1.03529498688,
-        "unpnl": 0.2352,
-        "roe": 22.718162744012375,
+        "unpnl": -0.0784,
+        "roe": -7.572720914670791,
         "contracts": 196.0,
         "time_str": "01:36:44 WIB",
         "create_ts": 1793212604087.0
@@ -535,8 +538,8 @@
         "side": "LONG",
         "entry": 8.902,
         "margin": 1.0335222,
-        "unpnl": -0.0135,
-        "roe": -1.3062128708991447,
+        "unpnl": 0.189,
+        "roe": 18.286980192588025,
         "contracts": 45.0,
         "time_str": "01:56:01 WIB",
         "create_ts": 1793213761334.0
@@ -546,8 +549,8 @@
         "side": "SHORT",
         "entry": 11.685,
         "margin": 1.0256756472,
-        "unpnl": 0.1632,
-        "roe": 15.911462892340378,
+        "unpnl": -0.1462,
+        "roe": -14.254018841054922,
         "contracts": 34.0,
         "time_str": "01:36:09 WIB",
         "create_ts": 1793212569043.0
@@ -557,8 +560,8 @@
         "side": "LONG",
         "entry": 0.07941,
         "margin": 1.024389,
-        "unpnl": -0.02,
-        "roe": -1.9523833231321306,
+        "unpnl": 0.14,
+        "roe": 13.666683261924915,
         "contracts": 5.0,
         "time_str": "01:39:06 WIB",
         "create_ts": 1793212746573.0
@@ -568,22 +571,11 @@
         "side": "LONG",
         "entry": 751.6,
         "margin": 1.2676985414,
-        "unpnl": -0.025,
-        "roe": -1.9720776812120422,
+        "unpnl": 0.08,
+        "roe": 6.310648579878535,
         "contracts": 5.0,
         "time_str": "20:46:04 WIB",
         "create_ts": 1793195164921.0
-      },
-      "INJ": {
-        "coin": "INJ",
-        "side": "SHORT",
-        "entry": 7.855,
-        "margin": 0.811163856,
-        "unpnl": 0.132,
-        "roe": 16.272914408553234,
-        "contracts": 4.0,
-        "time_str": "01:34:02 WIB",
-        "create_ts": 1793212442269.0
       }
     },
     "open_orders": {
@@ -669,10 +661,10 @@
         "timestamp": 1793212718029.0
       }
     },
-    "realized_usd": -0.09299999999999992,
-    "realized_roe": -44.34000000000002,
+    "realized_usd": -0.39709999999999995,
+    "realized_roe": -81.83000000000004,
     "tp_count": 8,
-    "sl_count": 8,
+    "sl_count": 9,
     "tp_trades": [
       {
         "coin": "AVAX",
@@ -773,6 +765,18 @@
     ],
     "sl_trades": [
       {
+        "coin": "INJ",
+        "sym": "INJ-USDT",
+        "side": "SHORT",
+        "outcome": "SL",
+        "pnl_usd": -0.3041,
+        "roe": -37.49,
+        "entry_price": 7.855,
+        "exit_price": 7.92,
+        "closed_at": 1793214305.0,
+        "time_str": "02:05:05 WIB"
+      },
+      {
         "coin": "TIA",
         "sym": "TIA-USDT",
         "side": "SHORT",
@@ -870,6 +874,18 @@
       }
     ],
     "trades": [
+      {
+        "coin": "INJ",
+        "sym": "INJ-USDT",
+        "side": "SHORT",
+        "outcome": "SL",
+        "pnl_usd": -0.3041,
+        "roe": -37.49,
+        "entry_price": 7.855,
+        "exit_price": 7.92,
+        "closed_at": 1793214305.0,
+        "time_str": "02:05:05 WIB"
+      },
       {
         "coin": "TIA",
         "sym": "TIA-USDT",
@@ -1063,11 +1079,23 @@
         "time_str": "01:02:44 WIB"
       }
     ],
-    "total_floating_usd": 0.4719,
-    "total_floating_roe": 49.67186616966267,
-    "timestamp": 1793213796.8766677
+    "total_floating_usd": 0.1844,
+    "total_floating_roe": 16.437572278665762,
+    "timestamp": 1793214315.5318828
   },
   "_HISTORY_TRADES": [
+    {
+      "coin": "INJ",
+      "sym": "INJ-USDT",
+      "side": "SHORT",
+      "outcome": "SL",
+      "pnl_usd": -0.3041,
+      "roe": -37.49,
+      "entry_price": 7.855,
+      "exit_price": 7.92,
+      "closed_at": 1793214305.0,
+      "time_str": "02:05:05 WIB"
+    },
     {
       "coin": "TIA",
       "sym": "TIA-USDT",
