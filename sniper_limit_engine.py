@@ -421,12 +421,181 @@ def scan_single_coin(sym_tuple):
             time.sleep(0.3)
     return None
 
+def fetch_mexc_live_telemetry():
+    """Mengambil posisi aktif, floating PnL, limit orders antre, dan realized PnL langsung dari API MEXC."""
+    client = None
+    # 1. Coba dari D:\bot_final\akun_privat.json
+    local_p = Path(r'D:\bot_final\akun_privat.json')
+    if local_p.exists():
+        try:
+            cfg = json.loads(local_p.read_text(encoding='utf-8-sig'))
+            m = cfg.get('akun_1', {}).get('MEXC', {})
+            if m.get('apiKey'):
+                import ccxt
+                client = ccxt.mexc({'apiKey': m['apiKey'], 'secret': m['secret'], 'options': {'defaultType': 'swap'}, 'timeout': 8000})
+        except Exception:
+            pass
+
+    # 2. Coba dari Streamlit secrets
+    if client is None:
+        try:
+            import streamlit as st
+            sec = getattr(st, 'secrets', {})
+            accs = json.loads(sec.get('accounts_json', '{}'))
+            m = accs.get('akun_1', {}).get('MEXC', {})
+            if m.get('apiKey'):
+                import ccxt
+                client = ccxt.mexc({'apiKey': m['apiKey'], 'secret': m['secret'], 'options': {'defaultType': 'swap'}, 'timeout': 8000})
+        except Exception:
+            pass
+
+    # 3. Coba dari secrets.toml lokal
+    if client is None:
+        sec_path = Path(__file__).parent / ".streamlit" / "secrets.toml"
+        if sec_path.exists():
+            try:
+                import toml, ccxt
+                sec = toml.loads(sec_path.read_text(encoding='utf-8'))
+                accs = json.loads(sec.get('accounts_json', '{}'))
+                m = accs.get('akun_1', {}).get('MEXC', {})
+                if m.get('apiKey'):
+                    client = ccxt.mexc({'apiKey': m['apiKey'], 'secret': m['secret'], 'options': {'defaultType': 'swap'}, 'timeout': 8000})
+            except Exception:
+                pass
+
+    if client is None:
+        return None
+
+    try:
+        # A. Posisi Aktif Langsung dari MEXC
+        pos = client.fetch_positions()
+        active_pos = [p for p in pos if float(p.get('contracts') or p.get('size') or 0) > 0]
+        pos_map = {}
+        for p in active_pos:
+            info = p['info']
+            sym = info['symbol'].replace('_USDT', '')
+            side = 'LONG' if int(info.get('positionType', 1)) == 1 else 'SHORT'
+            entry = float(info.get('holdAvgPrice', 0.0))
+            im = float(info.get('im', 0.0))
+            unpnl = float(info.get('unRealizedPnl', 0.0))
+            ratio = float(info.get('profitRatio', 0.0))
+            pos_map[sym] = {
+                'side': side,
+                'entry': entry,
+                'margin': im,
+                'unpnl': unpnl,
+                'roe': ratio * 100.0,
+                'contracts': float(info.get('holdVol', 0))
+            }
+
+        # B. Open Orders Langsung dari MEXC
+        orders = client.fetch_open_orders()
+        order_map = {}
+        for o in orders:
+            sym = o['symbol'].replace('/USDT:USDT', '').replace(':USDT', '')
+            order_map[sym] = {
+                'id': o['id'],
+                'side': 'LONG' if o['side'] == 'buy' else 'SHORT',
+                'price': float(o['price']),
+                'amount': float(o['amount'])
+            }
+
+        # C. Realized PnL Hari Ini dari Posisi Selesai di MEXC
+        p_hist = client.contractPrivateGetPositionListHistoryPositions({'page_num': 1, 'page_size': 50})
+        data = p_hist.get('data', [])
+        today_start_ms = 1793126400000 # 28 Oct 00:00 WIB
+        today_closed = [p for p in data if p['updateTime'] >= today_start_ms]
+        
+        trades_list = []
+        for p in today_closed:
+            sym = p['symbol'].replace('_USDT', '')
+            side = 'LONG' if p['positionType'] == 1 else 'SHORT'
+            real = float(p.get('realised', 0.0))
+            ratio = float(p.get('profitRatio', 0.0)) * 100.0
+            outcome = 'TP' if real > 0 else 'SL'
+            trades_list.append({
+                'coin': sym,
+                'sym': f"{sym}-USDT",
+                'outcome': outcome,
+                'pnl_usd': round(real, 4),
+                'roe': round(ratio, 2),
+                'exit_price': float(p.get('closeAvgPrice', 0.0)),
+                'closed_at': float(p['updateTime'] / 1000.0)
+            })
+
+        tot_realised = sum(t['pnl_usd'] for t in trades_list)
+        tot_realised_roe = sum(t['roe'] for t in trades_list)
+        tp_count = sum(1 for t in trades_list if t['outcome'] == 'TP')
+        sl_count = sum(1 for t in trades_list if t['outcome'] == 'SL')
+
+        return {
+            'active_positions': pos_map,
+            'open_orders': order_map,
+            'realized_usd': tot_realised,
+            'realized_roe': tot_realised_roe,
+            'tp_count': tp_count,
+            'sl_count': sl_count,
+            'trades': trades_list,
+            'total_floating_usd': sum(p['unpnl'] for p in pos_map.values()),
+            'total_floating_roe': sum(p['roe'] for p in pos_map.values()),
+            'timestamp': time.time()
+        }
+    except Exception:
+        return None
+
 def scan_all():
     global _LAST_CACHE
     load_persistent_state()
     with ThreadPoolExecutor(max_workers=10) as ex:
         results = list(ex.map(scan_single_coin, TOP_20_COINS))
     valid = [r for r in results if r is not None]
+    
+    # SINKRONISASI 100% PERSIS DENGAN MEXC FUTURES
+    mexc_live = fetch_mexc_live_telemetry()
+    if mexc_live:
+        act_pos = mexc_live.get('active_positions', {})
+        op_ord = mexc_live.get('open_orders', {})
+        
+        for r in valid:
+            c = r['coin']
+            # 1. Jika koin sedang aktif berjalan di MEXC (Mantul)
+            if c in act_pos:
+                p = act_pos[c]
+                r['status'] = 'TOUCHED'
+                r['is_touched'] = True
+                r['side'] = p['side']
+                r['limit_p'] = p['entry'] # Entry riil MEXC
+                r['margin'] = p['margin'] # Margin riil MEXC
+                r['float_usd'] = p['unpnl'] # Floating riil MEXC
+                r['float_roe'] = p['roe']   # ROE riil MEXC
+                sign = "+" if r['float_usd'] >= 0 else ""
+                r['float_str'] = f"Floating: {sign}${r['float_usd']:.4f} ({r['float_roe']:+.2f}%)"
+                r['touch_status'] = "⚡ SEDANG MANTUL (MEXC LIVE)"
+                r['valid_label'] = "⚡ POSISI AKTIF"
+            
+            # 2. Jika koin sedang menunggu order limit di MEXC Orderbook
+            elif c in op_ord:
+                o = op_ord[c]
+                r['status'] = 'WAITING'
+                r['is_touched'] = False
+                r['limit_p'] = o['price'] # Harga limit antre riil MEXC
+                r['order_id'] = o['id']
+                r['float_usd'] = 0.0
+                r['float_roe'] = 0.0
+                is_long = (o['side'] == 'LONG')
+                cur_p = r.get('cur_p', o['price'])
+                diff_pct = ((cur_p - o['price']) / cur_p) * 100 if is_long else ((o['price'] - cur_p) / cur_p) * 100
+                r['diff_pct'] = diff_pct
+                sign_d = "-" if is_long else "+"
+                r['float_str'] = f"Jarak: {sign_d}{abs(diff_pct):.2f}% (Antre di MEXC)"
+                r['touch_status'] = "⏳ MENUNGGU JEMPUTAN"
+                r['valid_label'] = "✅ LIMIT ANTRE"
+
+        with _STATE_LOCK:
+            _PERSISTENT_SETUPS['_MEXC_LIVE_TELEMETRY'] = mexc_live
+            _PERSISTENT_SETUPS['_HISTORY_TRADES'] = mexc_live['trades']
+        save_persistent_state()
+
     if len(valid) >= 15:
         _LAST_CACHE = valid
         return valid
@@ -438,23 +607,34 @@ def get_portfolio_summary(observations=None):
     """Menghitung agregasi portfolio jujur & persisten (Realized PnL, Floating PnL, Win Rate)."""
     if observations is None:
         observations = scan_all()
-    history = load_persistent_history()
     
-    tp_count = sum(1 for t in history if t.get('outcome') == 'TP')
-    sl_count = sum(1 for t in history if t.get('outcome') == 'SL')
-    realized_usd = sum(t.get('pnl_usd', 0.0) for t in history)
-    realized_roe = sum(t.get('roe', 0.0) for t in history)
-    total_closed = tp_count + sl_count
-    realized_wr = (tp_count / total_closed * 100) if total_closed > 0 else 0.0
+    state = load_persistent_state(force_reload=True)
+    mexc_live = state.get('_MEXC_LIVE_TELEMETRY')
     
-    avg_portfolio_wr = sum(r['wr'] for r in observations) / len(observations) if observations else 67.0
-    
+    if mexc_live:
+        realized_usd = mexc_live.get('realized_usd', 0.0)
+        realized_roe = mexc_live.get('realized_roe', 0.0)
+        tp_count = mexc_live.get('tp_count', 0)
+        sl_count = mexc_live.get('sl_count', 0)
+        total_closed = tp_count + sl_count
+        realized_wr = (tp_count / total_closed * 100.0) if total_closed > 0 else 0.0
+        history = mexc_live.get('trades', [])
+    else:
+        history = load_persistent_history()
+        tp_count = sum(1 for t in history if t.get('outcome') == 'TP')
+        sl_count = sum(1 for t in history if t.get('outcome') == 'SL')
+        realized_usd = sum(t.get('pnl_usd', 0.0) for t in history)
+        realized_roe = sum(t.get('roe', 0.0) for t in history)
+        total_closed = tp_count + sl_count
+        realized_wr = (tp_count / total_closed * 100) if total_closed > 0 else 0.0
+
     active_trades = [r for r in observations if r.get('status') == 'TOUCHED']
     floating_usd = sum(r.get('float_usd', 0.0) for r in active_trades)
     floating_roe = sum(r.get('float_roe', 0.0) for r in active_trades)
     active_count = len(active_trades)
     waiting_count = sum(1 for r in observations if r.get('status') == 'WAITING')
-    
+    avg_portfolio_wr = sum(r.get('wr', 67.0) for r in observations) / len(observations) if observations else 67.0
+
     return {
         "realized_usd": realized_usd,
         "realized_roe": realized_roe,

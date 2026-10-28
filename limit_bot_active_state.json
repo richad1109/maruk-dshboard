@@ -192,9 +192,9 @@
     "limit_p": 0.16799,
     "tp_p": 0.17079,
     "sl_p": 0.16631,
-    "status": "WAITING",
+    "status": "TOUCHED",
     "created_at": 1793154560.1266475,
-    "touch_time": null,
+    "touch_time": 1793174870.0889158,
     "last_outcome": {
       "outcome": "TP",
       "roe": 35.0,
@@ -356,130 +356,40 @@
   },
   "_HISTORY_TRADES": [
     {
-      "coin": "ARB",
-      "sym": "ARB-USDT",
-      "outcome": "SL",
-      "pnl_usd": -0.4,
-      "roe": -20.0,
-      "exit_price": 0.1658,
-      "closed_at": 1793137572
-    },
-    {
       "coin": "RENDER",
       "sym": "RENDER-USDT",
-      "outcome": "TP",
-      "pnl_usd": 0.7,
-      "roe": 35.0,
-      "exit_price": 1.703,
-      "closed_at": 1793137019
-    },
-    {
-      "coin": "INJ",
-      "sym": "INJ-USDT",
       "outcome": "SL",
-      "pnl_usd": -0.4,
-      "roe": -20.0,
-      "exit_price": 7.996,
-      "closed_at": 1793137572
+      "pnl_usd": -0.387,
+      "roe": -33.74,
+      "exit_price": 1.682,
+      "closed_at": 1793170240.0
     },
     {
-      "coin": "INJ",
-      "sym": "INJ-USDT",
+      "coin": "LINK",
+      "sym": "LINK-USDT",
       "outcome": "SL",
-      "pnl_usd": -0.4,
-      "roe": -20.0,
-      "exit_price": 7.996725,
-      "closed_at": 1793139489.3047116
-    },
-    {
-      "coin": "ADA",
-      "sym": "ADA-USDT",
-      "outcome": "TP",
-      "pnl_usd": 0.7,
-      "roe": 35.0,
-      "exit_price": 0.207312,
-      "closed_at": 1793154559.5258713
-    },
-    {
-      "coin": "WIF",
-      "sym": "WIF-USDT",
-      "outcome": "TP",
-      "pnl_usd": 0.7,
-      "roe": 35.0,
-      "exit_price": 0.181827,
-      "closed_at": 1793154559.948188
-    },
-    {
-      "coin": "APT",
-      "sym": "APT-USDT",
-      "outcome": "TP",
-      "pnl_usd": 0.7,
-      "roe": 35.0,
-      "exit_price": 0.69714,
-      "closed_at": 1793154560.1223845
+      "pnl_usd": -0.0032,
+      "roe": -0.21,
+      "exit_price": 11.742,
+      "closed_at": 1793159979.0
     },
     {
       "coin": "ARB",
       "sym": "ARB-USDT",
       "outcome": "TP",
-      "pnl_usd": 0.7,
-      "roe": 35.0,
-      "exit_price": 0.170436,
-      "closed_at": 1793154560.1266475
-    },
-    {
-      "coin": "OP",
-      "sym": "OP-USDT",
-      "outcome": "TP",
-      "pnl_usd": 0.7,
-      "roe": 35.0,
-      "exit_price": 0.112724,
-      "closed_at": 1793154560.1333787
-    },
-    {
-      "coin": "BNB",
-      "sym": "BNB-USDT",
-      "outcome": "SL",
-      "pnl_usd": -0.4,
-      "roe": -20.0,
-      "exit_price": 742.3031,
-      "closed_at": 1793158493.8284097
-    },
-    {
-      "coin": "INJ",
-      "sym": "INJ-USDT",
-      "outcome": "SL",
-      "pnl_usd": -0.4,
-      "roe": -20.0,
-      "exit_price": 7.906536,
-      "closed_at": 1793158494.4005084
-    },
-    {
-      "coin": "XRP",
-      "sym": "XRP-USDT",
-      "outcome": "TP",
-      "pnl_usd": 0.7,
-      "roe": 35.0,
-      "exit_price": 1.335844,
-      "closed_at": 1793159214.0494826
+      "pnl_usd": 0.5476,
+      "roe": 55.49,
+      "exit_price": 0.17045,
+      "closed_at": 1793153791.0
     },
     {
       "coin": "RENDER",
       "sym": "RENDER-USDT",
       "outcome": "TP",
-      "pnl_usd": 1.0,
-      "roe": 50.0,
-      "exit_price": 1.7141,
-      "closed_at": 1793159849.725091
-    },
-    {
-      "coin": "RENDER",
-      "sym": "RENDER-USDT",
-      "outcome": "SL",
-      "pnl_usd": -0.6,
-      "roe": -30.0,
-      "exit_price": 1.68102,
-      "closed_at": 1793170977.6225302
+      "pnl_usd": 0.3255,
+      "roe": 33.66,
+      "exit_price": 1.706,
+      "closed_at": 1793151885.0
     }
   ],
   "DOT": {
@@ -488,15 +398,212 @@
     "name": "Polkadot",
     "tier": "\u2b50 ELITE CASH COW",
     "lev": 30,
-    "side": "SHORT",
-    "potensi": "POTENSI SHORT (SELL)",
-    "limit_p": 1.0042,
-    "tp_p": 0.9925,
-    "sl_p": 1.0142,
-    "status": "TOUCHED",
-    "created_at": 1793166794.5858767,
-    "touch_time": 1793168677.8706157,
-    "last_outcome": null,
-    "entry_p": 1.0042
+    "side": "LONG",
+    "potensi": "POTENSI LONG (BUY)",
+    "limit_p": 1.000795,
+    "tp_p": 1.012471,
+    "sl_p": 0.990787,
+    "status": "WAITING",
+    "created_at": 1793174870.2956433,
+    "touch_time": null,
+    "last_outcome": {
+      "outcome": "TP",
+      "roe": 35.0,
+      "pnl_usd": 0.7,
+      "closed_at": 1793174870.2956433
+    }
+  },
+  "_MEXC_LIVE_TELEMETRY": {
+    "active_positions": {
+      "XRP": {
+        "side": "LONG",
+        "entry": 1.3307,
+        "margin": 1.481335093623,
+        "unpnl": -0.0132,
+        "roe": -0.59,
+        "contracts": 33.0
+      },
+      "OP": {
+        "side": "LONG",
+        "entry": 0.11195,
+        "margin": 1.480366947052,
+        "unpnl": 0.1568,
+        "roe": 0.11,
+        "contracts": 392.0
+      },
+      "WIF": {
+        "side": "LONG",
+        "entry": 0.1805,
+        "margin": 1.4613278556,
+        "unpnl": 0.24,
+        "roe": -0.27,
+        "contracts": 24.0
+      },
+      "FET": {
+        "side": "LONG",
+        "entry": 0.1794,
+        "margin": 1.34717426844,
+        "unpnl": 0.462,
+        "roe": -1.7500000000000002,
+        "contracts": 22.0
+      },
+      "DOT": {
+        "side": "SHORT",
+        "entry": 1.0042,
+        "margin": 1.3308499021475655,
+        "unpnl": -0.13968,
+        "roe": -2.15,
+        "contracts": 388.0
+      },
+      "ADA": {
+        "side": "LONG",
+        "entry": 0.2057,
+        "margin": 1.179565964808,
+        "unpnl": 0.1848,
+        "roe": -1.83,
+        "contracts": 168.0
+      },
+      "TIA": {
+        "side": "LONG",
+        "entry": 0.5323,
+        "margin": 0.987593835745,
+        "unpnl": 0.0275,
+        "roe": -0.16,
+        "contracts": 55.0
+      },
+      "ARB": {
+        "side": "LONG",
+        "entry": 0.16799,
+        "margin": 0.860108716005,
+        "unpnl": 0.084,
+        "roe": -1.66,
+        "contracts": 150.0
+      },
+      "BNB": {
+        "side": "LONG",
+        "entry": 747.7,
+        "margin": 0.75667232523,
+        "unpnl": 0.078,
+        "roe": -1.39,
+        "contracts": 3.0
+      },
+      "APT": {
+        "side": "LONG",
+        "entry": 0.6915,
+        "margin": 0.590079942375,
+        "unpnl": 0.075,
+        "roe": -1.7399999999999998,
+        "contracts": 250.0
+      },
+      "INJ": {
+        "side": "SHORT",
+        "entry": 8.03,
+        "margin": 0.404859752,
+        "unpnl": 0.066,
+        "roe": 0.22999999999999998,
+        "contracts": 1.0
+      }
+    },
+    "open_orders": {
+      "PEPE": {
+        "id": "870308729725127168",
+        "side": "LONG",
+        "price": 4.439e-06,
+        "amount": 1.0
+      },
+      "AVAX": {
+        "id": "870308738169715200",
+        "side": "LONG",
+        "price": 8.823,
+        "amount": 44.0
+      },
+      "NEAR": {
+        "id": "870308745488872448",
+        "side": "LONG",
+        "price": 4.573,
+        "amount": 9.0
+      },
+      "SOL": {
+        "id": "870308753155978752",
+        "side": "LONG",
+        "price": 100.57,
+        "amount": 4.0
+      },
+      "LINK": {
+        "id": "870308755764564480",
+        "side": "LONG",
+        "price": 11.392,
+        "amount": 34.0
+      },
+      "DOGE": {
+        "id": "870309627471369216",
+        "side": "LONG",
+        "price": 0.07794,
+        "amount": 4.0
+      },
+      "SUI": {
+        "id": "870332194591193088",
+        "side": "LONG",
+        "price": 0.9198,
+        "amount": 41.0
+      },
+      "RENDER": {
+        "id": "870332405566592576",
+        "side": "SHORT",
+        "price": 1.695,
+        "amount": 17.0
+      },
+      "BTC": {
+        "id": "870335516267076096",
+        "side": "LONG",
+        "price": 80327.6,
+        "amount": 4.0
+      }
+    },
+    "realized_usd": 0.4829,
+    "realized_roe": 55.199999999999996,
+    "tp_count": 2,
+    "sl_count": 2,
+    "trades": [
+      {
+        "coin": "RENDER",
+        "sym": "RENDER-USDT",
+        "outcome": "SL",
+        "pnl_usd": -0.387,
+        "roe": -33.74,
+        "exit_price": 1.682,
+        "closed_at": 1793170240.0
+      },
+      {
+        "coin": "LINK",
+        "sym": "LINK-USDT",
+        "outcome": "SL",
+        "pnl_usd": -0.0032,
+        "roe": -0.21,
+        "exit_price": 11.742,
+        "closed_at": 1793159979.0
+      },
+      {
+        "coin": "ARB",
+        "sym": "ARB-USDT",
+        "outcome": "TP",
+        "pnl_usd": 0.5476,
+        "roe": 55.49,
+        "exit_price": 0.17045,
+        "closed_at": 1793153791.0
+      },
+      {
+        "coin": "RENDER",
+        "sym": "RENDER-USDT",
+        "outcome": "TP",
+        "pnl_usd": 0.3255,
+        "roe": 33.66,
+        "exit_price": 1.706,
+        "closed_at": 1793151885.0
+      }
+    ],
+    "total_floating_usd": 1.22122,
+    "total_floating_roe": -11.200000000000001,
+    "timestamp": 1793174932.7500856
   }
 }

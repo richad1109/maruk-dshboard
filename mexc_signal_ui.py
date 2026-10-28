@@ -111,7 +111,7 @@ def bias_cards():
 
     with col_head_left:
         st.markdown('### Radar Limit Order 20 Koin · ' + label)
-        st.caption('Top 20 Likuiditas Kripto · Margin &#36;2.00 USD Isolated per Posisi · Leverage 30x Flat')
+        st.caption('Sinkronisasi Langsung MEXC Futures (Akun 1) · Margin Rata ~$1.05 - $1.30 · Leverage 30x Flat')
 
     # =========================================================================
     # BANNER UTAMA: TOTAL FLOATING, REALIZED PnL & WIN RATE PORTOFOLIO
@@ -128,29 +128,30 @@ def bias_cards():
 <div style="background: rgba(15, 23, 42, 0.75); border: 2px solid #334155; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px;">
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 14px;">
 <div style="background: {tot_bg}; border: 1.5px solid {tot_border}; border-radius: 10px; padding: 12px 16px;">
-<div style="font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: #94a3b8; font-weight: 700;">💰 FLOATING PROFIT (BERJALAN)</div>
-<div style="font-size: 24px; font-weight: 900; color: {tot_col}; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">{sign_tot}&#36;{total_floating_usd:,.2f} USD <span style="font-size: 15px; font-weight: 700;">({sign_tot}{total_floating_roe:,.1f}%)</span></div>
-<div style="font-size: 11.5px; color: #cbd5e1; margin-top: 2px;">Estimasi: <strong style="color: {tot_col};">{sign_tot}Rp {tot_idr:,.0f}</strong> ({active_floating_count} koin mantul aktif)</div>
+<div style="font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: #94a3b8; font-weight: 700;">💰 FLOATING PROFIT (BERJALAN DI MEXC)</div>
+<div style="font-size: 24px; font-weight: 900; color: {tot_col}; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">{sign_tot}&#36;{total_floating_usd:,.4f} USD <span style="font-size: 15px; font-weight: 700;">({sign_tot}{total_floating_roe:,.1f}%)</span></div>
+<div style="font-size: 11.5px; color: #cbd5e1; margin-top: 2px;">Estimasi: <strong style="color: {tot_col};">{sign_tot}Rp {tot_idr:,.0f}</strong> ({active_floating_count} koin mantul aktif di MEXC)</div>
 </div>
 <div style="background: rgba(59, 130, 246, 0.14); border: 1.5px solid #3b82f6; border-radius: 10px; padding: 12px 16px;">
-<div style="font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: #93c5fd; font-weight: 700;">💎 REALIZED PnL (SELESAI TP/SL)</div>
-<div style="font-size: 24px; font-weight: 900; color: {real_col}; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">{sign_real}&#36;{realized_usd:,.2f} USD <span style="font-size: 15px; font-weight: 700;">({sign_real}{realized_roe:,.1f}%)</span></div>
+<div style="font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: #93c5fd; font-weight: 700;">💎 REALIZED PnL (SELESAI DI MEXC HARI INI)</div>
+<div style="font-size: 24px; font-weight: 900; color: {real_col}; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">{sign_real}&#36;{realized_usd:,.4f} USD <span style="font-size: 15px; font-weight: 700;">({sign_real}{realized_roe:,.1f}%)</span></div>
 <div style="font-size: 11.5px; color: #cbd5e1; margin-top: 2px;">Total Selesai: <strong style="color: {real_col};">{sign_real}Rp {realized_idr:,.0f}</strong> ({total_closed} trade: {tp_count} TP / {sl_count} SL)</div>
 </div>
 <div style="background: rgba(245, 158, 11, 0.14); border: 1.5px solid #f59e0b; border-radius: 10px; padding: 12px 16px;">
 <div style="font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: #fde68a; font-weight: 700;">🏆 WIN RATE (WR) PORTOFOLIO</div>
 <div style="font-size: 24px; font-weight: 900; color: #fbbf24; font-family: monospace; letter-spacing: -0.5px; margin-top: 2px;">{avg_portfolio_wr:.1f}% <span style="font-size: 13px; font-weight: 700; color: #94a3b8;">(Historis)</span></div>
-<div style="font-size: 11.5px; color: #cbd5e1; margin-top: 2px;">WR Sesi Selesai: <strong style="color: #60a5fa;">{realized_wr:.1f}%</strong> ({tp_count} TP / {sl_count} SL)</div>
+<div style="font-size: 11.5px; color: #cbd5e1; margin-top: 2px;">WR Sesi Hari Ini: <strong style="color: #60a5fa;">{realized_wr:.1f}%</strong> ({tp_count} TP / {sl_count} SL)</div>
 </div>
 </div>
 <div style="display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; border-top: 1px solid #1e293b; padding-top: 12px;">
 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+<span style="background: rgba(16, 185, 129, 0.22); border: 1px solid #10b981; color: #34d399; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">● SINKRONISASI MEXC LIVE (100% RIIL)</span>
 <span style="background: rgba(16, 185, 129, 0.22); border: 1px solid #10b981; color: #34d399; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">⚡ {active_floating_count} Koin Mantul Aktif</span>
 <span style="background: rgba(59, 130, 246, 0.22); border: 1px solid #3b82f6; color: #60a5fa; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">🎯 {tp_count} Sukses Hit TP</span>
 <span style="background: rgba(239, 68, 68, 0.22); border: 1px solid #ef4444; color: #f87171; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">🛑 {sl_count} Hit Stop Loss</span>
-<span style="background: rgba(245, 158, 11, 0.22); border: 1px solid #f59e0b; color: #f59e0b; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">⏳ {valid_count} Setup Baru Siap Pasang</span>
+<span style="background: rgba(245, 158, 11, 0.22); border: 1px solid #f59e0b; color: #f59e0b; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">⏳ {valid_count} Limit Antre</span>
 </div>
-<div style="font-size: 11px; color: #64748b;">*Margin &#36;2.00 per posisi isolated · Leverage 30x Flat · TP +35% ROE (+&#36;0.70) · SL -30% ROE (-&#36;0.60)</div>
+<div style="font-size: 11px; color: #64748b;">*Data live disinkronkan langsung dari API MEXC Contract Akun 1 · Leverage 30x Flat · TP +35% ROE · SL -30% ROE</div>
 </div>
 </div>
 ''')
@@ -226,16 +227,20 @@ def bias_cards():
                     html(f'<div style="text-align: right; padding-top: 2px;"><span style="background: {pot_bg}; color: {pot_col}; font-weight: 800; font-size: 10px; padding: 3px 6px; border-radius: 4px;">{pot_text}</span>{stat_badge}</div>')
 
                 # 3. LEVEL ENTRY (LIMIT), TP, SL (SELALU FRESH & SIAP PASANG)
-                st.caption(f"Rencana Limit Order (Lev {r['lev']}x Isolated · Margin &#36;2.00)")
+                margin_str = f"Margin &#36;{r.get('margin', 1.30):.2f}"
+                pos_str = "Posisi Aktif MEXC" if is_touched else "Limit Order Antre"
+                st.caption(f"{pos_str} (Lev {r['lev']}x Isolated · {margin_str})")
                 level_row(r['limit_p'], r['tp_p'], r['sl_p'])
 
                 # 4. WR & METRIK
+                tp_usd = r.get('margin', 1.30) * 0.35
+                sl_usd = r.get('margin', 1.30) * 0.30
                 html(f'''
 <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #263140; padding-top: 6px; margin-top: 4px;">
 <span style="font-size: 11px; font-weight: 700; color: #facc15;">🏆 WR Historis: {r["wr"]:.1f}%</span>
 <span style="font-size: 10px; color: #94a3b8;">{r["tier"]}</span>
 </div>
-<div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">Target TP: +&#36;0.70 USD (+35% ROE) · Stop Loss: -&#36;0.40 USD (-20% ROE)</div>
+<div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">Target TP: +&#36;{tp_usd:.2f} USD (+35% ROE) · Stop Loss: -&#36;{sl_usd:.2f} USD (-30% ROE)</div>
 ''')
 
     st.caption('Pembaruan otomatis berjalan setiap 10 detik. Saat order menyentuh TP atau SL, riwayat keuntungan/kerugian langsung dicatat ke Realized PnL dan bot otomatis memindai setup limit baru yang segar agar Anda selalu siap pasang posisi berikutnya.')
