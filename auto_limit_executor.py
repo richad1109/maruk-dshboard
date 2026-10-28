@@ -172,6 +172,11 @@ def run_single_executor_cycle(dry_run=False):
     cfg["last_cycle_time"] = datetime.now(WIB).strftime('%H:%M:%S WIB')
     save_config(cfg)
     
+    if placed_orders:
+        log_event(f"🎯 Selesai pasang {len(placed_orders)} order baru! Total {len(op_ord) + len(placed_orders)} limit antre di MEXC.", "BATCH")
+    else:
+        log_event(f"💓 Patroli 24/7 Aktif: {len(act_pos)} Posisi Jalan · {len(op_ord)} Limit Antre di MEXC · {len(cooldown_coins)} Cooldown · Siaga...", "PATROLI")
+    
     return {
         "status": "OK",
         "placed_count": len(placed_orders),
