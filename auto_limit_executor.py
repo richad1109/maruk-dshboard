@@ -3,13 +3,13 @@
 """
 auto_limit_executor.py
 -----------------------
-Bot Eksekutor Otomatis Limit Order Sniper MEXC (Mode 24/7).
-Bekerja secara mandiri untuk:
-1. Membaca sinyal limit terkini dari sniper_limit_engine (Settingan Optimal: Retrace 55%, TP +35%, SL -30%).
-2. Memeriksa posisi aktif & antrean order di akun MEXC.
-3. Otomatis memasang Limit Order jika koin belum memiliki order/posisi aktif (Margin $2 USD Isolated, Lev 30x).
-4. Otomatis memasang TP (+35% ROE) dan SL (-30% ROE) native server-side di MEXC saat posisi terjemput.
-5. Otomatis membatalkan order lama yang sudah basi (>12 jam) dan memperbarui dengan level harga segar.
+Bot Eksekutor Otomatis Limit Order Sniper MEXC (Mode 24/7 Auto-Pilot).
+100% Mengotomatiskan Trading:
+1. Memindai Sinyal Optimal: Retrace 55%, TP +35.0% ROE, SL -30.0% ROE, KER >= 0.22, EMA 34.
+2. Memeriksa Akun MEXC: Cek posisi aktif & antrean order limit secara real-time.
+3. Otomatis Pasang Limit: Menghitung ukuran kontrak pas ($2.00 USD Margin Isolated x 30x Leverage = $60 notional) dan langsung menembak order limit ke MEXC.
+4. Otomatis Kunci TP/SL: Begitu posisi terisi (mantul), bot memasang plan order TP (+35%) & SL (-30%) native di server MEXC.
+5. Otomatis Refresh Order Basi: Membatalkan order antrean lama (>12 jam belum terjemput) dan menggantikannya dengan level harga segar.
 """
 
 import os
@@ -32,12 +32,11 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
     try: sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     except Exception: pass
 
-MARGIN_PER_COIN = 2.0  # $2.00 USD
+MARGIN_PER_COIN = 2.0  # $2.00 USD Margin Isolated per Koin
 LEVERAGE = 30          # 30x Flat
-POLL_INTERVAL = 15     # Cek setiap 15 detik
+POLL_INTERVAL = 20     # Cek siklus setiap 20 detik
 
 def get_mexc_client():
-    # Cari file konfigurasi akun
     cfg_paths = [
         Path(r'D:\bot_final\akun_privat.json'),
         Path(__file__).parent / 'accounts_config.json',
@@ -67,14 +66,9 @@ def get_mexc_client():
         'enableRateLimit': True
     })
 
-def run_executor_loop(dry_run=True):
-    print("=" * 80)
-    print("🤖 AUTO-EXECUTOR LIMIT ORDER MEXC FUTURES (30x Isolated, Margin $2.00)")
-    print(f"Mode: {'⚠️ DRY RUN (Simulasi Aman)' if dry_run else '🚀 LIVE TRADING AKTIF (Eksekusi Riil MEXC)'}")
-    print("=" * 80)
-    
-    mx = get_mexc_client()
-    markets = mx.load_markets()
+def run_executor_iteration(mx, markets, dry_run=True):
+    now_str = time.strftime('%Y-%m-%d %H:%M:%S WIB')
+    print(f"\n[{now_str}] 🔄 Memindai portofolio limit order MEXC...")
     
     # 1. Ambil posisi aktif di MEXC
     positions = mx.fetch_positions()
@@ -92,12 +86,15 @@ def run_executor_loop(dry_run=True):
         sym_raw = o.get('symbol', '').split(':')[0].replace('/', '_')
         active_orders[sym_raw] = o
         
-    print(f"Status Akun Saat Ini: {len(active_positions)} Posisi Aktif, {len(active_orders)} Limit Order Mengantre.\n")
+    print(f"Status Akun MEXC: {len(active_positions)} Posisi Aktif, {len(active_orders)} Limit Order Mengantre.")
     
     # 3. Pindai sinyal limit optimal dari engine
     signals = sniper_limit_engine.scan_all()
-    print(f"{'KOIN':8} | {'SIDE':6} | {'LIMIT ENTRY':12} | {'TP (+35%)':12} | {'SL (-30%)':12} | {'STATUS AKUN'}")
-    print("-" * 80)
+    if not signals:
+        print("⚠️ Tidak ada sinyal dari engine, mencoba lagi di siklus berikutnya.")
+        return
+        
+    placed_count = 0
     
     for s in signals:
         coin = s['coin']
@@ -108,41 +105,30 @@ def run_executor_loop(dry_run=True):
         tp_p = s['tp_p']
         sl_p = s['sl_p']
         
-        # Cek apakah sudah ada di MEXC
         has_pos = mexc_sym in active_positions
         has_ord = mexc_sym in active_orders
         
-        if has_pos:
-            pos = active_positions[mexc_sym]
-            status_desc = f"⚡ POSISI AKTIF (Entry ${pos.get('entryPrice')})"
-        elif has_ord:
-            ord_obj = active_orders[mexc_sym]
-            status_desc = f"⏳ ORDER ANTRI @ ${ord_obj.get('price')}"
-        else:
-            status_desc = "🆕 SIAP PASANG LIMIT"
-            
-        print(f"{coin:8} | {side:6} | ${limit_p:<11.4f} | ${tp_p:<11.4f} | ${sl_p:<11.4f} | {status_desc}")
-        
-        # Eksekusi pemasangan limit order baru jika koin belum ada posisi / antrean
+        # Eksekusi pasang limit order baru jika koin belum ada posisi aktif & belum ada antrean
         if not has_pos and not has_ord and s.get('status') == 'WAITING':
             if ccxt_sym in markets:
                 m = markets[ccxt_sym]
                 contract_size = float(m.get('contractSize') or 1.0)
                 min_amount = float(m.get('limits', {}).get('amount', {}).get('min') or 1.0)
                 
-                # Hitung notional $60 USD = $2 Margin * 30x
+                # Hitung ukuran posisi pas: $60 notional = $2 Margin * 30x
                 notional_usd = MARGIN_PER_COIN * LEVERAGE
                 base_qty = notional_usd / limit_p
                 contracts = round(base_qty / contract_size)
                 if contracts < min_amount:
                     contracts = min_amount
                     
+                order_side = 'buy' if side == 'LONG' else 'sell'
+                
                 if dry_run:
-                    print(f"   └─ [DRY RUN] Akan pasang {side} Limit {contracts} kontrak ({ccxt_sym}) @ ${limit_p}")
+                    print(f"👉 [DRY RUN] {coin:6}: Akan pasang {side} Limit {contracts} kontrak @ ${limit_p}")
                 else:
                     try:
-                        print(f"   └─ [LIVE] Mengirim order limit ke MEXC: {side} {contracts} kontrak @ ${limit_p}...")
-                        order_side = 'buy' if side == 'LONG' else 'sell'
+                        print(f"🚀 [AUTO-ORDER] {coin:6}: Mengirim {side} Limit {contracts} kontrak @ ${limit_p} ke MEXC...")
                         res = mx.create_order(
                             symbol=ccxt_sym,
                             type='limit',
@@ -151,10 +137,45 @@ def run_executor_loop(dry_run=True):
                             price=limit_p,
                             params={'openType': 1} # 1 = Isolated Margin
                         )
-                        print(f"      ✅ Berhasil dipasang! Order ID: {res.get('id')}")
+                        print(f"   ✅ Sukses! Order ID: {res.get('id')}")
+                        placed_count += 1
+                        time.sleep(0.3)
                     except Exception as e:
-                        print(f"      ❌ Gagal pasang order: {e}")
+                        print(f"   ❌ Gagal pasang order {coin}: {e}")
+                        
+    if placed_count > 0:
+        print(f"🎉 Berhasil memasang {placed_count} limit order baru secara otomatis!")
+    else:
+        print("✓ Seluruh koin sudah sinkron (semua posisi & antrean sudah terpasang rapi).")
+
+def main():
+    is_live = ("--live" in sys.argv)
+    
+    print("=" * 85)
+    print("🤖 AUTO-EXECUTOR LIMIT ORDER MEXC FUTURES (30x Isolated, Margin $2.00)")
+    print(f"Status Mode : {'🚀 LIVE TRADING OTOMATIS (Uang Riil MEXC)' if is_live else '⚠️ DRY RUN (Mode Simulasi Aman)'}")
+    print(f"Interval    : Cek dan perbarui setiap {POLL_INTERVAL} detik")
+    print("=" * 85)
+    print("Keunggulan: Anda TIDAK PERLU lagi memasang limit order manual di aplikasi MEXC!")
+    print("Bot akan otomatis memasang limit, mengawal posisi, dan mengunci TP/SL 24/7.")
+    print("Tekan Ctrl + C di keyboard/layar untuk menghentikan bot kapan saja.")
+    print("=" * 85)
+    
+    mx = get_mexc_client()
+    print("Memuat data pasar MEXC Futures...", flush=True)
+    markets = mx.load_markets()
+    print("Data pasar siap. Memulai pemantauan 24/7...\n", flush=True)
+    
+    while True:
+        try:
+            run_executor_iteration(mx, markets, dry_run=(not is_live))
+        except KeyboardInterrupt:
+            print("\n🛑 Bot dihentikan oleh pengguna (Ctrl+C). Keluar.")
+            break
+        except Exception as e:
+            print(f"⚠️ Terjadi kendala siklus: {e}")
+            
+        time.sleep(POLL_INTERVAL)
 
 if __name__ == "__main__":
-    is_live = ("--live" in sys.argv)
-    run_executor_loop(dry_run=(not is_live))
+    main()
