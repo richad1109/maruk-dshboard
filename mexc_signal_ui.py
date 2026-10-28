@@ -242,13 +242,21 @@ def bias_cards():
         sig_rows_html = []
         for s in new_signals:
             is_mexc = s.get('is_mexc_order', False)
+            is_expired = s.get('is_expired_order', False)
+            is_fresh_rescan = s.get('is_fresh_rescan', False)
             order_id = s.get('order_id', '-')
             t_str = s.get('order_time_str', '-')
             
-            if is_mexc:
+            if is_mexc and is_expired:
+                exp_reason = s.get('expired_reason', 'Basi')
+                status_badge = f'<span style="background: rgba(239, 68, 68, 0.25); border: 1px solid #ef4444; color: #fca5a5; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;" title="{exp_reason}">🛑 ORDER BASI / BATALKAN (ID: {order_id})</span>'
+            elif is_mexc:
                 status_badge = f'<span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🟢 SUDAH LIMIT DI MEXC (ID: {order_id})</span>'
+            elif is_fresh_rescan:
+                prev_p = s.get('prev_limit_p', '-')
+                status_badge = f'<span style="background: rgba(56, 189, 248, 0.2); border: 1px solid #38bdf8; color: #38bdf8; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;" title="Level lama ${prev_p} sempat kesentuh saat offline. Otomatis dipindai ulang ke level baru!">🔄 FRESH RE-SCAN (LEVEL BARU)</span>'
             else:
-                status_badge = '<span style="background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fbbf24; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🟡 BELUM LIMIT / SIAP PASANG</span>'
+                status_badge = '<span style="background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fbbf24; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🟡 SIAP PASANG (FRESH)</span>'
 
             side_col = "#34d399" if "LONG" in s.get('potensi', 'LONG') else "#f87171"
             side_bg = "#064e3b" if "LONG" in s.get('potensi', 'LONG') else "#7f1d1d"
@@ -266,11 +274,14 @@ def bias_cards():
 ''')
         rows_str = "".join(sig_rows_html)
         html(f'''
-<div style="background: rgba(15, 23, 42, 0.85); border: 1.5px solid #3b82f6; border-radius: 12px; padding: 14px 18px; margin-bottom: 22px;">
+<div style="background: rgba(15, 23, 42, 0.85); border: 1.5px solid #3b82f6; border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;">
   <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
     <div>
-      <span style="font-size: 13.5px; font-weight: 800; color: #60a5fa; letter-spacing: 0.5px;">⚡ RADAR SINYAL LIMIT BARU & VERIFIKASI STATUS ORDER DI MEXC</span>
-      <div style="font-size: 11px; color: #94a3b8; margin-top: 1px;">Pantauan Langsung Orderbook MEXC Akun 1 · Deteksi Otomatis Apakah Sudah Pasang Limit / Belum</div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 13.5px; font-weight: 800; color: #60a5fa; letter-spacing: 0.5px;">⚡ RADAR SINYAL LIMIT BARU & VERIFIKASI STATUS ORDER DI MEXC</span>
+        <span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 10px; padding: 2px 6px; border-radius: 4px;">🛡️ SMART ANTI-SL GUARD AKTIF</span>
+      </div>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 1px;">Pantauan Langsung Orderbook MEXC Akun 1 · Deteksi Otomatis Jemputan Basi, Order Expired & Auto Re-Scan Level Fresh</div>
     </div>
     <span style="background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #93c5fd; font-weight: 800; font-size: 11.5px; padding: 3px 10px; border-radius: 6px;">● {len(new_signals)} SINYAL LIMIT AKTIF</span>
   </div>
@@ -294,6 +305,27 @@ def bias_cards():
   </div>
 </div>
 ''')
+
+        # NOTIFIKASI ORDER BASI JIKA ADA
+        stale_signals = [s for s in new_signals if s.get('is_expired_order')]
+        if stale_signals:
+            st.markdown(f'''
+<div style="background: rgba(239, 68, 68, 0.15); border: 1.5px solid #ef4444; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+  <div>
+    <span style="font-weight: 800; color: #fca5a5; font-size: 12px;">⚠️ PERINGATAN: DITEMUKAN {len(stale_signals)} ORDER LIMIT BASI / KADALUARSA DI MEXC!</span>
+    <div style="font-size: 11px; color: #cbd5e1; margin-top: 2px;">Order ini sudah antre > 4 jam atau target TP sudah tercapai duluan tanpa terjemput. Segera batalkan agar tidak terjemput pada jemputan kedua yang rawan Stop Loss!</div>
+  </div>
+</div>
+''', unsafe_allow_html=True)
+            if st.button(f"🛑 Batalkan Semua {len(stale_signals)} Order Basi di MEXC Sekarang", key="btn_cancel_all_stale", type="secondary", use_container_width=True):
+                with st.spinner("Membatalkan seluruh order limit basi dari MEXC Futures..."):
+                    res = sniper_limit_engine.execute_cancel_all_stale_orders()
+                    if res['success']:
+                        st.success(res['msg'])
+                    else:
+                        st.error(res['msg'])
+                    st.cache_data.clear()
+                    st.rerun()
 
         # =====================================================================
         # TOOLBAR BATCH ORDER KENDALI MARGIN + PRESET TARGET RP 500RB
@@ -355,6 +387,8 @@ def bias_cards():
             with st.container(border=True):
                 is_touched = (r.get('status') == 'TOUCHED')
                 is_mexc_order = r.get('is_mexc_order', False)
+                is_expired_order = r.get('is_expired_order', False)
+                is_fresh_rescan = r.get('is_fresh_rescan', False)
                 order_id = r.get('order_id')
                 t_ord = r.get('order_time_str', '-')
                 last_out = r.get('last_outcome')
@@ -369,11 +403,27 @@ def bias_cards():
 <span style="font-weight: 800; color: {f_col}; font-size: 12px; font-family: monospace;">{r["float_str"]}</span>
 </div>
 ''')
+                elif is_mexc_order and is_expired_order:
+                    exp_r = r.get('expired_reason', 'Basi')
+                    html(f'''
+<div style="background: rgba(239, 68, 68, 0.2); border: 1.5px solid #ef4444; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+<span style="font-weight: 800; color: #fca5a5; font-size: 11px;">🛑 ORDER BASI ({exp_r})</span>
+<span style="font-weight: 700; color: #cbd5e1; font-size: 11px; font-family: monospace;">ID: {order_id}</span>
+</div>
+''')
                 elif is_mexc_order:
                     html(f'''
 <div style="background: rgba(16, 185, 129, 0.12); border: 1.5px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
 <span style="font-weight: 800; color: #34d399; font-size: 11px;">🟢 SUDAH LIMIT DI MEXC</span>
 <span style="font-weight: 700; color: #cbd5e1; font-size: 11px; font-family: monospace;">ID: {order_id}</span>
+</div>
+''')
+                elif is_fresh_rescan:
+                    prev_p = r.get('prev_limit_p', '-')
+                    html(f'''
+<div style="background: rgba(56, 189, 248, 0.18); border: 1.5px solid #38bdf8; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+<span style="font-weight: 800; color: #38bdf8; font-size: 11px;">🔄 FRESH RE-SCAN (LEVEL BARU)</span>
+<span style="font-weight: 700; color: #cbd5e1; font-size: 11px; font-family: monospace;">Level Lama: ${prev_p}</span>
 </div>
 ''')
                 elif last_out and isinstance(last_out, dict):
@@ -414,8 +464,12 @@ def bias_cards():
 
                     if is_touched:
                         stat_badge = '<span style="background: rgba(16, 185, 129, 0.25); color: #34d399; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #10b981; margin-left: 3px;">⚡ POSISI AKTIF</span>'
+                    elif is_mexc_order and is_expired_order:
+                        stat_badge = '<span style="background: rgba(239, 68, 68, 0.25); color: #fca5a5; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #ef4444; margin-left: 3px;">🛑 ORDER BASI</span>'
                     elif is_mexc_order:
                         stat_badge = '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #10b981; margin-left: 3px;">🟢 SUDAH LIMIT</span>'
+                    elif is_fresh_rescan:
+                        stat_badge = '<span style="background: rgba(56, 189, 248, 0.25); color: #38bdf8; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #38bdf8; margin-left: 3px;">🔄 RE-SCAN BARU</span>'
                     elif last_out and isinstance(last_out, dict):
                         stat_badge = '<span style="background: rgba(59, 130, 246, 0.25); color: #60a5fa; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #3b82f6; margin-left: 3px;">🔄 SETUP BARU</span>'
                     else:
@@ -463,20 +517,9 @@ def bias_cards():
                 if is_touched:
                     st.markdown(f"<div style='background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; border-radius: 6px; padding: 6px 10px; text-align: center; font-size: 11px; font-weight: 800; color: #34d399; margin-top: 6px;'>⚡ POSISI MANTUL AKTIF (TP/SL Terkunci)</div>", unsafe_allow_html=True)
                 elif is_mexc_order:
-                    cb1, cb2 = st.columns([1.4, 1.0])
-                    with cb1:
-                        if st.button(f"🔄 Pasang (${user_m:.2f})", key=f"btn_re_{c_name}", use_container_width=True):
-                            with st.spinner(f"Memperbarui {c_name}..."):
-                                res = sniper_limit_engine.execute_single_coin_limit_order(c_name, custom_margin=user_m)
-                                if res['success']:
-                                    st.success(res['msg'])
-                                    st.cache_data.clear()
-                                    st.rerun()
-                                else:
-                                    st.error(res['msg'])
-                    with cb2:
-                        if st.button(f"❌ Batal", key=f"btn_del_{c_name}", use_container_width=True):
-                            with st.spinner(f"Membatalkan {c_name}..."):
+                    if is_expired_order:
+                        if st.button(f"🛑 Batalkan Order Basi ({c_name})", key=f"btn_del_{c_name}", type="primary", use_container_width=True):
+                            with st.spinner(f"Membatalkan order basi {c_name}..."):
                                 res = sniper_limit_engine.execute_cancel_order(c_name, order_id=order_id)
                                 if res['success']:
                                     st.info(res['msg'])
@@ -484,6 +527,28 @@ def bias_cards():
                                     st.rerun()
                                 else:
                                     st.error(res['msg'])
+                    else:
+                        cb1, cb2 = st.columns([1.4, 1.0])
+                        with cb1:
+                            if st.button(f"🔄 Pasang (${user_m:.2f})", key=f"btn_re_{c_name}", use_container_width=True):
+                                with st.spinner(f"Memperbarui {c_name}..."):
+                                    res = sniper_limit_engine.execute_single_coin_limit_order(c_name, custom_margin=user_m)
+                                    if res['success']:
+                                        st.success(res['msg'])
+                                        st.cache_data.clear()
+                                        st.rerun()
+                                    else:
+                                        st.error(res['msg'])
+                        with cb2:
+                            if st.button(f"❌ Batal", key=f"btn_del_{c_name}", use_container_width=True):
+                                with st.spinner(f"Membatalkan {c_name}..."):
+                                    res = sniper_limit_engine.execute_cancel_order(c_name, order_id=order_id)
+                                    if res['success']:
+                                        st.info(res['msg'])
+                                        st.cache_data.clear()
+                                        st.rerun()
+                                    else:
+                                        st.error(res['msg'])
                 else:
                     if st.button(f"⚡ Pasang Limit {c_name} (${user_m:.2f})", key=f"btn_ord_{c_name}", type="primary", use_container_width=True):
                         with st.spinner(f"Mengirim Limit Order {c_name} ke MEXC..."):

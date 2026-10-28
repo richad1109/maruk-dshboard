@@ -382,13 +382,35 @@ def scan_single_coin(sym_tuple):
                 # Eksekusi persis sesuai orderbook MEXC:
                 touched = (wait_low <= limit_p) if is_long else (wait_high >= limit_p)
                 if touched:
-                    status = "TOUCHED"
-                    setup["status"] = "TOUCHED"
-                    setup["touch_time"] = now_ts
-                    with _STATE_LOCK:
-                        _PERSISTENT_SETUPS[coin] = setup
-                    save_persistent_state()
-                    # Menunggu scan berikutnya untuk evaluasi TP/SL (anti-loop)
+                    is_live_mexc = setup.get("is_mexc_order", False)
+                    if is_live_mexc:
+                        status = "TOUCHED"
+                        setup["status"] = "TOUCHED"
+                        setup["touch_time"] = now_ts
+                        with _STATE_LOCK:
+                            _PERSISTENT_SETUPS[coin] = setup
+                        save_persistent_state()
+                    else:
+                        # SMART GUARD: Level limit sempat tersentuh saat trader belum pasang limit di MEXC!
+                        # Ini adalah "Missed Entry / Telat Entry".
+                        # Untuk mencegah trader pasang posisi telat yang berisiko kena SL pada jemputan kedua,
+                        # kita otomatis BATALKAN setup lama dan PINDAI ULANG (Fresh Re-Scan) ke struktur market terbaru!
+                        old_limit = limit_p
+                        setup = create_new_setup(last_out=setup.get('last_outcome'))
+                        setup['is_fresh_rescan'] = True
+                        setup['rescan_note'] = f"Level lama ${old_limit} sempat kesentuh saat offline. Otomatis dipindai ulang ke level baru!"
+                        setup['prev_limit_p'] = old_limit
+                        setup['was_missed_touch'] = True
+                        limit_p = setup["limit_p"]
+                        tp_p = setup["tp_p"]
+                        sl_p = setup["sl_p"]
+                        side = setup["side"]
+                        is_long = (side == "LONG")
+                        potensi = setup["potensi"]
+                        status = "WAITING"
+                        with _STATE_LOCK:
+                            _PERSISTENT_SETUPS[coin] = setup
+                        save_persistent_state()
 
             # Hitung jarak real-time ke harga limit
             if is_long:
@@ -444,6 +466,10 @@ def scan_single_coin(sym_tuple):
                 "diff_pct": diff_pct,
                 "wr": wr_val,
                 "last_outcome": last_outcome,
+                "is_fresh_rescan": setup.get("is_fresh_rescan", False),
+                "prev_limit_p": setup.get("prev_limit_p"),
+                "rescan_note": setup.get("rescan_note"),
+                "was_missed_touch": setup.get("was_missed_touch", False),
                 "closed": now_ts
             }
         except Exception:
@@ -648,7 +674,6 @@ def scan_all():
                 r['order_time_str'] = o['time_str']
                 r['is_mexc_order'] = True
                 r['is_mexc_active'] = False
-                r['mexc_badge'] = f"🟢 SUDAH LIMIT DI MEXC (ID: {o['id']})"
                 r['float_usd'] = 0.0
                 r['float_roe'] = 0.0
                 is_long = (o['side'] == 'LONG')
@@ -657,8 +682,36 @@ def scan_all():
                 r['diff_pct'] = diff_pct
                 sign_d = "-" if is_long else "+"
                 r['float_str'] = f"Jarak: {sign_d}{abs(diff_pct):.2f}% (Antre di MEXC)"
-                r['touch_status'] = "⏳ MENUNGGU JEMPUTAN"
-                r['valid_label'] = "🟢 SUDAH LIMIT DI MEXC"
+                
+                # DETEKSI ORDER BASI / EXPIRED DI MEXC:
+                # 1. Target TP sudah tercapai tanpa jemput limit
+                # 2. Order antre sudah lebih dari 4 jam (14.400 detik)
+                o_ts = float(o.get('timestamp') or 0)
+                now_sec = time.time()
+                age_sec = now_sec - (o_ts / 1000.0) if o_ts > 0 else 0
+                tp_val = r.get('tp_p', 0.0)
+                
+                tp_hit_without_fill = False
+                if tp_val > 0:
+                    if is_long and cur_p >= tp_val:
+                        tp_hit_without_fill = True
+                    elif (not is_long) and cur_p <= tp_val:
+                        tp_hit_without_fill = True
+                
+                is_too_old = (age_sec >= 14400) # > 4 jam
+                
+                if tp_hit_without_fill or is_too_old:
+                    r['is_expired_order'] = True
+                    reason = "Target TP sudah tercapai duluan!" if tp_hit_without_fill else f"Antre > 4 jam ({int(age_sec//3600)}j {int((age_sec%3600)//60)}m)"
+                    r['expired_reason'] = reason
+                    r['mexc_badge'] = f"🛑 ORDER BASI ({reason}) - BATALKAN (ID: {o['id']})"
+                    r['valid_label'] = "🛑 ORDER BASI / BATALKAN"
+                    r['touch_status'] = "🛑 ORDER BASI (PERLU CANCEL)"
+                else:
+                    r['is_expired_order'] = False
+                    r['mexc_badge'] = f"🟢 SUDAH LIMIT DI MEXC (ID: {o['id']})"
+                    r['touch_status'] = "⏳ MENUNGGU JEMPUTAN"
+                    r['valid_label'] = "🟢 SUDAH LIMIT DI MEXC"
             
             # 3. Koin setup valid tapi belum antre di MEXC
             else:
@@ -668,16 +721,24 @@ def scan_all():
                 r['order_time_str'] = datetime.now(WIB).strftime('%H:%M:%S WIB')
                 r['is_mexc_order'] = False
                 r['is_mexc_active'] = False
-                r['mexc_badge'] = "🟡 BELUM LIMIT / SIAP PASANG"
                 r['float_usd'] = 0.0
                 r['float_roe'] = 0.0
                 cur_p = r.get('cur_p', 0.0)
                 is_long = "LONG" in r.get('potensi', 'LONG')
                 diff_pct = ((cur_p - r['limit_p']) / cur_p) * 100 if is_long and cur_p > 0 else 0.0
                 r['diff_pct'] = diff_pct
-                r['float_str'] = f"Jarak: {diff_pct:.2f}% (Siap Pasang)"
-                r['touch_status'] = "⏳ SIAP PASANG"
-                r['valid_label'] = "🟡 BELUM LIMIT"
+                
+                if r.get('is_fresh_rescan'):
+                    prev_p = r.get('prev_limit_p', '-')
+                    r['mexc_badge'] = f"🔄 FRESH RE-SCAN (Level lama ${prev_p} sempat kesentuh)"
+                    r['valid_label'] = "🔄 RE-SCAN SELESAI"
+                    r['float_str'] = f"Jarak: {diff_pct:.2f}% (Fresh Re-Scan)"
+                    r['touch_status'] = "🔄 DIPINDAI ULANG KE LEVEL BARU"
+                else:
+                    r['mexc_badge'] = "🟡 SIAP PASANG (FRESH)"
+                    r['valid_label'] = "🟡 BELUM LIMIT"
+                    r['float_str'] = f"Jarak: {diff_pct:.2f}% (Siap Pasang)"
+                    r['touch_status'] = "⏳ SIAP PASANG"
 
         with _STATE_LOCK:
             _PERSISTENT_SETUPS['_MEXC_LIVE_TELEMETRY'] = mexc_live
@@ -972,6 +1033,25 @@ def execute_cancel_order(coin, order_id=None):
         return {"success": True, "msg": f"Order limit {coin} berhasil dibatalkan dari MEXC."}
     except Exception as e:
         return {"success": False, "msg": f"Gagal membatalkan order {coin}: {str(e)}"}
+
+def execute_cancel_all_stale_orders():
+    """Membatalkan seluruh order limit di MEXC yang sudah expired / basi / TP tercapai duluan."""
+    try:
+        data = scan_all()
+        cancelled = []
+        for d in data:
+            if d.get('is_expired_order') and d.get('order_id'):
+                res = execute_cancel_order(d['coin'], d['order_id'])
+                if res.get('success'):
+                    cancelled.append((d['coin'], d['order_id'], d.get('expired_reason', 'Stale')))
+        return {
+            "success": True,
+            "cancelled_count": len(cancelled),
+            "cancelled_orders": cancelled,
+            "msg": f"✅ Berhasil membatalkan {len(cancelled)} order basi dari MEXC!" if cancelled else "Tidak ada order basi yang perlu dibatalkan."
+        }
+    except Exception as e:
+        return {"success": False, "msg": f"Gagal membatalkan order basi: {str(e)}"}
 
 def execute_place_all_waiting_limits(custom_margin=1.30):
     """Memasang limit order serentak untuk seluruh koin yang berstatus SIAP PASANG."""
