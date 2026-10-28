@@ -76,13 +76,18 @@
     "lev": 25,
     "side": "LONG",
     "potensi": "POTENSI LONG (BUY)",
-    "limit_p": 1.3174,
-    "tp_p": 1.335844,
-    "sl_p": 1.306861,
-    "status": "TOUCHED",
-    "created_at": 1793136879.3146138,
-    "touch_time": 1793159142.2118511,
-    "closed_at": null
+    "limit_p": 1.3307,
+    "tp_p": 1.34933,
+    "sl_p": 1.320054,
+    "status": "WAITING",
+    "created_at": 1793159214.0494826,
+    "touch_time": null,
+    "last_outcome": {
+      "outcome": "TP",
+      "roe": 35.0,
+      "pnl_usd": 0.7,
+      "closed_at": 1793159214.0494826
+    }
   },
   "ADA": {
     "coin": "ADA",
@@ -458,6 +463,15 @@
       "roe": -20.0,
       "exit_price": 7.906536,
       "closed_at": 1793158494.4005084
+    },
+    {
+      "coin": "XRP",
+      "sym": "XRP-USDT",
+      "outcome": "TP",
+      "pnl_usd": 0.7,
+      "roe": 35.0,
+      "exit_price": 1.335844,
+      "closed_at": 1793159214.0494826
     }
   ]
 }
