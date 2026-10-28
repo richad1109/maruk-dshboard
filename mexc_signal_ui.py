@@ -26,7 +26,7 @@ def html(raw_html: str):
     st.markdown(clean, unsafe_allow_html=True)
 
 def level_row(entry, tp, sl):
-    values = [('Entry (Limit)', entry), ('Take Profit (+35%)', tp), ('Stop Loss (-30%)', sl)]
+    values = [('Entry (Limit)', entry), ('Take Profit (+32%)', tp), ('Stop Loss (-24%)', sl)]
     cells = ''.join(f'<div><span>{label}</span><strong>{escape(display_price(value))}</strong></div>' for label, value in values)
     html(f'<div class="compact-levels">{cells}</div>')
 
@@ -110,8 +110,8 @@ def bias_cards():
     label = 'DOMINAN LONG' if longs > shorts else 'DOMINAN SHORT' if shorts > longs else 'CAMPURAN / NETRAL'
 
     with col_head_left:
-        st.markdown('### Radar Limit Order 20 Koin · ' + label)
-        st.caption('Sinkronisasi Langsung MEXC Futures (Akun 1) · Margin Rata ~$1.05 - $1.30 · Leverage 30x Flat')
+        st.markdown('### Radar Limit Order 20 Koin · Titan Harmonic 40x · ' + label)
+        st.caption('Institutional 1H Trend Lock · Fibo 52% Sweet Spot · TP +32.0% / SL -24.0% (RR 1.33:1) · Kendali Margin Mandiri per Koin')
 
     # =========================================================================
     # BANNER UTAMA: TOTAL FLOATING, REALIZED PnL & WIN RATE PORTOFOLIO
@@ -151,7 +151,7 @@ def bias_cards():
 <span style="background: rgba(239, 68, 68, 0.22); border: 1px solid #ef4444; color: #f87171; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">🛑 {sl_count} Hit Stop Loss</span>
 <span style="background: rgba(245, 158, 11, 0.22); border: 1px solid #f59e0b; color: #f59e0b; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">⏳ {valid_count} Limit Antre</span>
 </div>
-<div style="font-size: 11px; color: #64748b;">*Data live disinkronkan langsung dari API MEXC Contract Akun 1 · Leverage 30x Flat · TP +35% ROE · SL -30% ROE</div>
+<div style="font-size: 11px; color: #64748b;">*Data live disinkronkan langsung dari API MEXC Contract Akun 1 · Titan Harmonic 40x Isolated · TP +32% ROE · SL -24% ROE</div>
 </div>
 </div>
 ''')
@@ -268,6 +268,27 @@ def bias_cards():
 </div>
 ''')
 
+        # TOOLBAR BATCH ORDER KENDALI MARGIN
+        col_b_margin, col_b_btn = st.columns([1.5, 2.5])
+        with col_b_margin:
+            batch_m = st.number_input(
+                "Margin Serentak Semua Koin (USD):",
+                min_value=0.50,
+                max_value=50.00,
+                value=1.30,
+                step=0.10,
+                format="%.2f",
+                key="global_batch_margin_input"
+            )
+        with col_b_btn:
+            st.markdown("<div style='height: 27px;'></div>", unsafe_allow_html=True)
+            if st.button(f"⚡ Pasang Limit Semua Sinyal Siap Pasang (${batch_m:.2f})", key="btn_place_all_waiting", type="primary", use_container_width=True):
+                with st.spinner(f"Mengirim seluruh limit order siap pasang ke MEXC Futures..."):
+                    res_list = sniper_limit_engine.execute_place_all_waiting_limits(custom_margin=batch_m)
+                    st.success(f"Selesai memproses {len(res_list)} koin siap pasang!")
+                    st.cache_data.clear()
+                    st.rerun()
+
     # =========================================================================
     # GRID KARTU 20 KOIN (JELAS, TANPA KONFLIK & FRESH SETUP)
     # =========================================================================
@@ -303,18 +324,18 @@ def bias_cards():
                 elif last_out and isinstance(last_out, dict):
                     # Baru selesai TP/SL dan LANGSUNG menerbitkan setup limit baru fresh
                     if last_out.get('outcome') == 'TP':
-                        pnl_txt = f"+${last_out.get('pnl_usd', 0.70):.2f}"
+                        pnl_txt = f"+${last_out.get('pnl_usd', 0.42):.2f}"
                         html(f'''
 <div style="background: rgba(16, 185, 129, 0.18); border: 1.5px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-<span style="font-weight: 700; color: #34d399; font-size: 11px;">🎯 HIT TP (+35%) · REALIZED BERTAMBAH</span>
+<span style="font-weight: 700; color: #34d399; font-size: 11px;">🎯 HIT TP (+32%) · REALIZED BERTAMBAH</span>
 <span style="font-weight: 800; color: #34d399; font-size: 11.5px; font-family: monospace;">{pnl_txt}</span>
 </div>
 ''')
                     else:
-                        pnl_txt = f"-${abs(last_out.get('pnl_usd', 0.60)):.2f}"
+                        pnl_txt = f"-${abs(last_out.get('pnl_usd', 0.31)):.2f}"
                         html(f'''
 <div style="background: rgba(239, 68, 68, 0.18); border: 1.5px solid #ef4444; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-<span style="font-weight: 700; color: #f87171; font-size: 11px;">🛑 HIT SL (-30%) · REALIZED TERPOTONG</span>
+<span style="font-weight: 700; color: #f87171; font-size: 11px;">🛑 HIT SL (-24%) · REALIZED TERPOTONG</span>
 <span style="font-weight: 800; color: #f87171; font-size: 11.5px; font-family: monospace;">{pnl_txt}</span>
 </div>
 ''')
@@ -349,22 +370,80 @@ def bias_cards():
 
                     html(f'<div style="text-align: right; padding-top: 2px;"><span style="background: {pot_bg}; color: {pot_col}; font-weight: 800; font-size: 10px; padding: 3px 6px; border-radius: 4px;">{pot_text}</span>{stat_badge}</div>')
 
-                # 3. LEVEL ENTRY (LIMIT), TP, SL (SELALU FRESH & SIAP PASANG)
+                # 3. LEVEL ENTRY (LIMIT), TP, SL (TITAN HARMONIC 40X)
                 margin_str = f"Margin &#36;{r.get('margin', 1.30):.2f}"
                 pos_str = "Posisi Aktif MEXC" if is_touched else "Limit Order Antre MEXC" if is_mexc_order else "Sinyal Limit Siap Pasang"
                 st.caption(f"{pos_str} (Lev {r['lev']}x Isolated · {margin_str}) · 🕒 {t_ord}")
                 level_row(r['limit_p'], r['tp_p'], r['sl_p'])
 
                 # 4. WR & METRIK
-                tp_usd = r.get('margin', 1.30) * 0.35
-                sl_usd = r.get('margin', 1.30) * 0.30
+                tp_usd = r.get('margin', 1.30) * 0.32
+                sl_usd = r.get('margin', 1.30) * 0.24
                 html(f'''
 <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #263140; padding-top: 6px; margin-top: 4px;">
 <span style="font-size: 11px; font-weight: 700; color: #facc15;">🏆 WR Historis: {r["wr"]:.1f}%</span>
 <span style="font-size: 10px; color: #94a3b8;">{r["tier"]}</span>
 </div>
-<div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">Target TP: +&#36;{tp_usd:.2f} USD (+35% ROE) · Stop Loss: -&#36;{sl_usd:.2f} USD (-30% ROE)</div>
+<div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">Target TP: +&#36;{tp_usd:.2f} USD (+32% ROE) · Stop Loss: -&#36;{sl_usd:.2f} USD (-24% ROE)</div>
 ''')
+
+                # 5. KENDALI MARGIN MANDIRI & TOMBOL ORDER LIMIT (USER DIRECT CONTROL)
+                c_name = r['coin']
+                default_m = float(r.get('margin', 1.30))
+                if default_m <= 0.1:
+                    default_m = 1.30
+
+                st.markdown("<div style='font-size: 11px; font-weight: 700; color: #cbd5e1; margin-top: 6px; margin-bottom: 2px;'>💰 Tulis Margin Anda (USD):</div>", unsafe_allow_html=True)
+                col_m1, col_m2 = st.columns([1.3, 1.7])
+                with col_m1:
+                    user_m = st.number_input(
+                        f"Margin {c_name}",
+                        min_value=0.50,
+                        max_value=50.00,
+                        value=default_m,
+                        step=0.10,
+                        format="%.2f",
+                        key=f"m_inp_{c_name}",
+                        label_visibility="collapsed"
+                    )
+                with col_m2:
+                    notional_calc = user_m * 40.0
+                    st.markdown(f"<div style='font-size: 11px; font-weight: 800; color: #38bdf8; padding-top: 6px;'>= ${notional_calc:.1f} (40x)</div>", unsafe_allow_html=True)
+
+                if is_touched:
+                    st.markdown(f"<div style='background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; border-radius: 6px; padding: 6px 10px; text-align: center; font-size: 11px; font-weight: 800; color: #34d399; margin-top: 6px;'>⚡ POSISI MANTUL AKTIF (TP/SL Terkunci)</div>", unsafe_allow_html=True)
+                elif is_mexc_order:
+                    cb1, cb2 = st.columns([1.4, 1.0])
+                    with cb1:
+                        if st.button(f"🔄 Pasang (${user_m:.2f})", key=f"btn_re_{c_name}", use_container_width=True):
+                            with st.spinner(f"Memperbarui {c_name}..."):
+                                res = sniper_limit_engine.execute_single_coin_limit_order(c_name, custom_margin=user_m)
+                                if res['success']:
+                                    st.success(res['msg'])
+                                    st.cache_data.clear()
+                                    st.rerun()
+                                else:
+                                    st.error(res['msg'])
+                    with cb2:
+                        if st.button(f"❌ Batal", key=f"btn_del_{c_name}", use_container_width=True):
+                            with st.spinner(f"Membatalkan {c_name}..."):
+                                res = sniper_limit_engine.execute_cancel_order(c_name, order_id=order_id)
+                                if res['success']:
+                                    st.info(res['msg'])
+                                    st.cache_data.clear()
+                                    st.rerun()
+                                else:
+                                    st.error(res['msg'])
+                else:
+                    if st.button(f"⚡ Pasang Limit {c_name} (${user_m:.2f})", key=f"btn_ord_{c_name}", type="primary", use_container_width=True):
+                        with st.spinner(f"Mengirim Limit Order {c_name} ke MEXC..."):
+                            res = sniper_limit_engine.execute_single_coin_limit_order(c_name, custom_margin=user_m)
+                            if res['success']:
+                                st.success(res['msg'])
+                                st.cache_data.clear()
+                                st.rerun()
+                            else:
+                                st.error(res['msg'])
 
     st.caption('Pembaruan otomatis berjalan setiap 10 detik. Saat order menyentuh TP atau SL, riwayat keuntungan/kerugian langsung dicatat ke Realized PnL dan bot otomatis memindai setup limit baru yang segar agar Anda selalu siap pasang posisi berikutnya.')
 

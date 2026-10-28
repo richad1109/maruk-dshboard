@@ -32,8 +32,8 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
     try: sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     except Exception: pass
 
-MARGIN_PER_COIN = 2.0  # $2.00 USD Margin Isolated per Koin
-LEVERAGE = 30          # 30x Flat
+MARGIN_PER_COIN = 1.30 # $1.30 USD Margin Isolated per Koin (Bisa disesuaikan di UI)
+LEVERAGE = 40          # 40x Flat (Titan Harmonic)
 POLL_INTERVAL = 20     # Cek siklus setiap 20 detik
 
 def get_mexc_client():
@@ -141,7 +141,11 @@ def run_executor_iteration(mx, markets, dry_run=True):
                             params={
                                 'openType': 1,
                                 'leverage': LEVERAGE,
-                                'hedged': True
+                                'hedged': True,
+                                'stopLossPrice': sl_p,
+                                'takeProfitPrice': tp_p,
+                                'lossTrend': 1,
+                                'profitTrend': 1
                             }
                         )
                         print(f"   ✅ Sukses! Order ID: {res.get('id')}", flush=True)
@@ -159,7 +163,7 @@ def main():
     is_live = ("--live" in sys.argv)
     
     print("=" * 85)
-    print("🤖 AUTO-EXECUTOR LIMIT ORDER MEXC FUTURES (30x Isolated, Margin $2.00)")
+    print("🤖 AUTO-EXECUTOR LIMIT ORDER MEXC FUTURES (Titan Harmonic 40x Isolated, Margin $1.30 Default)")
     print(f"Status Mode : {'🚀 LIVE TRADING OTOMATIS (Uang Riil MEXC)' if is_live else '⚠️ DRY RUN (Mode Simulasi Aman)'}")
     print(f"Interval    : Cek dan perbarui setiap {POLL_INTERVAL} detik")
     print("=" * 85)

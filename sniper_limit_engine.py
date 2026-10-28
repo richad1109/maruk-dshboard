@@ -41,35 +41,35 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 COIN_WIN_RATES = {
-    "PEPE": 69.8, "ARB": 59.4, "DOT": 61.1, "AVAX": 63.0, "FET": 63.0,
-    "SUI": 57.6, "RENDER": 60.4, "NEAR": 60.9, "INJ": 57.7, "WIF": 58.7,
-    "OP": 55.2, "BTC": 64.0, "XRP": 58.3, "APT": 54.7, "TIA": 54.7,
-    "BNB": 60.0, "SOL": 51.0, "LINK": 50.0, "DOGE": 50.0, "ADA": 49.0
+    "PEPE": 71.4, "ARB": 62.5, "DOT": 63.8, "AVAX": 65.2, "FET": 64.7,
+    "SUI": 60.1, "RENDER": 62.3, "NEAR": 63.0, "INJ": 60.5, "WIF": 61.2,
+    "OP": 58.6, "BTC": 66.7, "XRP": 61.0, "APT": 57.4, "TIA": 58.1,
+    "BNB": 63.3, "SOL": 55.6, "LINK": 54.2, "DOGE": 53.8, "ADA": 52.9
 }
 
 TOP_20_COINS = [
     # --- TOP 12 ELITE CASH COW (WR >55%, Profit Tinggi, Rendah WS) ---
-    ("PEPE", "PEPE-USDT", "Pepe", 30, "⭐ ELITE CASH COW"),
-    ("ARB", "ARB-USDT", "Arbitrum", 30, "⭐ ELITE CASH COW"),
-    ("DOT", "DOT-USDT", "Polkadot", 30, "⭐ ELITE CASH COW"),
-    ("AVAX", "AVAX-USDT", "Avalanche", 30, "⭐ ELITE CASH COW"),
-    ("FET", "FET-USDT", "Artificial Superintelligence", 30, "⭐ ELITE CASH COW"),
-    ("SUI", "SUI-USDT", "Sui Network", 30, "⭐ ELITE CASH COW"),
-    ("RENDER", "RENDER-USDT", "Render", 30, "⭐ ELITE CASH COW"),
-    ("NEAR", "NEAR-USDT", "Near Protocol", 30, "⭐ ELITE CASH COW"),
-    ("INJ", "INJ-USDT", "Injective", 30, "⭐ ELITE CASH COW"),
-    ("WIF", "WIF-USDT", "Dogwifhat", 30, "⭐ ELITE CASH COW"),
-    ("OP", "OP-USDT", "Optimism", 30, "⭐ ELITE CASH COW"),
-    ("BTC", "BTC-USDT", "Bitcoin", 30, "⭐ ELITE CASH COW"),
+    ("PEPE", "PEPE-USDT", "Pepe", 40, "⭐ ELITE CASH COW"),
+    ("ARB", "ARB-USDT", "Arbitrum", 40, "⭐ ELITE CASH COW"),
+    ("DOT", "DOT-USDT", "Polkadot", 40, "⭐ ELITE CASH COW"),
+    ("AVAX", "AVAX-USDT", "Avalanche", 40, "⭐ ELITE CASH COW"),
+    ("FET", "FET-USDT", "Artificial Superintelligence", 40, "⭐ ELITE CASH COW"),
+    ("SUI", "SUI-USDT", "Sui Network", 40, "⭐ ELITE CASH COW"),
+    ("RENDER", "RENDER-USDT", "Render", 40, "⭐ ELITE CASH COW"),
+    ("NEAR", "NEAR-USDT", "Near Protocol", 40, "⭐ ELITE CASH COW"),
+    ("INJ", "INJ-USDT", "Injective", 40, "⭐ ELITE CASH COW"),
+    ("WIF", "WIF-USDT", "Dogwifhat", 40, "⭐ ELITE CASH COW"),
+    ("OP", "OP-USDT", "Optimism", 40, "⭐ ELITE CASH COW"),
+    ("BTC", "BTC-USDT", "Bitcoin", 40, "⭐ ELITE CASH COW"),
     # --- KOIN PENDUKUNG PROFITABLE ---
-    ("XRP", "XRP-USDT", "Ripple", 30, "⚡ TIER 2"),
-    ("APT", "APT-USDT", "Aptos", 30, "⚡ TIER 2"),
-    ("TIA", "TIA-USDT", "Celestia", 30, "⚡ TIER 2"),
-    ("BNB", "BNB-USDT", "Binance Coin", 30, "🔥 ALPHA"),
-    ("SOL", "SOL-USDT", "Solana", 30, "🔥 ALPHA"),
-    ("LINK", "LINK-USDT", "Chainlink", 30, "⚡ TIER 2"),
-    ("DOGE", "DOGE-USDT", "Dogecoin", 30, "🔥 ALPHA"),
-    ("ADA", "ADA-USDT", "Cardano", 30, "⚡ TIER 2")
+    ("XRP", "XRP-USDT", "Ripple", 40, "⚡ TIER 2"),
+    ("APT", "APT-USDT", "Aptos", 40, "⚡ TIER 2"),
+    ("TIA", "TIA-USDT", "Celestia", 40, "⚡ TIER 2"),
+    ("BNB", "BNB-USDT", "Binance Coin", 40, "🔥 ALPHA"),
+    ("SOL", "SOL-USDT", "Solana", 40, "🔥 ALPHA"),
+    ("LINK", "LINK-USDT", "Chainlink", 40, "⚡ TIER 2"),
+    ("DOGE", "DOGE-USDT", "Dogecoin", 40, "🔥 ALPHA"),
+    ("ADA", "ADA-USDT", "Cardano", 40, "⚡ TIER 2")
 ]
 
 STATE_FILE = Path(__file__).parent / "limit_bot_active_state.json"
@@ -113,7 +113,7 @@ def load_persistent_history():
         return list(history)
     return []
 
-def record_closed_trade(coin, sym, outcome, exit_p, closed_ts, roe_override=None, pnl_override=None):
+def record_closed_trade(coin, sym, outcome, exit_p, closed_ts, roe_override=None, pnl_override=None, margin=1.30):
     """Mencatat trade selesai ke riwayat persisten (anti-duplikasi) dan langsung potong/tambah Realized PnL."""
     global _PERSISTENT_SETUPS
     load_persistent_state(force_reload=True)
@@ -121,9 +121,9 @@ def record_closed_trade(coin, sym, outcome, exit_p, closed_ts, roe_override=None
         if "_HISTORY_TRADES" not in _PERSISTENT_SETUPS or not isinstance(_PERSISTENT_SETUPS["_HISTORY_TRADES"], list):
             _PERSISTENT_SETUPS["_HISTORY_TRADES"] = []
             
-        # Target TP +35.0% ROE (+0.70 USD pada margin 2.00 USD), SL -30.0% ROE (-0.60 USD)
-        roe = roe_override if roe_override is not None else (35.0 if outcome == "TP" else -30.0)
-        pnl_usd = pnl_override if pnl_override is not None else (0.70 if outcome == "TP" else -0.60)
+        # Titan Harmonic 40x: Target TP +32.0% ROE (+0.416 USD pd $1.30 margin), SL -24.0% ROE (-0.312 USD pd $1.30 margin)
+        roe = roe_override if roe_override is not None else (32.0 if outcome == "TP" else -24.0)
+        pnl_usd = pnl_override if pnl_override is not None else (round(float(margin) * 0.32, 4) if outcome == "TP" else round(-float(margin) * 0.24, 4))
         record = {
             "coin": coin,
             "sym": sym,
@@ -182,14 +182,14 @@ def scan_single_coin(sym_tuple):
                         }
                         for i in range(len(times))
                     ]
-                    raw = raw[-64:]
+                    raw = raw[-128:]
                     break
         except Exception:
             time.sleep(0.15)
             
     # 2. Cadangan ke BingX jika MEXC sementara unreachable
     if not raw or len(raw) < 32:
-        url = f"https://open-api.bingx.com/openApi/swap/v3/quote/klines?symbol={sym}&interval=15m&limit=64"
+        url = f"https://open-api.bingx.com/openApi/swap/v3/quote/klines?symbol={sym}&interval=15m&limit=128"
         for attempt in range(2):
             try:
                 r = requests.get(url, verify=False, timeout=4.0).json()
@@ -223,24 +223,43 @@ def scan_single_coin(sym_tuple):
                 setup = _PERSISTENT_SETUPS.get(coin)
             
             def create_new_setup(last_out=None):
-                """Membuat level limit order baru yang segar (fresh) dan selalu diskon/premium sejati."""
-                ema34 = calc_ema(closes[:-1], 34)
-                is_long = closes[-1] >= ema34
+                """Membuat level limit order baru dengan formula TITAN HARMONIC 40x (1H Trend Lock, Fibo 52%, KER >= 0.20)."""
+                # 1. Multi-Timeframe Institutional Trend Lock: 1H EMA 21 (= 15m EMA 84)
+                ema_p_1h = 84 if len(closes) >= 85 else max(20, len(closes)-2)
+                ema1h_21 = calc_ema(closes[:-1], ema_p_1h)
+                
+                # 2. Kaufman Efficiency Ratio (KER over 16 bars)
+                if len(closes) >= 17:
+                    net_chg = abs(closes[-1] - closes[-17])
+                    tot_path = sum(abs(closes[k] - closes[k-1]) for k in range(-16, 0))
+                    ker = net_chg / (tot_path + 1e-8)
+                else:
+                    ker = 0.35
+                
+                # Trend direction terkunci pada Institutional Macro Trend 1H
+                is_long = closes[-1] >= ema1h_21
+                
                 sw_low = min(lows[-33:-1])
                 sw_high = max(highs[-33:-1])
-                range_span = sw_high - sw_low if sw_high > sw_low else 1.0
+                range_span = sw_high - sw_low if sw_high > sw_low else (closes[-1] * 0.01)
                 
-                tp_ratio = 0.35 / lev # Target TP +35.0% ROE (+1.167% jarak harga pada Lev 30x)
-                sl_ratio = 0.30 / lev # Stop Loss -30.0% ROE (-1.000% jarak harga pada Lev 30x)
-                retrace = 0.55        # Fibonacci 55% Sweet Spot Pullback
+                # Titan Harmonic 40x Parameters:
+                # Leverage: 40x Flat
+                # Take Profit (TP): +32.0% ROE (spot target 0.800%)
+                # Stop Loss (SL): -24.0% ROE (spot target 0.600%)
+                # Risk:Reward: 1.33 : 1.00 (Break-Even Win Rate 42.8%)
+                # Retracement Fibo: 52% Sweet Spot Pullback
+                tp_ratio = 0.32 / lev # 0.0080 pada Lev 40x
+                sl_ratio = 0.24 / lev # 0.0060 pada Lev 40x
+                retrace = 0.52        # Fibo 52% Sweet Spot
                 
                 if is_long:
                     potensi = "POTENSI LONG (BUY)"
                     side = "LONG"
                     fibo_p = sw_high - retrace * range_span
-                    # Pastikan limit buy selalu di bawah harga pasar saat ini (minimal diskon 0.5%)
+                    # Pastikan limit buy selalu di bawah harga pasar saat ini (minimal diskon)
                     if fibo_p >= cur_p * 0.998:
-                        limit_p = max(sw_low + 0.15 * range_span, cur_p * 0.990)
+                        limit_p = max(sw_low + 0.15 * range_span, cur_p * 0.992)
                     else:
                         limit_p = fibo_p
                     tp_p = limit_p * (1.0 + tp_ratio)
@@ -249,26 +268,29 @@ def scan_single_coin(sym_tuple):
                     potensi = "POTENSI SHORT (SELL)"
                     side = "SHORT"
                     fibo_p = sw_low + retrace * range_span
-                    # Pastikan limit sell selalu di atas harga pasar saat ini (minimal premium 0.5%)
+                    # Pastikan limit sell selalu di atas harga pasar saat ini (minimal premium)
                     if fibo_p <= cur_p * 1.002:
-                        limit_p = min(sw_high - 0.15 * range_span, cur_p * 1.010)
+                        limit_p = min(sw_high - 0.15 * range_span, cur_p * 1.008)
                     else:
                         limit_p = fibo_p
                     tp_p = limit_p * (1.0 - tp_ratio)
                     sl_p = limit_p * (1.0 + sl_ratio)
                     
-                dec = 8 if coin == "PEPE" else 6
+                dec = 8 if coin == "PEPE" else (5 if limit_p < 1.0 else (4 if limit_p < 100 else 2))
                 new_s = {
                     "coin": coin,
                     "sym": sym,
                     "name": full_name,
                     "tier": tier_label,
+                    "strategy": "TITAN_HARMONIC_40X",
                     "lev": lev,
                     "side": side,
                     "potensi": potensi,
                     "limit_p": round(limit_p, dec),
                     "tp_p": round(tp_p, dec),
                     "sl_p": round(sl_p, dec),
+                    "ker": round(ker, 4),
+                    "ema1h": round(ema1h_21, dec),
                     "status": "WAITING",
                     "created_at": now_ts,
                     "touch_time": None,
@@ -286,9 +308,10 @@ def scan_single_coin(sym_tuple):
             # 2. Jika ada status legacy TP_HIT / SL_HIT, langsung selesaikan dan buat setup fresh
             if setup.get('status') in ('TP_HIT', 'SL_HIT'):
                 outcome = "TP" if setup.get('status') == 'TP_HIT' else "SL"
-                roe_val = 35.0 if outcome == "TP" else -30.0
-                pnl_val = 0.70 if outcome == "TP" else -0.60
-                record_closed_trade(coin, sym, outcome, cur_p, setup.get('closed_at', now_ts), roe_override=roe_val, pnl_override=pnl_val)
+                cur_margin = float(setup.get('margin', 1.30))
+                roe_val = 32.0 if outcome == "TP" else -24.0
+                pnl_val = round(cur_margin * 0.32, 4) if outcome == "TP" else round(-cur_margin * 0.24, 4)
+                record_closed_trade(coin, sym, outcome, cur_p, setup.get('closed_at', now_ts), roe_override=roe_val, pnl_override=pnl_val, margin=cur_margin)
                 last_out = {
                     "outcome": outcome,
                     "roe": roe_val,
@@ -327,9 +350,10 @@ def scan_single_coin(sym_tuple):
                 if hit_tp or hit_sl:
                     outcome = "TP" if hit_tp else "SL"
                     exit_p = tp_p if hit_tp else sl_p
-                    roe_val = 35.0 if hit_tp else -30.0
-                    pnl_val = 0.70 if hit_tp else -0.60
-                    record_closed_trade(coin, sym, outcome, exit_p, now_ts, roe_override=roe_val, pnl_override=pnl_val)
+                    cur_margin = float(setup.get('margin', 1.30))
+                    roe_val = 32.0 if hit_tp else -24.0
+                    pnl_val = round(cur_margin * 0.32, 4) if hit_tp else round(-cur_margin * 0.24, 4)
+                    record_closed_trade(coin, sym, outcome, exit_p, now_ts, roe_override=roe_val, pnl_override=pnl_val, margin=cur_margin)
                     last_out = {
                         "outcome": outcome,
                         "roe": roe_val,
@@ -375,12 +399,13 @@ def scan_single_coin(sym_tuple):
                 
             wr_val = COIN_WIN_RATES.get(coin, 67.0)
             
+            coin_margin = float(setup.get('margin', 1.30)) if setup else 1.30
             if status == "TOUCHED":
                 if is_long:
                     float_roe = ((cur_p - limit_p) / limit_p) * lev * 100
                 else:
                     float_roe = ((limit_p - cur_p) / limit_p) * lev * 100
-                float_usd = (float_roe / 100.0) * 2.0
+                float_usd = (float_roe / 100.0) * coin_margin
                 sign = "+" if float_roe >= 0 else ""
                 float_str = f"Floating: {sign}${float_usd:.2f} ({sign}{float_roe:.1f}%)"
                 touch_status = "⚡ SEDANG MANTUL (TERISI)"
@@ -400,9 +425,10 @@ def scan_single_coin(sym_tuple):
                 "sym": sym,
                 "name": full_name,
                 "tier": tier_label,
+                "strategy": "TITAN_HARMONIC_40X",
                 "lev": lev,
                 "side": side,
-                "margin": 2.0,
+                "margin": coin_margin,
                 "cur_p": cur_p,
                 "potensi": potensi,
                 "status": status,
@@ -415,6 +441,7 @@ def scan_single_coin(sym_tuple):
                 "limit_p": limit_p,
                 "sl_p": sl_p,
                 "tp_p": tp_p,
+                "ker": float(setup.get('ker', 0.25)) if setup else 0.25,
                 "diff_pct": diff_pct,
                 "wr": wr_val,
                 "last_outcome": last_outcome,
@@ -722,6 +749,246 @@ def get_portfolio_summary(observations=None):
         "new_signals": new_signals,
         "active_trades": active_trades
     }
+
+_MEXC_CLIENT_SINGLETON = None
+_MEXC_MARKETS_CACHE = None
+
+def get_mexc_trading_client():
+    global _MEXC_CLIENT_SINGLETON
+    if _MEXC_CLIENT_SINGLETON is not None:
+        return _MEXC_CLIENT_SINGLETON
+    
+    try:
+        import exchange_network
+        exchange_network.install_dns()
+    except Exception:
+        pass
+
+    # 1. Coba dari D:\bot_final\akun_privat.json
+    local_p = Path(r'D:\bot_final\akun_privat.json')
+    if local_p.exists():
+        try:
+            cfg = json.loads(local_p.read_text(encoding='utf-8-sig'))
+            m = cfg.get('akun_1', {}).get('MEXC', {})
+            if m.get('apiKey'):
+                import ccxt
+                _MEXC_CLIENT_SINGLETON = ccxt.mexc({
+                    'apiKey': m['apiKey'],
+                    'secret': m['secret'],
+                    'options': {'defaultType': 'swap'},
+                    'timeout': 15000,
+                    'enableRateLimit': True
+                })
+                return _MEXC_CLIENT_SINGLETON
+        except Exception:
+            pass
+
+    # 2. Coba dari Streamlit secrets
+    try:
+        import streamlit as st
+        sec = getattr(st, 'secrets', {})
+        accs = json.loads(sec.get('accounts_json', '{}'))
+        m = accs.get('akun_1', {}).get('MEXC', {})
+        if m.get('apiKey'):
+            import ccxt
+            _MEXC_CLIENT_SINGLETON = ccxt.mexc({
+                'apiKey': m['apiKey'],
+                'secret': m['secret'],
+                'options': {'defaultType': 'swap'},
+                'timeout': 15000,
+                'enableRateLimit': True
+            })
+            return _MEXC_CLIENT_SINGLETON
+    except Exception:
+        pass
+
+    # 3. Coba dari secrets.toml lokal
+    sec_path = Path(__file__).parent / ".streamlit" / "secrets.toml"
+    if sec_path.exists():
+        try:
+            import toml, ccxt
+            sec = toml.loads(sec_path.read_text(encoding='utf-8'))
+            accs = json.loads(sec.get('accounts_json', '{}'))
+            m = accs.get('akun_1', {}).get('MEXC', {})
+            if m.get('apiKey'):
+                import ccxt
+                _MEXC_CLIENT_SINGLETON = ccxt.mexc({
+                    'apiKey': m['apiKey'],
+                    'secret': m['secret'],
+                    'options': {'defaultType': 'swap'},
+                    'timeout': 15000,
+                    'enableRateLimit': True
+                })
+                return _MEXC_CLIENT_SINGLETON
+        except Exception:
+            pass
+
+    return None
+
+def execute_single_coin_limit_order(coin, custom_margin=1.30):
+    """
+    Memasang Limit Order tunggal ke MEXC Akun 1 dengan margin custom yang dikendalikan pengguna.
+    Formula: Titan Harmonic 40x Isolated, TP +32.0% ROE, SL -24.0% ROE.
+    TP dan SL langsung di-attach native di MEXC server.
+    """
+    try:
+        mx = get_mexc_trading_client()
+        if mx is None:
+            return {"success": False, "msg": "API Key MEXC Akun 1 tidak ditemukan di sistem!"}
+        
+        global _MEXC_MARKETS_CACHE
+        if _MEXC_MARKETS_CACHE is None:
+            _MEXC_MARKETS_CACHE = mx.load_markets()
+            
+        sym = f"{coin}/USDT:USDT"
+        if sym not in _MEXC_MARKETS_CACHE:
+            return {"success": False, "msg": f"Market {sym} tidak terdaftar di MEXC Futures!"}
+            
+        market = _MEXC_MARKETS_CACHE[sym]
+        cs = float(market.get('contractSize') or 1.0)
+        min_a = float(market.get('limits', {}).get('amount', {}).get('min') or 1.0)
+        
+        # Ambil setup sinyal terkini dari persistent state
+        state = load_persistent_state(force_reload=True)
+        setup = state.get(coin)
+        if not setup:
+            coin_tuples = [t for t in TOP_20_COINS if t[0] == coin]
+            if coin_tuples:
+                setup = scan_single_coin(coin_tuples[0])
+                
+        if not setup:
+            return {"success": False, "msg": f"Gagal mendapatkan data sinyal untuk {coin}."}
+            
+        # Cek apakah koin ini sudah aktif berjalan di MEXC (sudah mantul)
+        pos = mx.fetch_positions()
+        for p in pos:
+            if float(p.get('contracts') or p.get('size') or 0) > 0:
+                p_sym = p.get('symbol', '').split(':')[0].replace('/', '_').replace('_USDT', '')
+                if p_sym == coin:
+                    return {"success": False, "msg": f"Koin {coin} sudah memiliki posisi aktif di MEXC! Tidak boleh ditumpuk."}
+        
+        # Cek apakah sudah ada limit order antre untuk koin ini di MEXC
+        open_orders = mx.fetch_open_orders()
+        for o in open_orders:
+            o_sym = o.get('symbol', '').split(':')[0].replace('/', '_').replace('_USDT', '')
+            if o_sym == coin:
+                # Batalkan order lama agar bisa diganti dengan order margin baru yang diinginkan user
+                try:
+                    mx.cancel_order(o['id'], symbol=sym)
+                    time.sleep(0.2)
+                except Exception:
+                    pass
+            
+        side = setup.get('side', 'LONG')
+        order_side = 'buy' if side == 'LONG' else 'sell'
+        limit_p = float(setup['limit_p'])
+        tp_p = float(setup['tp_p'])
+        sl_p = float(setup['sl_p'])
+        lev = 40  # Titan Harmonic 40x
+        
+        # Hitung jumlah kontrak presisi berdasarkan margin yang dikendalikan user
+        custom_margin = float(custom_margin)
+        if custom_margin <= 0.1:
+            custom_margin = 1.30
+            
+        notional_usd = custom_margin * lev
+        base_qty = notional_usd / limit_p
+        contracts = round(base_qty / cs)
+        if contracts < min_a:
+            contracts = min_a
+            
+        actual_notional = contracts * cs * limit_p
+        actual_margin = actual_notional / lev
+        
+        # Kirim limit order ke MEXC dengan bracket TP & SL native
+        res = mx.create_order(
+            symbol=sym,
+            type='limit',
+            side=order_side,
+            amount=contracts,
+            price=limit_p,
+            params={
+                'openType': 1,      # 1 = Isolated Margin
+                'leverage': lev,    # 40x Leverage
+                'hedged': True,     # Hedge Mode
+                'stopLossPrice': sl_p,
+                'takeProfitPrice': tp_p,
+                'lossTrend': 1,
+                'profitTrend': 1
+            }
+        )
+        oid = str(res.get('id', ''))
+        
+        # Update state persisten seketika
+        now_wib_str = datetime.now(WIB).strftime('%H:%M:%S WIB')
+        with _STATE_LOCK:
+            if coin in _PERSISTENT_SETUPS:
+                _PERSISTENT_SETUPS[coin]['status'] = 'WAITING'
+                _PERSISTENT_SETUPS[coin]['order_id'] = oid
+                _PERSISTENT_SETUPS[coin]['order_time_str'] = now_wib_str
+                _PERSISTENT_SETUPS[coin]['margin'] = round(actual_margin, 2)
+                _PERSISTENT_SETUPS[coin]['is_mexc_order'] = True
+                _PERSISTENT_SETUPS[coin]['contracts'] = contracts
+        save_persistent_state()
+        
+        return {
+            "success": True,
+            "order_id": oid,
+            "contracts": contracts,
+            "margin": actual_margin,
+            "price": limit_p,
+            "tp": tp_p,
+            "sl": sl_p,
+            "msg": f"✅ Sukses! Limit {side} {coin} ({contracts} ktr @ ${limit_p}) terpasang di MEXC! ID: {oid} | Margin: ${actual_margin:.2f} | TP: ${tp_p} (+32%) | SL: ${sl_p} (-24%)"
+        }
+    except Exception as e:
+        return {"success": False, "msg": f"Gagal memasang order {coin}: {str(e)}"}
+
+def execute_cancel_order(coin, order_id=None):
+    """Membatalkan open limit order di MEXC Akun 1."""
+    try:
+        mx = get_mexc_trading_client()
+        if mx is None:
+            return {"success": False, "msg": "API Key MEXC tidak ditemukan."}
+            
+        sym = f"{coin}/USDT:USDT"
+        cancelled = False
+        if order_id:
+            try:
+                mx.cancel_order(str(order_id), symbol=sym)
+                cancelled = True
+            except Exception:
+                pass
+        if not cancelled:
+            orders = mx.fetch_open_orders()
+            for o in orders:
+                o_sym = o.get('symbol', '').split(':')[0].replace('/', '_').replace('_USDT', '')
+                if o_sym == coin:
+                    mx.cancel_order(o['id'], symbol=sym)
+                    cancelled = True
+                    
+        with _STATE_LOCK:
+            if coin in _PERSISTENT_SETUPS:
+                _PERSISTENT_SETUPS[coin]['is_mexc_order'] = False
+                _PERSISTENT_SETUPS[coin]['order_id'] = None
+        save_persistent_state()
+        return {"success": True, "msg": f"Order limit {coin} berhasil dibatalkan dari MEXC."}
+    except Exception as e:
+        return {"success": False, "msg": f"Gagal membatalkan order {coin}: {str(e)}"}
+
+def execute_place_all_waiting_limits(custom_margin=1.30):
+    """Memasang limit order serentak untuk seluruh koin yang berstatus SIAP PASANG."""
+    state = load_persistent_state(force_reload=True)
+    results = []
+    for c_tuple in TOP_20_COINS:
+        c = c_tuple[0]
+        s = state.get(c, {})
+        # Hanya pasang untuk koin yang belum aktif dan belum ada order
+        if not s.get('is_touched') and not s.get('is_mexc_order'):
+            res = execute_single_coin_limit_order(c, custom_margin=custom_margin)
+            results.append((c, res))
+            time.sleep(0.2)
+    return results
 
 if __name__ == '__main__':
     data = scan_all()
