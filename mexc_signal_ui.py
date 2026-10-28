@@ -80,6 +80,7 @@ def bias_cards():
         html(f'<div style="text-align: right; padding: 2px 0 6px 0;"><span style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px; border: 1px solid #10b981;">● AUTO-REFRESH 10s · {clock_now()}</span></div>')
         if st.button('↻ Refresh Sekarang', key='btn_refresh_now', use_container_width=True):
             st.cache_data.clear()
+            sniper_limit_engine.load_persistent_state(force_reload=True)
             st.rerun()
 
     observations = limit_radar_data()
@@ -178,17 +179,19 @@ def bias_cards():
                 elif last_out and isinstance(last_out, dict):
                     # Baru selesai TP/SL dan LANGSUNG menerbitkan setup limit baru fresh
                     if last_out.get('outcome') == 'TP':
+                        pnl_txt = f"+${last_out.get('pnl_usd', 0.70):.2f}"
                         html(f'''
 <div style="background: rgba(16, 185, 129, 0.18); border: 1.5px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-<span style="font-weight: 700; color: #34d399; font-size: 11px;">🎯 HIT TP (+35%) · SETUP BARU FRESH</span>
-<span style="font-weight: 700; color: #94a3b8; font-size: 11px; font-family: monospace;">{r["float_str"]}</span>
+<span style="font-weight: 700; color: #34d399; font-size: 11px;">🎯 HIT TP (+35%) · REALIZED BERTAMBAH</span>
+<span style="font-weight: 800; color: #34d399; font-size: 11.5px; font-family: monospace;">{pnl_txt}</span>
 </div>
 ''')
                     else:
+                        pnl_txt = f"-${abs(last_out.get('pnl_usd', 0.60)):.2f}"
                         html(f'''
 <div style="background: rgba(239, 68, 68, 0.18); border: 1.5px solid #ef4444; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-<span style="font-weight: 700; color: #f87171; font-size: 11px;">🛑 HIT SL (-30%) · SETUP BARU FRESH</span>
-<span style="font-weight: 700; color: #94a3b8; font-size: 11px; font-family: monospace;">{r["float_str"]}</span>
+<span style="font-weight: 700; color: #f87171; font-size: 11px;">🛑 HIT SL (-30%) · REALIZED TERPOTONG</span>
+<span style="font-weight: 800; color: #f87171; font-size: 11.5px; font-family: monospace;">{pnl_txt}</span>
 </div>
 ''')
                 else:

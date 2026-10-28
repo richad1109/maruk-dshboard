@@ -101,9 +101,9 @@
     "limit_p": 0.2057,
     "tp_p": 0.209128,
     "sl_p": 0.203643,
-    "status": "WAITING",
+    "status": "TOUCHED",
     "created_at": 1793154559.5258713,
-    "touch_time": null,
+    "touch_time": 1793171680.0172045,
     "last_outcome": {
       "outcome": "TP",
       "roe": 35.0,
@@ -230,16 +230,17 @@
     "limit_p": 0.69145,
     "tp_p": 0.702974,
     "sl_p": 0.684535,
-    "status": "WAITING",
+    "status": "TOUCHED",
     "created_at": 1793154560.1223845,
-    "touch_time": null,
+    "touch_time": 1793170900.0,
     "last_outcome": {
       "outcome": "TP",
       "roe": 35.0,
       "pnl_usd": 0.7,
       "closed_at": 1793154560.1223845
     },
-    "order_id": "870310142248618496"
+    "order_id": "870310142248618496",
+    "entry_p": 0.6915
   },
   "PEPE": {
     "coin": "PEPE",
@@ -298,21 +299,22 @@
     "coin": "RENDER",
     "sym": "RENDER-USDT",
     "name": "Render",
-    "tier": "\u26a0\ufe0f VOLATILE",
+    "tier": "\u2b50 ELITE CASH COW",
     "lev": 30,
-    "side": "LONG",
-    "potensi": "POTENSI LONG (BUY)",
-    "limit_p": 1.7,
-    "tp_p": 1.7263,
-    "sl_p": 1.68102,
-    "status": "TOUCHED",
-    "created_at": 1793159849.725091,
-    "touch_time": 1793160630.0,
+    "side": "SHORT",
+    "potensi": "POTENSI SHORT (SELL)",
+    "limit_p": 1.6956,
+    "tp_p": 1.6758,
+    "sl_p": 1.7126,
+    "status": "WAITING",
+    "created_at": 1793170977.0,
+    "touch_time": null,
+    "order_id": "870323368208816192",
     "last_outcome": {
-      "outcome": "TP",
-      "roe": 50.0,
-      "pnl_usd": 1.0,
-      "closed_at": 1793159849.725091
+      "outcome": "SL",
+      "roe": -30.0,
+      "pnl_usd": -0.6,
+      "closed_at": 1793170240.0
     }
   },
   "FET": {
@@ -469,6 +471,15 @@
       "roe": 50.0,
       "exit_price": 1.7141,
       "closed_at": 1793159849.725091
+    },
+    {
+      "coin": "RENDER",
+      "sym": "RENDER-USDT",
+      "outcome": "SL",
+      "pnl_usd": -0.6,
+      "roe": -30.0,
+      "exit_price": 1.68102,
+      "closed_at": 1793170977.6225302
     }
   ],
   "DOT": {

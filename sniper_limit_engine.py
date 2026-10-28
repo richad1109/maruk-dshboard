@@ -73,52 +73,60 @@ STATE_FILE = Path(__file__).parent / "limit_bot_active_state.json"
 _STATE_LOCK = threading.Lock()
 _PERSISTENT_SETUPS = {}
 _LAST_CACHE = []
+_LAST_MTIME = 0.0
 
-def load_persistent_state():
-    global _PERSISTENT_SETUPS
+def load_persistent_state(force_reload=False):
+    global _PERSISTENT_SETUPS, _LAST_MTIME
     with _STATE_LOCK:
-        if _PERSISTENT_SETUPS:
-            return dict(_PERSISTENT_SETUPS)
         if STATE_FILE.exists():
             try:
-                _PERSISTENT_SETUPS = json.loads(STATE_FILE.read_text(encoding='utf-8'))
-                if not isinstance(_PERSISTENT_SETUPS, dict):
-                    _PERSISTENT_SETUPS = {}
+                curr_mtime = STATE_FILE.stat().st_mtime
+                # Reload jika force_reload, atau mtime berubah di disk, atau memory belum terisi
+                if force_reload or curr_mtime != _LAST_MTIME or not _PERSISTENT_SETUPS:
+                    data = json.loads(STATE_FILE.read_text(encoding='utf-8'))
+                    if isinstance(data, dict):
+                        _PERSISTENT_SETUPS = data
+                        _LAST_MTIME = curr_mtime
                 return dict(_PERSISTENT_SETUPS)
             except Exception:
                 pass
-        _PERSISTENT_SETUPS = {}
-        return {}
+        if not _PERSISTENT_SETUPS:
+            _PERSISTENT_SETUPS = {}
+        return dict(_PERSISTENT_SETUPS)
 
 def save_persistent_state():
+    global _LAST_MTIME
     with _STATE_LOCK:
         try:
             STATE_FILE.write_text(json.dumps(_PERSISTENT_SETUPS, indent=2), encoding='utf-8')
+            _LAST_MTIME = STATE_FILE.stat().st_mtime
         except Exception:
             pass
 
 def load_persistent_history():
-    state = load_persistent_state()
+    state = load_persistent_state(force_reload=True)
     history = state.get("_HISTORY_TRADES", [])
     if isinstance(history, list):
         return list(history)
     return []
 
-def record_closed_trade(coin, sym, outcome, exit_p, closed_ts):
-    """Mencatat trade selesai ke riwayat persisten (anti-duplikasi)."""
+def record_closed_trade(coin, sym, outcome, exit_p, closed_ts, roe_override=None, pnl_override=None):
+    """Mencatat trade selesai ke riwayat persisten (anti-duplikasi) dan langsung potong/tambah Realized PnL."""
     global _PERSISTENT_SETUPS
+    load_persistent_state(force_reload=True)
     with _STATE_LOCK:
         if "_HISTORY_TRADES" not in _PERSISTENT_SETUPS or not isinstance(_PERSISTENT_SETUPS["_HISTORY_TRADES"], list):
             _PERSISTENT_SETUPS["_HISTORY_TRADES"] = []
             
-        roe = 50.0 if outcome == "TP" else -30.0
-        pnl_usd = 1.00 if outcome == "TP" else -0.60
+        # Target TP +35.0% ROE (+0.70 USD pada margin 2.00 USD), SL -30.0% ROE (-0.60 USD)
+        roe = roe_override if roe_override is not None else (35.0 if outcome == "TP" else -30.0)
+        pnl_usd = pnl_override if pnl_override is not None else (0.70 if outcome == "TP" else -0.60)
         record = {
             "coin": coin,
             "sym": sym,
             "outcome": outcome,
-            "pnl_usd": pnl_usd,
-            "roe": roe,
+            "pnl_usd": round(float(pnl_usd), 4),
+            "roe": round(float(roe), 2),
             "exit_price": round(float(exit_p), 6),
             "closed_at": float(closed_ts)
         }
@@ -275,11 +283,13 @@ def scan_single_coin(sym_tuple):
             # 2. Jika ada status legacy TP_HIT / SL_HIT, langsung selesaikan dan buat setup fresh
             if setup.get('status') in ('TP_HIT', 'SL_HIT'):
                 outcome = "TP" if setup.get('status') == 'TP_HIT' else "SL"
-                record_closed_trade(coin, sym, outcome, cur_p, setup.get('closed_at', now_ts))
+                roe_val = 35.0 if outcome == "TP" else -30.0
+                pnl_val = 0.70 if outcome == "TP" else -0.60
+                record_closed_trade(coin, sym, outcome, cur_p, setup.get('closed_at', now_ts), roe_override=roe_val, pnl_override=pnl_val)
                 last_out = {
                     "outcome": outcome,
-                    "roe": 35.0 if outcome == "TP" else -20.0,
-                    "pnl_usd": 0.70 if outcome == "TP" else -0.40,
+                    "roe": roe_val,
+                    "pnl_usd": pnl_val,
                     "closed_at": now_ts
                 }
                 setup = create_new_setup(last_out=last_out)
@@ -314,11 +324,13 @@ def scan_single_coin(sym_tuple):
                 if hit_tp or hit_sl:
                     outcome = "TP" if hit_tp else "SL"
                     exit_p = tp_p if hit_tp else sl_p
-                    record_closed_trade(coin, sym, outcome, exit_p, now_ts)
+                    roe_val = 35.0 if hit_tp else -30.0
+                    pnl_val = 0.70 if hit_tp else -0.60
+                    record_closed_trade(coin, sym, outcome, exit_p, now_ts, roe_override=roe_val, pnl_override=pnl_val)
                     last_out = {
                         "outcome": outcome,
-                        "roe": 35.0 if hit_tp else -30.0,
-                        "pnl_usd": 0.70 if hit_tp else -0.60,
+                        "roe": roe_val,
+                        "pnl_usd": pnl_val,
                         "closed_at": now_ts
                     }
                     setup = create_new_setup(last_out=last_out)
