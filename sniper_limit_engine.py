@@ -24,6 +24,9 @@ from pathlib import Path
 import requests
 import urllib3
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone, timedelta
+
+WIB = timezone(timedelta(hours=7))
 
 try:
     import exchange_network
@@ -423,6 +426,12 @@ def scan_single_coin(sym_tuple):
 
 def fetch_mexc_live_telemetry():
     """Mengambil posisi aktif, floating PnL, limit orders antre, dan realized PnL langsung dari API MEXC."""
+    try:
+        import exchange_network
+        exchange_network.install_dns()
+    except Exception:
+        pass
+
     client = None
     # 1. Coba dari D:\bot_final\akun_privat.json
     local_p = Path(r'D:\bot_final\akun_privat.json')
@@ -432,7 +441,7 @@ def fetch_mexc_live_telemetry():
             m = cfg.get('akun_1', {}).get('MEXC', {})
             if m.get('apiKey'):
                 import ccxt
-                client = ccxt.mexc({'apiKey': m['apiKey'], 'secret': m['secret'], 'options': {'defaultType': 'swap'}, 'timeout': 8000})
+                client = ccxt.mexc({'apiKey': m['apiKey'], 'secret': m['secret'], 'options': {'defaultType': 'swap'}, 'timeout': 10000})
         except Exception:
             pass
 
@@ -445,7 +454,7 @@ def fetch_mexc_live_telemetry():
             m = accs.get('akun_1', {}).get('MEXC', {})
             if m.get('apiKey'):
                 import ccxt
-                client = ccxt.mexc({'apiKey': m['apiKey'], 'secret': m['secret'], 'options': {'defaultType': 'swap'}, 'timeout': 8000})
+                client = ccxt.mexc({'apiKey': m['apiKey'], 'secret': m['secret'], 'options': {'defaultType': 'swap'}, 'timeout': 10000})
         except Exception:
             pass
 
@@ -459,7 +468,7 @@ def fetch_mexc_live_telemetry():
                 accs = json.loads(sec.get('accounts_json', '{}'))
                 m = accs.get('akun_1', {}).get('MEXC', {})
                 if m.get('apiKey'):
-                    client = ccxt.mexc({'apiKey': m['apiKey'], 'secret': m['secret'], 'options': {'defaultType': 'swap'}, 'timeout': 8000})
+                    client = ccxt.mexc({'apiKey': m['apiKey'], 'secret': m['secret'], 'options': {'defaultType': 'swap'}, 'timeout': 10000})
             except Exception:
                 pass
 
@@ -479,13 +488,19 @@ def fetch_mexc_live_telemetry():
             im = float(info.get('im', 0.0))
             unpnl = float(info.get('unRealizedPnl', 0.0))
             ratio = float(info.get('profitRatio', 0.0))
+            roe = (unpnl / im * 100.0) if im > 0 else (ratio * 100.0)
+            t_create = float(info.get('createTime', 0) or 0)
+            t_str = datetime.fromtimestamp(t_create/1000, WIB).strftime('%H:%M:%S WIB') if t_create else '-'
             pos_map[sym] = {
+                'coin': sym,
                 'side': side,
                 'entry': entry,
                 'margin': im,
                 'unpnl': unpnl,
-                'roe': ratio * 100.0,
-                'contracts': float(info.get('holdVol', 0))
+                'roe': roe,
+                'contracts': float(info.get('holdVol', 0)),
+                'time_str': t_str,
+                'create_ts': t_create
             }
 
         # B. Open Orders Langsung dari MEXC
@@ -493,40 +508,55 @@ def fetch_mexc_live_telemetry():
         order_map = {}
         for o in orders:
             sym = o['symbol'].replace('/USDT:USDT', '').replace(':USDT', '')
+            ts = float(o.get('timestamp') or o.get('info', {}).get('createTime') or 0)
+            t_str = datetime.fromtimestamp(ts/1000, WIB).strftime('%H:%M:%S WIB') if ts else '-'
             order_map[sym] = {
+                'coin': sym,
                 'id': o['id'],
                 'side': 'LONG' if o['side'] == 'buy' else 'SHORT',
                 'price': float(o['price']),
-                'amount': float(o['amount'])
+                'amount': float(o['amount']),
+                'time_str': t_str,
+                'timestamp': ts
             }
 
-        # C. Realized PnL Hari Ini dari Posisi Selesai di MEXC
+        # C. Realized PnL Hari Ini dari Posisi Selesai di MEXC (00:00:00 WIB s/d sekarang)
         p_hist = client.contractPrivateGetPositionListHistoryPositions({'page_num': 1, 'page_size': 50})
         data = p_hist.get('data', [])
-        today_start_ms = 1793126400000 # 28 Oct 00:00 WIB
-        today_closed = [p for p in data if p['updateTime'] >= today_start_ms]
+        now_wib = datetime.now(WIB)
+        today_00 = datetime(now_wib.year, now_wib.month, now_wib.day, 0, 0, 0, tzinfo=WIB)
+        today_start_ms = int(today_00.timestamp() * 1000)
+        today_closed = [p for p in data if p.get('updateTime', 0) >= today_start_ms]
         
         trades_list = []
         for p in today_closed:
             sym = p['symbol'].replace('_USDT', '')
-            side = 'LONG' if p['positionType'] == 1 else 'SHORT'
+            side = 'LONG' if p.get('positionType', 1) == 1 else 'SHORT'
             real = float(p.get('realised', 0.0))
             ratio = float(p.get('profitRatio', 0.0)) * 100.0
             outcome = 'TP' if real > 0 else 'SL'
+            t_upd = float(p.get('updateTime', 0) or 0)
+            t_str = datetime.fromtimestamp(t_upd/1000, WIB).strftime('%H:%M:%S WIB') if t_upd else '-'
             trades_list.append({
                 'coin': sym,
                 'sym': f"{sym}-USDT",
+                'side': side,
                 'outcome': outcome,
                 'pnl_usd': round(real, 4),
                 'roe': round(ratio, 2),
-                'exit_price': float(p.get('closeAvgPrice', 0.0)),
-                'closed_at': float(p['updateTime'] / 1000.0)
+                'entry_price': float(p.get('openAvgPrice') or p.get('newOpenAvgPrice') or 0.0),
+                'exit_price': float(p.get('closeAvgPrice') or p.get('newCloseAvgPrice') or 0.0),
+                'closed_at': float(t_upd / 1000.0),
+                'time_str': t_str
             })
 
+        trades_list.sort(key=lambda t: t['closed_at'], reverse=True)
+        tp_trades = [t for t in trades_list if t['outcome'] == 'TP']
+        sl_trades = [t for t in trades_list if t['outcome'] == 'SL']
         tot_realised = sum(t['pnl_usd'] for t in trades_list)
         tot_realised_roe = sum(t['roe'] for t in trades_list)
-        tp_count = sum(1 for t in trades_list if t['outcome'] == 'TP')
-        sl_count = sum(1 for t in trades_list if t['outcome'] == 'SL')
+        tp_count = len(tp_trades)
+        sl_count = len(sl_trades)
 
         return {
             'active_positions': pos_map,
@@ -535,12 +565,14 @@ def fetch_mexc_live_telemetry():
             'realized_roe': tot_realised_roe,
             'tp_count': tp_count,
             'sl_count': sl_count,
+            'tp_trades': tp_trades,
+            'sl_trades': sl_trades,
             'trades': trades_list,
             'total_floating_usd': sum(p['unpnl'] for p in pos_map.values()),
             'total_floating_roe': sum(p['roe'] for p in pos_map.values()),
             'timestamp': time.time()
         }
-    except Exception:
+    except Exception as e:
         return None
 
 def scan_all():
@@ -564,10 +596,15 @@ def scan_all():
                 r['status'] = 'TOUCHED'
                 r['is_touched'] = True
                 r['side'] = p['side']
+                r['potensi'] = f"🟢 POTENSI {p['side']}" if p['side'] == 'LONG' else f"🔴 POTENSI {p['side']}"
                 r['limit_p'] = p['entry'] # Entry riil MEXC
                 r['margin'] = p['margin'] # Margin riil MEXC
                 r['float_usd'] = p['unpnl'] # Floating riil MEXC
                 r['float_roe'] = p['roe']   # ROE riil MEXC
+                r['order_time_str'] = p['time_str']
+                r['is_mexc_order'] = False
+                r['is_mexc_active'] = True
+                r['mexc_badge'] = "⚡ SUDAH MANTUL (POSISI AKTIF)"
                 sign = "+" if r['float_usd'] >= 0 else ""
                 r['float_str'] = f"Floating: {sign}${r['float_usd']:.4f} ({r['float_roe']:+.2f}%)"
                 r['touch_status'] = "⚡ SEDANG MANTUL (MEXC LIVE)"
@@ -578,8 +615,14 @@ def scan_all():
                 o = op_ord[c]
                 r['status'] = 'WAITING'
                 r['is_touched'] = False
+                r['side'] = o['side']
+                r['potensi'] = f"🟢 POTENSI {o['side']}" if o['side'] == 'LONG' else f"🔴 POTENSI {o['side']}"
                 r['limit_p'] = o['price'] # Harga limit antre riil MEXC
                 r['order_id'] = o['id']
+                r['order_time_str'] = o['time_str']
+                r['is_mexc_order'] = True
+                r['is_mexc_active'] = False
+                r['mexc_badge'] = f"🟢 SUDAH LIMIT DI MEXC (ID: {o['id']})"
                 r['float_usd'] = 0.0
                 r['float_roe'] = 0.0
                 is_long = (o['side'] == 'LONG')
@@ -589,7 +632,26 @@ def scan_all():
                 sign_d = "-" if is_long else "+"
                 r['float_str'] = f"Jarak: {sign_d}{abs(diff_pct):.2f}% (Antre di MEXC)"
                 r['touch_status'] = "⏳ MENUNGGU JEMPUTAN"
-                r['valid_label'] = "✅ LIMIT ANTRE"
+                r['valid_label'] = "🟢 SUDAH LIMIT DI MEXC"
+            
+            # 3. Koin setup valid tapi belum antre di MEXC
+            else:
+                r['status'] = 'WAITING'
+                r['is_touched'] = False
+                r['order_id'] = None
+                r['order_time_str'] = datetime.now(WIB).strftime('%H:%M:%S WIB')
+                r['is_mexc_order'] = False
+                r['is_mexc_active'] = False
+                r['mexc_badge'] = "🟡 BELUM LIMIT / SIAP PASANG"
+                r['float_usd'] = 0.0
+                r['float_roe'] = 0.0
+                cur_p = r.get('cur_p', 0.0)
+                is_long = "LONG" in r.get('potensi', 'LONG')
+                diff_pct = ((cur_p - r['limit_p']) / cur_p) * 100 if is_long and cur_p > 0 else 0.0
+                r['diff_pct'] = diff_pct
+                r['float_str'] = f"Jarak: {diff_pct:.2f}% (Siap Pasang)"
+                r['touch_status'] = "⏳ SIAP PASANG"
+                r['valid_label'] = "🟡 BELUM LIMIT"
 
         with _STATE_LOCK:
             _PERSISTENT_SETUPS['_MEXC_LIVE_TELEMETRY'] = mexc_live
@@ -619,6 +681,8 @@ def get_portfolio_summary(observations=None):
         total_closed = tp_count + sl_count
         realized_wr = (tp_count / total_closed * 100.0) if total_closed > 0 else 0.0
         history = mexc_live.get('trades', [])
+        tp_trades = mexc_live.get('tp_trades', [t for t in history if t.get('outcome') == 'TP'])
+        sl_trades = mexc_live.get('sl_trades', [t for t in history if t.get('outcome') == 'SL'])
     else:
         history = load_persistent_history()
         tp_count = sum(1 for t in history if t.get('outcome') == 'TP')
@@ -627,12 +691,15 @@ def get_portfolio_summary(observations=None):
         realized_roe = sum(t.get('roe', 0.0) for t in history)
         total_closed = tp_count + sl_count
         realized_wr = (tp_count / total_closed * 100) if total_closed > 0 else 0.0
+        tp_trades = [t for t in history if t.get('outcome') == 'TP']
+        sl_trades = [t for t in history if t.get('outcome') == 'SL']
 
     active_trades = [r for r in observations if r.get('status') == 'TOUCHED']
+    new_signals = [r for r in observations if r.get('status') == 'WAITING']
     floating_usd = sum(r.get('float_usd', 0.0) for r in active_trades)
     floating_roe = sum(r.get('float_roe', 0.0) for r in active_trades)
     active_count = len(active_trades)
-    waiting_count = sum(1 for r in observations if r.get('status') == 'WAITING')
+    waiting_count = len(new_signals)
     avg_portfolio_wr = sum(r.get('wr', 67.0) for r in observations) / len(observations) if observations else 67.0
 
     return {
@@ -649,7 +716,11 @@ def get_portfolio_summary(observations=None):
         "floating_idr": floating_usd * 16300,
         "active_count": active_count,
         "waiting_count": waiting_count,
-        "history": history
+        "history": history,
+        "tp_trades": tp_trades,
+        "sl_trades": sl_trades,
+        "new_signals": new_signals,
+        "active_trades": active_trades
     }
 
 if __name__ == '__main__':

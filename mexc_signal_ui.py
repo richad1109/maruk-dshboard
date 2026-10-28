@@ -157,6 +157,118 @@ def bias_cards():
 ''')
 
     # =========================================================================
+    # PANEL ATAS 1: KOIN YANG SUDAH HIT TAKE PROFIT (TP) HARI INI & JAMNYA
+    # =========================================================================
+    tp_trades = summary.get('tp_trades', [])
+    sl_trades = summary.get('sl_trades', [])
+
+    if tp_trades:
+        tp_cards_html = []
+        for t in tp_trades:
+            tp_cards_html.append(f'''
+<div style="background: rgba(16, 185, 129, 0.12); border: 1.5px solid #10b981; border-radius: 8px; padding: 10px 14px; min-width: 220px; flex: 1;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+    <strong style="color: #34d399; font-size: 14px;">🎯 {t['coin']} / USDT</strong>
+    <span style="background: #064e3b; color: #6ee7b7; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">{t['side']}</span>
+  </div>
+  <div style="font-size: 16px; font-weight: 900; color: #34d399; font-family: monospace;">+${t['pnl_usd']:.4f} USD <span style="font-size: 12px; font-weight: 700;">({t['roe']:+.2f}%)</span></div>
+  <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">Entry: ${t['entry_price']} ➔ Exit: ${t['exit_price']}</div>
+  <div style="font-size: 11px; color: #cbd5e1; margin-top: 4px; border-top: 1px dashed rgba(16, 185, 129, 0.3); padding-top: 4px;">
+    🕒 Jam TP: <strong style="color: #fde047;">{t['time_str']}</strong>
+  </div>
+</div>
+''')
+        cards_str = "".join(tp_cards_html)
+        html(f'''
+<div style="background: rgba(15, 23, 42, 0.85); border: 1.5px solid #10b981; border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+    <div>
+      <span style="font-size: 13.5px; font-weight: 800; color: #34d399; letter-spacing: 0.5px;">🎯 DAFTAR KOIN SUDAH HIT TAKE PROFIT (TP) HARI INI</span>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 1px;">Selesai Otomatis di MEXC Futures · Target +35% ROE Tercapai · Realized PnL Bertambah</div>
+    </div>
+    <span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 11.5px; padding: 3px 10px; border-radius: 6px;">● {len(tp_trades)} KOIN SUKSES TP</span>
+  </div>
+  <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+    {cards_str}
+  </div>
+</div>
+''')
+
+    # Ringkasan Transparan Stop Loss jika ada (Jujur dan Realistis)
+    if sl_trades:
+        sl_items = []
+        for s in sl_trades:
+            sl_items.append(f"<span style='background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #f87171; padding: 3px 8px; border-radius: 5px; font-size: 11px;'>🛑 <strong>{s['coin']}</strong>: -${abs(s['pnl_usd']):.4f} ({s['roe']:+.2f}%) @ {s['time_str']}</span>")
+        sl_summary_html = " ".join(sl_items)
+        html(f'''
+<div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 8px 14px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+  <span style="font-size: 11px; font-weight: 700; color: #fca5a5;">🛑 RIWAYAT STOP LOSS HARI INI ({len(sl_trades)} Trade Terpotong Jujur dari Realized PnL):</span>
+  <div style="display: flex; gap: 6px; flex-wrap: wrap;">{sl_summary_html}</div>
+</div>
+''')
+
+    # =========================================================================
+    # PANEL ATAS 2: RADAR SINYAL LIMIT BARU & STATUS VERIFIKASI DI MEXC
+    # =========================================================================
+    new_signals = summary.get('new_signals', [])
+    if new_signals:
+        sig_rows_html = []
+        for s in new_signals:
+            is_mexc = s.get('is_mexc_order', False)
+            order_id = s.get('order_id', '-')
+            t_str = s.get('order_time_str', '-')
+            
+            if is_mexc:
+                status_badge = f'<span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🟢 SUDAH LIMIT DI MEXC (ID: {order_id})</span>'
+            else:
+                status_badge = '<span style="background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fbbf24; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🟡 BELUM LIMIT / SIAP PASANG</span>'
+
+            side_col = "#34d399" if "LONG" in s.get('potensi', 'LONG') else "#f87171"
+            side_bg = "#064e3b" if "LONG" in s.get('potensi', 'LONG') else "#7f1d1d"
+
+            sig_rows_html.append(f'''
+<tr style="border-bottom: 1px solid #1e293b;">
+  <td style="padding: 8px 10px; font-weight: 800; font-size: 12px; color: #f8fafc;">⚡ {s['coin']}</td>
+  <td style="padding: 8px 10px;"><span style="background: {side_bg}; color: {side_col}; font-weight: 800; font-size: 9.5px; padding: 2px 6px; border-radius: 4px;">{s.get('side', 'LONG')}</span></td>
+  <td style="padding: 8px 10px; font-family: monospace; font-weight: 700; color: #38bdf8;">${s['limit_p']}</td>
+  <td style="padding: 8px 10px; font-family: monospace; color: #34d399;">${s['tp_p']}</td>
+  <td style="padding: 8px 10px; font-family: monospace; color: #f87171;">${s['sl_p']}</td>
+  <td style="padding: 8px 10px; color: #fde047; font-size: 11px; font-weight: 700;">🕒 {t_str}</td>
+  <td style="padding: 8px 10px; text-align: right;">{status_badge}</td>
+</tr>
+''')
+        rows_str = "".join(sig_rows_html)
+        html(f'''
+<div style="background: rgba(15, 23, 42, 0.85); border: 1.5px solid #3b82f6; border-radius: 12px; padding: 14px 18px; margin-bottom: 22px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+    <div>
+      <span style="font-size: 13.5px; font-weight: 800; color: #60a5fa; letter-spacing: 0.5px;">⚡ RADAR SINYAL LIMIT BARU & VERIFIKASI STATUS ORDER DI MEXC</span>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 1px;">Pantauan Langsung Orderbook MEXC Akun 1 · Deteksi Otomatis Apakah Sudah Pasang Limit / Belum</div>
+    </div>
+    <span style="background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #93c5fd; font-weight: 800; font-size: 11.5px; padding: 3px 10px; border-radius: 6px;">● {len(new_signals)} SINYAL LIMIT AKTIF</span>
+  </div>
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 11px;">
+      <thead>
+        <tr style="border-bottom: 1.5px solid #334155; color: #94a3b8; text-transform: uppercase; font-size: 9.5px;">
+          <th style="padding: 6px 10px;">Koin</th>
+          <th style="padding: 6px 10px;">Arah</th>
+          <th style="padding: 6px 10px;">Entry Limit</th>
+          <th style="padding: 6px 10px;">Take Profit</th>
+          <th style="padding: 6px 10px;">Stop Loss</th>
+          <th style="padding: 6px 10px;">Jam Order/Sinyal</th>
+          <th style="padding: 6px 10px; text-align: right;">Status di MEXC</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows_str}
+      </tbody>
+    </table>
+  </div>
+</div>
+''')
+
+    # =========================================================================
     # GRID KARTU 20 KOIN (JELAS, TANPA KONFLIK & FRESH SETUP)
     # =========================================================================
     columns = st.columns(3)
@@ -164,17 +276,28 @@ def bias_cards():
         with columns[i % 3]:
             with st.container(border=True):
                 is_touched = (r.get('status') == 'TOUCHED')
+                is_mexc_order = r.get('is_mexc_order', False)
+                order_id = r.get('order_id')
+                t_ord = r.get('order_time_str', '-')
                 last_out = r.get('last_outcome')
 
                 # 1. BANNER ATAS KARTU
                 if is_touched:
-                    # Posisi aktif terisi & sedang mantul
+                    # Posisi aktif terisi & sedang mantul di MEXC
                     sign = "+" if r['float_usd'] >= 0 else ""
                     f_col = "#34d399" if r['float_usd'] >= 0 else "#f87171"
                     html(f'''
 <div style="background: rgba(16, 185, 129, 0.16); border: 1.5px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-<span style="font-weight: 700; color: #10b981; font-size: 11px;">⚡ LIMIT TERJEMPUT (MANTUL)</span>
+<span style="font-weight: 700; color: #10b981; font-size: 11px;">⚡ LIMIT MANTUL (MEXC LIVE)</span>
 <span style="font-weight: 800; color: {f_col}; font-size: 12px; font-family: monospace;">{r["float_str"]}</span>
+</div>
+''')
+                elif is_mexc_order:
+                    # Order limit antre terpasang di MEXC
+                    html(f'''
+<div style="background: rgba(16, 185, 129, 0.12); border: 1.5px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+<span style="font-weight: 800; color: #34d399; font-size: 11px;">🟢 SUDAH LIMIT DI MEXC</span>
+<span style="font-weight: 700; color: #cbd5e1; font-size: 11px; font-family: monospace;">ID: {order_id}</span>
 </div>
 ''')
                 elif last_out and isinstance(last_out, dict):
@@ -217,19 +340,19 @@ def bias_cards():
 
                     if is_touched:
                         stat_badge = '<span style="background: rgba(16, 185, 129, 0.25); color: #34d399; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #10b981; margin-left: 3px;">⚡ POSISI AKTIF</span>'
+                    elif is_mexc_order:
+                        stat_badge = '<span style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #10b981; margin-left: 3px;">🟢 SUDAH LIMIT</span>'
                     elif last_out and isinstance(last_out, dict):
                         stat_badge = '<span style="background: rgba(59, 130, 246, 0.25); color: #60a5fa; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #3b82f6; margin-left: 3px;">🔄 SETUP BARU</span>'
-                    elif "SETUP VALID" in r['valid_label']:
-                        stat_badge = '<span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #3b82f6; margin-left: 3px;">✅ SETUP VALID</span>'
                     else:
-                        stat_badge = '<span style="background: rgba(107, 114, 128, 0.2); color: #9ca3af; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #4b5563; margin-left: 3px;">🔍 MEMINDAI</span>'
+                        stat_badge = '<span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #f59e0b; margin-left: 3px;">🟡 SIAP PASANG</span>'
 
                     html(f'<div style="text-align: right; padding-top: 2px;"><span style="background: {pot_bg}; color: {pot_col}; font-weight: 800; font-size: 10px; padding: 3px 6px; border-radius: 4px;">{pot_text}</span>{stat_badge}</div>')
 
                 # 3. LEVEL ENTRY (LIMIT), TP, SL (SELALU FRESH & SIAP PASANG)
                 margin_str = f"Margin &#36;{r.get('margin', 1.30):.2f}"
-                pos_str = "Posisi Aktif MEXC" if is_touched else "Limit Order Antre"
-                st.caption(f"{pos_str} (Lev {r['lev']}x Isolated · {margin_str})")
+                pos_str = "Posisi Aktif MEXC" if is_touched else "Limit Order Antre MEXC" if is_mexc_order else "Sinyal Limit Siap Pasang"
+                st.caption(f"{pos_str} (Lev {r['lev']}x Isolated · {margin_str}) · 🕒 {t_ord}")
                 level_row(r['limit_p'], r['tp_p'], r['sl_p'])
 
                 # 4. WR & METRIK
