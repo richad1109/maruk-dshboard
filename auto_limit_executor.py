@@ -138,7 +138,11 @@ def run_executor_iteration(mx, markets, dry_run=True):
                             side=order_side,
                             amount=contracts,
                             price=limit_p,
-                            params={'openType': 1} # 1 = Isolated Margin
+                            params={
+                                'openType': 1,
+                                'leverage': LEVERAGE,
+                                'hedged': True
+                            }
                         )
                         print(f"   ✅ Sukses! Order ID: {res.get('id')}")
                         placed_count += 1
