@@ -29,7 +29,8 @@
     "status": "WAITING",
     "created_at": 1793136879.3021965,
     "touch_time": null,
-    "closed_at": null
+    "closed_at": null,
+    "order_id": "870309627471369216"
   },
   "BNB": {
     "coin": "BNB",
@@ -108,23 +109,8 @@
       "roe": 35.0,
       "pnl_usd": 0.7,
       "closed_at": 1793154559.5258713
-    }
-  },
-  "ETH": {
-    "coin": "ETH",
-    "sym": "ETH-USDT",
-    "name": "Ethereum",
-    "tier": "\ud83d\udd25 ALPHA",
-    "lev": 30,
-    "side": "LONG",
-    "potensi": "POTENSI LONG (BUY)",
-    "limit_p": 2335.625,
-    "tp_p": 2374.552083,
-    "sl_p": 2312.26875,
-    "status": "WAITING",
-    "created_at": 1793136879.374564,
-    "touch_time": null,
-    "closed_at": null
+    },
+    "order_id": "870309634970448384"
   },
   "SOL": {
     "coin": "SOL",
@@ -214,7 +200,8 @@
       "roe": 35.0,
       "pnl_usd": 0.7,
       "closed_at": 1793154560.1266475
-    }
+    },
+    "order_id": "870310138650220032"
   },
   "NEAR": {
     "coin": "NEAR",
@@ -251,7 +238,8 @@
       "roe": 35.0,
       "pnl_usd": 0.7,
       "closed_at": 1793154560.1223845
-    }
+    },
+    "order_id": "870310142248618496"
   },
   "PEPE": {
     "coin": "PEPE",
@@ -491,12 +479,13 @@
     "lev": 30,
     "side": "SHORT",
     "potensi": "POTENSI SHORT (SELL)",
-    "limit_p": 1.004235,
-    "tp_p": 0.992519,
-    "sl_p": 1.014277,
-    "status": "WAITING",
+    "limit_p": 1.0042,
+    "tp_p": 0.9925,
+    "sl_p": 1.0142,
+    "status": "TOUCHED",
     "created_at": 1793166794.5858767,
-    "touch_time": null,
-    "last_outcome": null
+    "touch_time": 1793168677.8706157,
+    "last_outcome": null,
+    "entry_p": 1.0042
   }
 }
