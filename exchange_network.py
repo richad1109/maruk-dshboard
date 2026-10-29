@@ -56,6 +56,16 @@ def resolve(host):
                 return answers
         except (requests.RequestException, ValueError, KeyError, TypeError):
             continue
+    # Fallback ke DNS sistem jika DoH publik terblokir/gagal
+    try:
+        sys_res = _original(host, 0, socket.AF_INET, socket.SOCK_STREAM)
+        ips = list(dict.fromkeys([r[4][0] for r in sys_res if r[4]]))
+        if ips:
+            with _lock:
+                _cache[host] = (time.monotonic() + 120, ips)
+            return ips
+    except Exception:
+        pass
     raise socket.gaierror(socket.EAI_AGAIN, "DNS terenkripsi gagal untuk host API resmi")
 
 

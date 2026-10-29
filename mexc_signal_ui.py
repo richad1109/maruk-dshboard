@@ -474,21 +474,38 @@ def bias_cards():
                 else:
                     cur_p_val = float(r.get('cur_p', 0))
                     lim_p_val = float(r.get('limit_p', 0))
-                    dist_p = abs(cur_p_val - lim_p_val) / cur_p_val if cur_p_val > 0 else 999.0
+                    is_long_sig = "LONG" in r.get('potensi', '')
                     
-                    if dist_p <= 0.010:
-                        # VALID SINYAL!
+                    if cur_p_val > 0 and lim_p_val > 0:
+                        if is_long_sig:
+                            dist_p = (cur_p_val - lim_p_val) / lim_p_val
+                        else:
+                            dist_p = (lim_p_val - cur_p_val) / lim_p_val
+                    else:
+                        dist_p = 999.0
+                    
+                    if 0.0005 <= dist_p <= 0.0045:
+                        # VALID SINYAL SIAP ENTRY!
                         html(f'''
 <div style="background: rgba(16, 185, 129, 0.22); border: 1.5px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-<span style="font-weight: 800; color: #34d399; font-size: 11px;">✅ SINYAL VALID (SIAP ENTRY)</span>
+<span style="font-weight: 800; color: #34d399; font-size: 11px;">✅ SINYAL VALID (SIAP ENTRY DISCOUNT)</span>
 <span style="font-weight: 800; color: #34d399; font-size: 11px; font-family: monospace;">Jarak: {dist_p*100:.2f}%</span>
+</div>
+''')
+                    elif 0.0045 < dist_p <= 0.0150:
+                        # TELAT MANTUL / TELAT DUMP!
+                        bounce_label = "SUDAH MANTUL" if is_long_sig else "SUDAH DUMP"
+                        html(f'''
+<div style="background: rgba(234, 179, 8, 0.2); border: 1.5px solid #eab308; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+<span style="font-weight: 800; color: #facc15; font-size: 11px;">⚠️ TELAT ({bounce_label})</span>
+<span style="font-weight: 800; color: #fde047; font-size: 11px; font-family: monospace;">Terbang: +{dist_p*100:.2f}%</span>
 </div>
 ''')
                     else:
                         # BELUM VALID / MASIH SCANNING
                         html(f'''
 <div style="background: rgba(100, 116, 139, 0.18); border: 1px solid #475569; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-<span style="font-weight: 700; color: #94a3b8; font-size: 11px;">🔄 MASIH SCANNING... (Menunggu Diskon)</span>
+<span style="font-weight: 700; color: #94a3b8; font-size: 11px;">🔄 MASIH SCANNING... (Menunggu Level)</span>
 <span style="font-weight: 700; color: #cbd5e1; font-size: 11px; font-family: monospace;">Jarak: {dist_p*100:.2f}%</span>
 </div>
 ''')
@@ -519,9 +536,17 @@ def bias_cards():
                     else:
                         cur_p_val = float(r.get('cur_p', 0))
                         lim_p_val = float(r.get('limit_p', 0))
-                        dist_p = abs(cur_p_val - lim_p_val) / cur_p_val if cur_p_val > 0 else 999.0
-                        if dist_p <= 0.010:
+                        is_long_sig = "LONG" in r.get('potensi', '')
+                        if cur_p_val > 0 and lim_p_val > 0:
+                            dist_p = (cur_p_val - lim_p_val) / lim_p_val if is_long_sig else (lim_p_val - cur_p_val) / lim_p_val
+                        else:
+                            dist_p = 999.0
+                            
+                        if 0.0005 <= dist_p <= 0.0045:
                             stat_badge = f'<span style="background: rgba(16, 185, 129, 0.25); color: #34d399; font-weight: 800; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #10b981; margin-left: 3px;">✅ VALID ({dist_p*100:.2f}%)</span>'
+                        elif 0.0045 < dist_p <= 0.0150:
+                            b_txt = "TELAT MANTUL" if is_long_sig else "TELAT DUMP"
+                            stat_badge = f'<span style="background: rgba(234, 179, 8, 0.25); color: #facc15; font-weight: 800; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #eab308; margin-left: 3px;">⚠️ {b_txt}</span>'
                         else:
                             stat_badge = f'<span style="background: rgba(100, 116, 139, 0.25); color: #94a3b8; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #64748b; margin-left: 3px;">🔄 SCANNING ({dist_p*100:.1f}%)</span>'
 

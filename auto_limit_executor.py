@@ -228,7 +228,7 @@ def run_single_executor_cycle(dry_run=False):
                 cur_m_p = float(t_ticker.get('last') or 0)
                 if cur_m_p > 0:
                     drift_pct = abs(cur_m_p - lim_p) / cur_m_p
-                    if drift_pct > 0.0080:
+                    if drift_pct > 0.0055:
                         client.cancel_order(oid, symbol=f"{sym_key}/USDT:USDT")
                         log_event(f"🔄 STALE CANCEL: Membatalkan limit {sym_key} karena harga kabur {drift_pct*100:.2f}% (Slot Single Sniper Dibebaskan)!", "GUARD")
                         time.sleep(0.15)
@@ -292,8 +292,10 @@ def run_single_executor_cycle(dry_run=False):
         if btc_guard == 'NEUTRAL' and dist_pct > 0.010:
             continue # Jika BTC netral/sideways, izinkan koin yang jaraknya sangat dekat (<= 1.0%)
             
-        # Hanya ambil jika jarak harga masuk akal (di bawah 1.5% dari harga sekarang)
-        if dist_pct <= 0.015:
+        # ANTI-TELAT MANTUL GUARD:
+        # Hanya ambil jika harga berada dalam zona diskon (0.05% s/d 0.45%).
+        # Jika dist_pct > 0.45%, koin SUDAH MANTUL / SUDAH DUMP (TELAT) -> DILARANG KEJAR!
+        if 0.0005 <= dist_pct <= 0.0045:
             candidates.append({
                     "dist": dist_pct,
                     "coin": coin,
