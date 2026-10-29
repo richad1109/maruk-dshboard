@@ -237,6 +237,31 @@ def run_single_executor_cycle(dry_run=False):
             except Exception:
                 pass
 
+    # 2.8 PROTOKOL JEDA PASCA-TRADE (ANTI-REVENGE / ANTI-WHIPSAW):
+    # Jika trade terakhir baru saja selesai di MEXC dalam < 15 menit (pasca-TP) atau < 30 menit (pasca-SL),
+    # TAHAN SELURUH PEMASANGAN ORDER BARU! Berikan pasar jeda agar struktur candle tenang.
+    now_epoch = time.time()
+    recent_trades = tele.get('trades', []) if tele else []
+    if recent_trades:
+        last_t = recent_trades[0]
+        last_closed_ts = float(last_t.get('closed_at', 0))
+        last_outcome = last_t.get('outcome', 'SL')
+        pause_req = 900 if last_outcome == 'TP' else 1800 # 15m jika TP, 30m jika SL
+        elapsed = now_epoch - last_closed_ts
+        if 0 < elapsed < pause_req:
+            rem_sec = int(pause_req - elapsed)
+            rem_min = max(1, rem_sec // 60)
+            summary_msg = f"⏸️ JEDA PASCA-{last_outcome}: Masa tenang ({rem_min}m lagi s/d {datetime.fromtimestamp(last_closed_ts + pause_req, WIB).strftime('%H:%M WIB')}) melindungi modal dari guncangan pasar!"
+            cfg["last_action"] = summary_msg
+            cfg["last_cycle_time"] = datetime.now(WIB).strftime('%H:%M:%S WIB')
+            save_config(cfg)
+            log_event(summary_msg, "JEDA")
+            return {
+                "status": "PAUSED_JEDA",
+                "placed_count": 0,
+                "msg": summary_msg
+            }
+
     # 3. Hitung Kuota Portofolio (MAKSIMAL 1 POSISI / ORDER AKTIF - SINGLE SNIPER)
     curr_total = len(act_pos) + len(op_ord)
     slots_free = max(0, MAX_CONCURRENT_LIMIT - curr_total)

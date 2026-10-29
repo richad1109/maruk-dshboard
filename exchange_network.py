@@ -66,6 +66,15 @@ def resolve(host):
             return ips
     except Exception:
         pass
+    # Hardcoded resilient fallback IPs for Indonesian ISPs
+    hardcoded = {
+        "api.mexc.com": ["195.35.23.222", "185.209.176.10", "149.28.140.237"],
+        "contract.mexc.com": ["195.35.23.222", "185.209.176.10", "149.28.140.237"],
+        "api.bitget.com": ["13.224.238.20", "13.224.238.106"],
+        "open-api.bingx.com": ["18.67.76.51", "18.67.76.103"]
+    }
+    if host in hardcoded:
+        return hardcoded[host]
     raise socket.gaierror(socket.EAI_AGAIN, "DNS terenkripsi gagal untuk host API resmi")
 
 
