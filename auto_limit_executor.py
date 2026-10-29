@@ -152,7 +152,7 @@ def run_single_executor_cycle(dry_run=False):
             "msg": "Auto-Pilot sedang dinonaktifkan."
         }
         
-    margin = float(cfg.get("margin_usd", 1.00))
+    margin = float(cfg.get("margin_usd", 3.00))
     if margin <= 0.1:
         margin = 3.00
         
@@ -160,6 +160,14 @@ def run_single_executor_cycle(dry_run=False):
     now_str = datetime.now(WIB).strftime('%Y-%m-%d %H:%M:%S WIB')
     
     client = sniper_limit_engine.get_mexc_trading_client()
+    if cfg.get("compound") and client:
+        try:
+            b = client.fetch_balance()
+            tot = float(b.get('total', {}).get('USDT') or b.get('free', {}).get('USDT') or 0.0)
+            if tot >= 12.0:
+                margin = max(2.50, min(12.00, round(tot * 0.20, 2)))
+        except Exception:
+            pass
     if client is None:
         return {"status": "ERROR", "msg": "Client trading MEXC belum tersambung."}
         
@@ -363,6 +371,7 @@ def stop_background_daemon():
 
 def main():
     is_live = ("--live" in sys.argv)
+    use_compound = ("--compound" in sys.argv)
     margin = 3.00
     for idx, arg in enumerate(sys.argv):
         if arg == "--margin" and idx + 1 < len(sys.argv):
@@ -373,18 +382,20 @@ def main():
                 
     cfg = load_config()
     cfg["margin_usd"] = margin
+    cfg["compound"] = use_compound
     cfg["enabled"] = True
     save_config(cfg)
     
     print("=" * 95)
-    print("🛡️ AUTO-PILOT EXECUTOR LIMIT ORDER MEXC 24/7 (TARGET RP 500.000 / $30 USD PER MINGGU (APEX 40X))")
+    print("🎯 SINGLE SNIPER PROTOCOL MEXC 24/7 (TARGET RP 500.000 / $30 USD PER MINGGU (APEX 40X))")
     print(f"Status Mode   : {'🚀 LIVE TRADING OTOMATIS (Uang Riil MEXC)' if is_live else '⚠️ DRY RUN (Mode Simulasi)'}")
-    print(f"Ukuran Margin : ${margin:.2f} USD per Koin (Leverage 20x Isolated - Hemat Fee 50%)")
-    print(f"Maksimal Aktif: MAKSIMAL 4 KOIN SEKALIGUS SEKALIGUS (Hard Cap Anti-Serok Crash)")
+    mode_str = "Dynamic Compounding 20% Saldo (Target Cuan $30/Wk & $80/Bulan)" if use_compound else f"${margin:.2f} USD Fixed"
+    print(f"Ukuran Margin : {mode_str} (Leverage 40x Isolated)")
+    print(f"Maksimal Aktif: HANYA 1 KOIN (Single Sniper - Teruji Bebas Boncos Multi-Koin)")
     print(f"Filter BTC    : 🛡️ BTC Master Crash Guard (Dilarang Long saat Bitcoin Dump)")
-    print(f"Target Profit : +45.0% ROE (Spot +1.125% · Cuan Bersih +$1.28 USD / ~Rp 21.000)")
-    print(f"Stop Loss     : -22.0% ROE (Spot -0.550% · Rugi Bersih -$0.73 USD / ~Rp 12.000)")
-    print(f"Risk-Reward   : 1.75 : 1 (Cuan 1.75x Lipat Lebih Besar) (Sehat & Menguntungkan Jangka Panjang)")
+    print(f"Target Profit : +60.0% ROE (Spot +1.50% · Cuan Bersih +$1.73 USD / ~Rp 28.166)")
+    print(f"Stop Loss     : -40.0% ROE (Spot -1.00% · Rugi Bersih -$1.31 USD / ~Rp 21.320)")
+    print(f"Risk-Reward   : 1.32 : 1 (Cuan Lebih Besar dari Rugi setelah Fee & Slippage MEXC)")
     print(f"Masa Tenang   : 2 Jam Pasca-SL (7.200s Anti-Whipsaw)")
     print("=" * 95)
     print("Tekan Ctrl + C di keyboard kapan saja untuk menghentikan bot.\n")
