@@ -923,14 +923,14 @@ def scan_all():
                 diff_pct = dist_val * 100.0
                 r['diff_pct'] = diff_pct
                 
-                if 0.0005 <= dist_val <= 0.0045:
+                if 0.0005 <= dist_val <= 0.0085:
                     r['status'] = 'VALID_READY'
                     r['is_valid_entry'] = True
                     r['mexc_badge'] = "✅ VALID (SIAP LIMIT)"
                     r['valid_label'] = "✅ SINYAL VALID (SIAP PASANG LIMIT SEKARANG!)"
                     r['float_str'] = f"Jarak: {diff_pct:.2f}% (Zona Diskon)"
                     r['touch_status'] = "✅ SIAP PASANG LIMIT"
-                elif 0.0045 < dist_val <= 0.0150:
+                elif 0.0085 < dist_val <= 0.0180:
                     b_txt = "SUDAH MANTUL" if is_long else "SUDAH DUMP"
                     r['status'] = 'TELAT'
                     r['is_valid_entry'] = False
@@ -1190,6 +1190,14 @@ def execute_single_coin_limit_order(coin, custom_margin = 2.00):
             
         actual_notional = contracts * cs * limit_p
         actual_margin = actual_notional / lev
+
+        # Format harga presisi sesuai standard orderbook bursa MEXC
+        try:
+            limit_p = float(mx.price_to_precision(sym, limit_p))
+            tp_p = float(mx.price_to_precision(sym, tp_p))
+            sl_p = float(mx.price_to_precision(sym, sl_p))
+        except Exception:
+            pass
         
         # Kirim limit order ke MEXC dengan bracket TP & SL native
         res = mx.create_order(

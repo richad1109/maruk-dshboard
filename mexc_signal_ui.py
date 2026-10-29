@@ -345,22 +345,30 @@ def bias_cards():
 </div>
 ''', unsafe_allow_html=True)
 
-    filter_opts = [
-        f"Semua Koin (20)",
-        f"✅ Sinyal Valid ({len(valid_coins)})",
-        f"🟢 Lagi Pasang ({len(active_coins)})",
-        f"🎯 Udah TP Hari Ini ({len(tp_history)})",
-        f"🛑 Udah SL / Cooldown ({len(cooldown_coins)})",
-        f"⚠️ Telat Mantul ({len(telat_coins)})",
-        f"🔄 Masih Scanning ({len(scanning_coins)})"
-    ]
+    filter_keys = ["ALL", "VALID", "ACTIVE", "TP_HISTORY", "COOLDOWN", "TELAT", "SCANNING"]
+    filter_labels = {
+        "ALL": f"Semua Koin ({len(observations)})",
+        "VALID": f"✅ Sinyal Valid ({len(valid_coins)})",
+        "ACTIVE": f"🟢 Lagi Pasang ({len(active_coins)})",
+        "TP_HISTORY": f"🎯 Udah TP Hari Ini ({len(tp_history)})",
+        "COOLDOWN": f"🛑 Udah SL / Cooldown ({len(cooldown_coins)})",
+        "TELAT": f"⚠️ Telat Mantul ({len(telat_coins)})",
+        "SCANNING": f"🔄 Masih Scanning ({len(scanning_coins)})"
+    }
     
-    sel_filter = st.radio("Saring Tampilan Koin:", filter_opts, horizontal=True, key="radar_filter_selector", label_visibility="collapsed")
+    sel_filter = st.radio(
+        "Saring Tampilan Koin:", 
+        filter_keys, 
+        format_func=lambda k: filter_labels.get(k, k),
+        horizontal=True, 
+        key="radar_filter_selector_fixed", 
+        label_visibility="collapsed"
+    )
 
     # Siapkan data baris berdasarkan filter yang dipilih pengguna
     display_rows_html = []
 
-    if "Udah TP Hari Ini" in sel_filter:
+    if sel_filter == "TP_HISTORY":
         # Tampilkan Riwayat Koin yang Sudah Hit TP Hari Ini
         if not tp_history:
             display_rows_html.append('<tr><td colspan="7" style="text-align: center; padding: 20px; color: #94a3b8;">Belum ada koin yang selesai TP pada sesi hari ini.</td></tr>')
@@ -380,15 +388,15 @@ def bias_cards():
     else:
         # Saring dari 20 koin
         target_coins = []
-        if "Sinyal Valid" in sel_filter:
+        if sel_filter == "VALID":
             target_coins = valid_coins
-        elif "Lagi Pasang" in sel_filter:
+        elif sel_filter == "ACTIVE":
             target_coins = active_coins
-        elif "Udah SL / Cooldown" in sel_filter:
+        elif sel_filter == "COOLDOWN":
             target_coins = cooldown_coins
-        elif "Telat Mantul" in sel_filter:
+        elif sel_filter == "TELAT":
             target_coins = telat_coins
-        elif "Masih Scanning" in sel_filter:
+        elif sel_filter == "SCANNING":
             target_coins = scanning_coins
         else:
             # Semua Koin: Urutkan Valid & Lagi Pasang paling atas, lalu Cooldown, Telat, Scanning
@@ -485,7 +493,7 @@ def bias_cards():
           <th style="padding: 6px 10px;">Jarak / Waktu Real-Time</th>
           <th style="padding: 6px 10px; text-align: right;">Status di MEXC</th>
         </tr>
-''' if "Udah TP Hari Ini" not in sel_filter else '''
+''' if sel_filter != "TP_HISTORY" else '''
         <tr style="border-bottom: 1.5px solid #334155; color: #94a3b8; text-transform: uppercase; font-size: 9.5px;">
           <th style="padding: 6px 10px;">Koin Selesai TP</th>
           <th style="padding: 6px 10px;">Arah</th>
@@ -640,7 +648,7 @@ def bias_cards():
                     else:
                         dist_p = 999.0
                     
-                    if 0.0005 <= dist_p <= 0.0045:
+                    if 0.0005 <= dist_p <= 0.0085:
                         # VALID SINYAL SIAP ENTRY!
                         html(f'''
 <div style="background: rgba(16, 185, 129, 0.22); border: 1.5px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
@@ -648,7 +656,7 @@ def bias_cards():
 <span style="font-weight: 800; color: #34d399; font-size: 11px; font-family: monospace;">Jarak: {dist_p*100:.2f}%</span>
 </div>
 ''')
-                    elif 0.0045 < dist_p <= 0.0150:
+                    elif 0.0085 < dist_p <= 0.0180:
                         # TELAT MANTUL / TELAT DUMP!
                         bounce_label = "SUDAH MANTUL" if is_long_sig else "SUDAH DUMP"
                         html(f'''
@@ -698,9 +706,9 @@ def bias_cards():
                         else:
                             dist_p = 999.0
                             
-                        if 0.0005 <= dist_p <= 0.0045:
+                        if 0.0005 <= dist_p <= 0.0085:
                             stat_badge = f'<span style="background: rgba(16, 185, 129, 0.25); color: #34d399; font-weight: 800; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #10b981; margin-left: 3px;">✅ VALID ({dist_p*100:.2f}%)</span>'
-                        elif 0.0045 < dist_p <= 0.0150:
+                        elif 0.0085 < dist_p <= 0.0180:
                             b_txt = "TELAT MANTUL" if is_long_sig else "TELAT DUMP"
                             stat_badge = f'<span style="background: rgba(234, 179, 8, 0.25); color: #facc15; font-weight: 800; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #eab308; margin-left: 3px;">⚠️ {b_txt}</span>'
                         else:

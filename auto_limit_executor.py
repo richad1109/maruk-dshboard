@@ -318,9 +318,9 @@ def run_single_executor_cycle(dry_run=False):
             continue # Jika BTC netral/sideways, izinkan koin yang jaraknya sangat dekat (<= 1.0%)
             
         # ANTI-TELAT MANTUL GUARD:
-        # Hanya ambil jika harga berada dalam zona diskon (0.05% s/d 0.45%).
-        # Jika dist_pct > 0.45%, koin SUDAH MANTUL / SUDAH DUMP (TELAT) -> DILARANG KEJAR!
-        if 0.0005 <= dist_pct <= 0.0045:
+        # Hanya ambil jika harga berada dalam zona diskon (0.05% s/d 0.85%).
+        # Jika dist_pct > 0.85%, koin SUDAH MANTUL / SUDAH DUMP (TELAT) -> DILARANG KEJAR!
+        if 0.0005 <= dist_pct <= 0.0085:
             candidates.append({
                     "dist": dist_pct,
                     "coin": coin,
