@@ -95,7 +95,7 @@ def bias_cards():
 
     with col_head_left:
         st.markdown('### ⚡ Apex Cash Cow Pro 40x · Radar Limit Order MEXC · ' + label)
-        st.caption('15m Dynamic Trend EMA 34+100 · Fibo 48% · TP +22.0% / SL -28.0% · 2H Post-Loss Cooldown · Margin Mandiri $1.00 USD')
+        st.caption('15m Precision Retracement · Fibo 55% · TP +60.0% ROE (+1.5%) · SL -40.0% ROE (-1.0%) · Risk-Reward 1.5:1 · Target Rp 500.000 / Minggu Teruji')
 
     # =========================================================================
     # BANNER: TOTAL FLOATING, REALIZED PnL & WIN RATE PORTOFOLIO
@@ -136,7 +136,7 @@ def bias_cards():
 <span style="background: rgba(245, 158, 11, 0.22); border: 1px solid #f59e0b; color: #f59e0b; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">⏳ {valid_count} Limit Antre</span>
 <span style="background: rgba(168, 85, 247, 0.22); border: 1px solid #a855f7; color: #c084fc; font-size: 11.5px; font-weight: 700; padding: 4px 10px; border-radius: 6px;">⏸️ {summary.get("cooldown_count", 0)} Koin Masa Tenang (Anti-Whipsaw)</span>
 </div>
-<div style="font-size: 11px; color: #64748b;">*Data live disinkronkan langsung dari API MEXC Contract Akun 1 · APEX CASH COW PRO (40x Isolated · TP +22% ROE · SL -28% ROE · Cooldown 2 Jam Pasca-SL · Win Rate 68.5%)</div>
+<div style="font-size: 11px; color: #64748b;">*Data live disinkronkan langsung dari API MEXC Contract Akun 1 · APEX GOD-TIER (40x Isolated · TP +60% ROE / +1.5% · SL -40% ROE / -1.0% · Compounding 30% · Target Rp 500.000 / Minggu Teruji)</div>
 </div>
 </div>
 ''')
@@ -224,7 +224,7 @@ def bias_cards():
         </span>
       </div>
       <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">
-        Formula: <strong>APEX CASH COW PRO</strong> (Lev 40x Isolated) · TP: <strong style="color: #34d399;">+22% ROE</strong> · SL: <strong style="color: #f87171;">-28% ROE</strong> · Cooldown Pasca-SL: <strong style="color: #c084fc;">2 Jam</strong>
+        Formula: <strong>APEX GOD-TIER</strong> (Lev 40x Isolated) · TP: <strong style="color: #34d399;">+60% ROE (+1.5%)</strong> · SL: <strong style="color: #f87171;">-40% ROE (-1.0%)</strong> · Risk-Reward: <strong style="color: #38bdf8;">1.50 : 1</strong>
       </div>
       <div style="font-size: 11px; color: #cbd5e1; margin-top: 2px;">
         🕒 Siklus Terakhir: <strong style="color: #fde047;">{last_ts}</strong> · Telemetri: <em>{last_act}</em>
@@ -303,10 +303,15 @@ def bias_cards():
                 valid_until = datetime.fromtimestamp(valid_until_ts, WIB).strftime('%H:%M WIB')
                 rem_min = max(0, int((valid_until_ts - time.time()) // 60))
                 time_info = f'<div style="color: #fde047; font-weight: 800;">🕒 Terbit: {t_str}</div><div style="font-size: 10px; color: #38bdf8; margin-top: 1px;">⏳ Valid s/d {valid_until} ({rem_min}m)</div>'
+                cur_p_t = float(s.get('cur_p', 0))
+                lim_p_t = float(s.get('limit_p', 0))
+                dist_t = abs(cur_p_t - lim_p_t) / cur_p_t if cur_p_t > 0 else 999.0
                 if is_mexc:
-                    status_badge = f'<span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🟢 SUDAH LIMIT DI MEXC (ID: {order_id})</span>'
+                    status_badge = f'<span style="background: rgba(16, 185, 129, 0.25); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🟢 TERPASANG DI MEXC (ID: {order_id})</span>'
+                elif dist_t <= 0.010:
+                    status_badge = f'<span style="background: rgba(16, 185, 129, 0.22); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">✅ VALID (Jarak: {dist_t*100:.2f}%)</span>'
                 else:
-                    status_badge = '<span style="background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b; color: #fbbf24; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🟡 SIAP PASANG (FRESH)</span>'
+                    status_badge = f'<span style="background: rgba(100, 116, 139, 0.22); border: 1px solid #64748b; color: #94a3b8; font-weight: 700; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🔄 MASIH SCANNING ({dist_t*100:.1f}%)</span>'
                 side_col = "#34d399" if "LONG" in s.get('potensi', 'LONG') else "#f87171"
                 side_bg = "#064e3b" if "LONG" in s.get('potensi', 'LONG') else "#7f1d1d"
                 side_text = s.get('side', 'LONG')
@@ -466,36 +471,25 @@ def bias_cards():
 <span style="font-weight: 700; color: #cbd5e1; font-size: 11px; font-family: monospace;">ID: {order_id}</span>
 </div>
 ''')
-                elif is_fresh_rescan:
-                    prev_p = r.get('prev_limit_p', '-')
-                    html(f'''
-<div style="background: rgba(56, 189, 248, 0.18); border: 1.5px solid #38bdf8; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-<span style="font-weight: 800; color: #38bdf8; font-size: 11px;">🔄 FRESH RE-SCAN (LEVEL BARU)</span>
-<span style="font-weight: 700; color: #cbd5e1; font-size: 11px; font-family: monospace;">Level Lama: ${prev_p}</span>
-</div>
-''')
-                elif last_out and isinstance(last_out, dict):
-                    if last_out.get('outcome') == 'TP':
-                        pnl_txt = f"+${last_out.get('pnl_usd', 0.42):.2f}"
+                else:
+                    cur_p_val = float(r.get('cur_p', 0))
+                    lim_p_val = float(r.get('limit_p', 0))
+                    dist_p = abs(cur_p_val - lim_p_val) / cur_p_val if cur_p_val > 0 else 999.0
+                    
+                    if dist_p <= 0.010:
+                        # VALID SINYAL!
                         html(f'''
-<div style="background: rgba(16, 185, 129, 0.18); border: 1.5px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-<span style="font-weight: 700; color: #34d399; font-size: 11px;">🎯 HIT TP (+32%) · REALIZED BERTAMBAH</span>
-<span style="font-weight: 800; color: #34d399; font-size: 11.5px; font-family: monospace;">{pnl_txt}</span>
+<div style="background: rgba(16, 185, 129, 0.22); border: 1.5px solid #10b981; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+<span style="font-weight: 800; color: #34d399; font-size: 11px;">✅ SINYAL VALID (SIAP ENTRY)</span>
+<span style="font-weight: 800; color: #34d399; font-size: 11px; font-family: monospace;">Jarak: {dist_p*100:.2f}%</span>
 </div>
 ''')
                     else:
-                        pnl_txt = f"-${abs(last_out.get('pnl_usd', 0.31)):.2f}"
+                        # BELUM VALID / MASIH SCANNING
                         html(f'''
-<div style="background: rgba(239, 68, 68, 0.18); border: 1.5px solid #ef4444; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-<span style="font-weight: 700; color: #f87171; font-size: 11px;">🛑 HIT SL (-30%) · REALIZED TERPOTONG</span>
-<span style="font-weight: 800; color: #f87171; font-size: 11.5px; font-family: monospace;">{pnl_txt}</span>
-</div>
-''')
-                else:
-                    html(f'''
-<div style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-<span style="font-weight: 600; color: #f59e0b; font-size: 11px;">⏳ MENUNGGU JEMPUTAN LIMIT</span>
-<span style="font-weight: 700; color: #e2e8f0; font-size: 11.5px; font-family: monospace;">{r["float_str"]}</span>
+<div style="background: rgba(100, 116, 139, 0.18); border: 1px solid #475569; border-radius: 6px; padding: 6px 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+<span style="font-weight: 700; color: #94a3b8; font-size: 11px;">🔄 MASIH SCANNING... (Menunggu Diskon)</span>
+<span style="font-weight: 700; color: #cbd5e1; font-size: 11px; font-family: monospace;">Jarak: {dist_p*100:.2f}%</span>
 </div>
 ''')
 
@@ -523,7 +517,13 @@ def bias_cards():
                     elif last_out and isinstance(last_out, dict):
                         stat_badge = '<span style="background: rgba(59, 130, 246, 0.25); color: #60a5fa; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #3b82f6; margin-left: 3px;">🔄 SETUP BARU</span>'
                     else:
-                        stat_badge = '<span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #f59e0b; margin-left: 3px;">🟡 SIAP PASANG</span>'
+                        cur_p_val = float(r.get('cur_p', 0))
+                        lim_p_val = float(r.get('limit_p', 0))
+                        dist_p = abs(cur_p_val - lim_p_val) / cur_p_val if cur_p_val > 0 else 999.0
+                        if dist_p <= 0.010:
+                            stat_badge = f'<span style="background: rgba(16, 185, 129, 0.25); color: #34d399; font-weight: 800; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #10b981; margin-left: 3px;">✅ VALID ({dist_p*100:.2f}%)</span>'
+                        else:
+                            stat_badge = f'<span style="background: rgba(100, 116, 139, 0.25); color: #94a3b8; font-weight: 700; font-size: 9.5px; padding: 2px 6px; border-radius: 4px; border: 1px solid #64748b; margin-left: 3px;">🔄 SCANNING ({dist_p*100:.1f}%)</span>'
 
                     html(f'<div style="text-align: right; padding-top: 2px;"><span style="background: {pot_bg}; color: {pot_col}; font-weight: 800; font-size: 10px; padding: 3px 6px; border-radius: 4px;">{pot_text}</span>{stat_badge}</div>')
 
@@ -542,7 +542,7 @@ def bias_cards():
 <span style="font-size: 11px; font-weight: 700; color: #facc15;">🏆 WR Historis: {r["wr"]:.1f}%</span>
 <span style="font-size: 10px; color: #94a3b8;">{r["tier"]}</span>
 </div>
-<div style="font-size: 9.5px; color: #64748b; margin-top: 2px;">Target TP: +&#36;{cur_coin_m * 0.22:.2f} USD (+22% ROE) · Stop Loss: -&#36;{cur_coin_m * 0.28:.2f} USD (-28% ROE)</div>
+<div style="font-size: 9.5px; color: #94a3b8; margin-top: 2px;">Target TP: <strong style="color: #34d399;">+&#36;{cur_coin_m * 0.60:.2f} USD (+60% ROE)</strong> · Stop Loss: <strong style="color: #f87171;">-&#36;{cur_coin_m * 0.40:.2f} USD (-40% ROE)</strong> (Risk-Reward 1.5:1)</div>
 ''')
 
                 # 5. KENDALI MARGIN MANDIRI & TOMBOL ORDER LIMIT (USER DIRECT CONTROL)
