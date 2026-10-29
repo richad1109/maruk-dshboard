@@ -1058,7 +1058,7 @@ def get_mexc_trading_client():
                     _MEXC_CLIENT_SINGLETON = ccxt.mexc({
                         'apiKey': m['apiKey'],
                         'secret': m['secret'],
-                        'options': {'defaultType': 'swap'},
+                        'options': {'defaultType': 'swap', 'adjustForTimeDifference': True},
                         'timeout': 15000,
                         'enableRateLimit': True
                     })
@@ -1077,7 +1077,7 @@ def get_mexc_trading_client():
             _MEXC_CLIENT_SINGLETON = ccxt.mexc({
                 'apiKey': m['apiKey'],
                 'secret': m['secret'],
-                'options': {'defaultType': 'swap'},
+                'options': {'defaultType': 'swap', 'adjustForTimeDifference': True},
                 'timeout': 15000,
                 'enableRateLimit': True
             })
@@ -1098,7 +1098,7 @@ def get_mexc_trading_client():
                 _MEXC_CLIENT_SINGLETON = ccxt.mexc({
                     'apiKey': m['apiKey'],
                     'secret': m['secret'],
-                    'options': {'defaultType': 'swap'},
+                    'options': {'defaultType': 'swap', 'adjustForTimeDifference': True},
                     'timeout': 15000,
                     'enableRateLimit': True
                 })
