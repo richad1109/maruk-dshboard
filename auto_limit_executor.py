@@ -217,7 +217,27 @@ def run_single_executor_cycle(dry_run=False):
                     except Exception:
                         pass
                     
-    # 3. Hitung Kuota Portofolio (MAKSIMAL 2 POSISI / ORDER AKTIF)
+    # 2.5 STALE ORDER & DRIFT GUARD (PROTEKSI ANTI-STUCK)
+    # Jika harga pasar sudah kabur > 0.80% dari antrean limit, batalkan otomatis agar slot tidak terkunci berjam-jam!
+    for sym_key, o_info in list(op_ord.items()):
+        oid = o_info.get('id') or o_info.get('order_id')
+        lim_p = float(o_info.get('price') or 0)
+        if lim_p > 0 and oid:
+            try:
+                t_ticker = client.fetch_ticker(f"{sym_key}/USDT:USDT")
+                cur_m_p = float(t_ticker.get('last') or 0)
+                if cur_m_p > 0:
+                    drift_pct = abs(cur_m_p - lim_p) / cur_m_p
+                    if drift_pct > 0.0080:
+                        client.cancel_order(oid, symbol=f"{sym_key}/USDT:USDT")
+                        log_event(f"🔄 STALE CANCEL: Membatalkan limit {sym_key} karena harga kabur {drift_pct*100:.2f}% (Slot Single Sniper Dibebaskan)!", "GUARD")
+                        time.sleep(0.15)
+                        if sym_key in op_ord:
+                            del op_ord[sym_key]
+            except Exception:
+                pass
+
+    # 3. Hitung Kuota Portofolio (MAKSIMAL 1 POSISI / ORDER AKTIF - SINGLE SNIPER)
     curr_total = len(act_pos) + len(op_ord)
     slots_free = max(0, MAX_CONCURRENT_LIMIT - curr_total)
     
@@ -240,6 +260,11 @@ def run_single_executor_cycle(dry_run=False):
     candidates = []
     for r in observations:
         coin = r['coin']
+        
+        # EKSKLUSI BTC: BTC HANYA PENGAWAL / KOMPAS TREN, EKSEKUSI DI ALTCOIN
+        if coin == 'BTC':
+            continue
+            
         status = r.get('status')
         side = r.get('side', 'LONG')
         is_cd = (status == 'COOLDOWN')
@@ -252,22 +277,24 @@ def run_single_executor_cycle(dry_run=False):
         if status != 'WAITING':
             continue
             
+        # Hitung jarak harga saat ini ke limit price
+        cur_p = float(r.get('cur_p', 0))
+        lim_p = float(r.get('limit_p', 0))
+        dist_pct = 999.0
+        if cur_p > 0 and lim_p > 0:
+            dist_pct = abs(cur_p - lim_p) / cur_p
+            
         # Filter keselarasan dengan BTC Guard
         if btc_guard == 'BULLISH' and side != 'LONG':
             continue # BTC naik, dilarang Short
         if btc_guard in ['BEARISH', 'FLASH_CRASH'] and side != 'SHORT':
             continue # BTC turun/dump, dilarang Long
-        if btc_guard == 'NEUTRAL':
-            continue # BTC tanpa arah, diam di tempat
+        if btc_guard == 'NEUTRAL' and dist_pct > 0.010:
+            continue # Jika BTC netral/sideways, izinkan koin yang jaraknya sangat dekat (<= 1.0%)
             
-        # Hitung jarak harga saat ini ke limit price
-        cur_p = float(r.get('cur_p', 0))
-        lim_p = float(r.get('limit_p', 0))
-        if cur_p > 0 and lim_p > 0:
-            dist_pct = abs(cur_p - lim_p) / cur_p
-            # Hanya ambil jika jarak harga masuk akal (di bawah 1.5% dari harga sekarang)
-            if dist_pct <= 0.015:
-                candidates.append({
+        # Hanya ambil jika jarak harga masuk akal (di bawah 1.5% dari harga sekarang)
+        if dist_pct <= 0.015:
+            candidates.append({
                     "dist": dist_pct,
                     "coin": coin,
                     "side": side,
