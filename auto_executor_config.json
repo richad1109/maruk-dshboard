@@ -2,19 +2,17 @@
   "enabled": true,
   "margin_usd": 3.0,
   "leverage": 40,
-  "max_concurrent": 4,
+  "max_concurrent": 1,
   "poll_interval": 20,
-  "strategy": "APEX_TARGET_500RB_40X",
+  "strategy": "SINGLE_SNIPER_TARGET_500RB_40X",
   "status": "RUNNING",
-  "last_cycle_time": "11:07:41 WIB",
-  "last_action": "\ud83c\udfaf Selesai pasang 1 order baru terpilih! Total aktif di MEXC: 1/4 koin.",
-  "cooldown_coins_count": 1,
+  "last_cycle_time": "11:20:00 WIB",
+  "last_action": "Single Sniper Protocol Siaga: Max 1 Posisi Aktif, TP +60% ROE, SL -40% ROE.",
+  "cooldown_coins_count": 0,
   "active_positions_count": 0,
   "open_orders_count": 0,
-  "btc_guard_status": "BEARISH (BTC di bawah EMA 20 & 50 (Bearish 15m @ $79,791). Hanya boleh SHORT.)",
+  "btc_guard_status": "MONITORING",
   "recent_events": [
-    "[11:07:41 WIB] [BATCH] \ud83c\udfaf Selesai pasang 1 order baru terpilih! Total aktif di MEXC: 1/4 koin.",
-    "[10:56:28 WIB] [PATROLI] \ud83d\udee1\ufe0f Patroli Siaga: 2/2 Slot Penuh (0 Posisi Jalan \u00b7 16 Limit Antre) \u00b7 BTC: BEARISH \u00b7 Menjaga saldo...",
-    "[02:08:57 WIB] [START] \ud83e\udd16 Bot Auto-Pilot MEXC Dimulai! Margin: $1.00 | Leverage: 40x | Cooldown: 2 Jam | Interval: 20s"
+    "[11:20:00 WIB] [CONFIG] Single Sniper Protocol diaktifkan (Max 1 Koin, Margin $3.00, TP +1.50%, SL -1.00%, R:R 1.32:1 riil)."
   ]
 }

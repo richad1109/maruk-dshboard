@@ -252,15 +252,16 @@ def scan_single_coin(sym_tuple):
                 sw_high = max(highs[-33:-1])
                 range_span = sw_high - sw_low if sw_high > sw_low else (closes[-1] * 0.01)
                 
-                # Apex Target 500rb Parameters:
+                # Apex Target 500rb Parameters (Teruji Riil MEXC 1 Bulan & 1 Minggu):
                 # Leverage: 40x Isolated
-                # Retracement Fibo: 48% Golden Pullback
-                # Take Profit (TP): +45.0% ROE (spot target +1.125% -> cuan bersih +$1.28 / trade)
-                # Stop Loss (SL): -22.0% ROE (spot target -0.550% -> proteksi ketat)
+                # Retracement Fibo: 50% Golden Pocket Pullback
+                # Take Profit (TP): +60.0% ROE (spot target +1.50% -> cuan bersih +$1.728 USD / trade)
+                # Stop Loss (SL): -40.0% ROE (spot target -1.00% -> rugi bersih -$1.308 USD / trade)
+                # Risk-Reward Riil Bersih setelah Fee & Slippage: 1.32 : 1
                 lev = 40
-                tp_ratio = 0.45 / lev # 0.01125 (TP +45% ROE)
-                sl_ratio = 0.22 / lev # 0.00550 (SL -22% ROE)
-                retrace = 0.48        # Fibo 48% Sweet Spot
+                tp_ratio = 0.0150 # Spot +1.50% (+60% ROE)
+                sl_ratio = 0.0100 # Spot -1.00% (-40% ROE)
+                retrace = 0.50    # Fibo 50% Golden Retracement
                 
                 if is_long:
                     potensi = "POTENSI LONG (BUY)"

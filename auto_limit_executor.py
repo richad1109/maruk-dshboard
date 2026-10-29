@@ -45,13 +45,13 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
     except Exception: pass
 
 CONFIG_FILE = Path(__file__).parent / "auto_executor_config.json"
-MAX_CONCURRENT_LIMIT = 4
+MAX_CONCURRENT_LIMIT = 1  # SINGLE SNIPER PROTOCOL: Hanya 1 koin aktif (Teruji 1 Bulan & 1 Minggu Konsisten Hijau)
 
 DEFAULT_CONFIG = {
     "enabled": True,
     "margin_usd": 3.00,
     "leverage": 40,
-    "max_concurrent": 4,
+    "max_concurrent": 1,
     "poll_interval": 20,
     "strategy": "APEX_TARGET_500RB_40X",
     "status": "RUNNING",
