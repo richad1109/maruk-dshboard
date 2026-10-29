@@ -1,18 +1,19 @@
 {
-  "enabled": true,
-  "margin_usd": 3.0,
-  "leverage": 40,
-  "max_concurrent": 1,
+  "enabled": false,
+  "margin_usd": 2.0,
+  "leverage": 50,
+  "max_concurrent": 4,
   "poll_interval": 20,
-  "strategy": "SINGLE_SNIPER_TARGET_500RB_40X",
-  "status": "RUNNING",
-  "last_cycle_time": "11:20:00 WIB",
-  "last_action": "Single Sniper Protocol Siaga: Max 1 Posisi Aktif, TP +60% ROE, SL -40% ROE.",
+  "strategy": "APEX_MULTI_50X_FIXED2",
+  "status": "STOPPED",
+  "last_cycle_time": "-",
+  "last_action": "Sistem Apex Multi-Sniper 50x Siaga (Nonaktif).",
   "cooldown_coins_count": 0,
   "active_positions_count": 0,
   "open_orders_count": 0,
   "btc_guard_status": "MONITORING",
   "recent_events": [
-    "[11:20:00 WIB] [CONFIG] Single Sniper Protocol diaktifkan (Max 1 Koin, Margin $3.00, TP +1.50%, SL -1.00%, R:R 1.32:1 riil)."
-  ]
+    "[INFO] Bot Apex Multi-Sniper 50x siap. Margin: $2.00 Flat, 50x Isolated, Max 4 Koin."
+  ],
+  "compound": false
 }

@@ -23,7 +23,7 @@ PALETTE=["#b9df8a","#91b4c8","#d8bb87"]
 PAGE={"Ringkasan":("Semua akun. Satu pandangan.","Pantau portofolio, pergerakan pasar, dan posisi dalam satu ruang."),
       "Posisi & Bursa":("Setiap posisi, lebih jelas.","Detail eksposur dan koneksi delapan wallet di tiga bursa."),
       "Bot Sakti":("Satu sistem. Setiap langkah terpantau.","Jurnal Termux terenkripsi, peringatan proteksi, dan status Bot Final."),
-      "⚡ Titan Quantum MEXC":("Titan Quantum 40x · Limit Sniper MEXC","Formula Juara 8 Minggu 100% Hijau & Audit 6 Bulan. Kendali margin mandiri $1.00 - $2.00.")}
+      "⚡ Apex Multi-Sniper 50x":("Apex Multi-Sniper 50x · Limit Sniper MEXC","Margin Flat $2.00 · Leverage 50x Isolated · Max 4 Posisi · Target Rp 500.000 / Minggu Teruji")}
 
 
 
@@ -391,16 +391,16 @@ def main():
     html(f'<div class="masthead"><div class="brand-wrap"><div class="brand-symbol"><svg viewBox="0 0 32 32"><path d="M6 6v20m0-10L24 6M12 13l13 13M21 7h5v7"/></svg></div><div><div class="brand">KANTOR<span>rakus.</span></div><div class="brand-sub">BOT SAKTI / PERSONAL TRADING FLOOR</div></div></div><div class="top-meta"><span>{stamp}</span><span class="chip neutral"><span class="dot"></span>REAL ACCOUNT MONITOR</span></div></div>')
     nav_list = list(PAGE)
     default_idx = 0
-    if st.query_params.get('view') in ('sinyal-kripto', 'titan-quantum'):
-        if '⚡ Titan Quantum MEXC' in nav_list:
-            default_idx = nav_list.index('⚡ Titan Quantum MEXC')
+    if st.query_params.get('view') in ('sinyal-kripto', 'titan-quantum', 'apex-multi-sniper'):
+        if '⚡ Apex Multi-Sniper 50x' in nav_list:
+            default_idx = nav_list.index('⚡ Apex Multi-Sniper 50x')
     nav = st.radio("Navigasi", nav_list, index=default_idx, horizontal=True, key="navigation")
     html('<div class="nav-line"></div>')
     title, description = PAGE[nav]
     html(f'<div class="page-intro"><div><div class="eyebrow">KANTOR RAKUS / {escape(nav.upper())}</div><h1>{title}</h1><p>{description}</p></div><div class="page-count">03 ACCOUNTS<br><span style="color:#bac9d7;display:block;margin-top:6px">08 WALLETS / 03 EXCHANGES</span></div></div>')
-    if nav == '⚡ Titan Quantum MEXC':
-        if st.query_params.get('view') != 'titan-quantum':
-            st.query_params['view'] = 'titan-quantum'
+    if nav == '⚡ Apex Multi-Sniper 50x':
+        if st.query_params.get('view') not in ('apex-multi-sniper', 'titan-quantum'):
+            st.query_params['view'] = 'apex-multi-sniper'
         import mexc_signal_ui
         mexc_signal_ui.render()
         return

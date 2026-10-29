@@ -45,13 +45,13 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
     except Exception: pass
 
 CONFIG_FILE = Path(__file__).parent / "auto_executor_config.json"
-MAX_CONCURRENT_LIMIT = 1  # SINGLE SNIPER PROTOCOL: Hanya 1 koin aktif (Teruji 1 Bulan & 1 Minggu Konsisten Hijau)
+MAX_CONCURRENT_LIMIT = 4  # APEX MULTI-SNIPER: Maksimal 4 Koin Konkuren  # SINGLE SNIPER PROTOCOL: Hanya 1 koin aktif (Teruji 1 Bulan & 1 Minggu Konsisten Hijau)
 
 DEFAULT_CONFIG = {
-    "enabled": True,
-    "margin_usd": 3.00,
-    "leverage": 40,
-    "max_concurrent": 1,
+    "enabled": False,
+    "margin_usd": 2.00,
+    "leverage": 50,
+    "max_concurrent": 4,
     "poll_interval": 20,
     "strategy": "APEX_TARGET_500RB_40X",
     "status": "RUNNING",
@@ -270,11 +270,11 @@ def run_single_executor_cycle(dry_run=False):
     
     # Jika kuota penuh (sudah ada 2 koin jalan atau antre): JANGAN BUKA LAGI!
     if slots_free <= 0:
-        summary_msg = f"🎯 Kuota Single Sniper (1/1 Aktif): {len(act_pos)} Posisi Aktif, {len(op_ord)} Limit Antre. Menunggu TP/SL..."
+        summary_msg = f"🎯 Kuota Apex Multi-Sniper ({curr_total}/{MAX_CONCURRENT_LIMIT} Aktif): {len(act_pos)} Posisi Aktif, {len(op_ord)} Limit Antre. Menunggu TP/SL..."
         cfg["last_action"] = summary_msg
         cfg["last_cycle_time"] = datetime.now(WIB).strftime('%H:%M:%S WIB')
         save_config(cfg)
-        log_event(f"🎯 Patroli Siaga: 1/1 Kuota Terisi ({len(act_pos)} Posisi Jalan · {len(op_ord)} Limit Antre) · BTC: {btc_guard} · Menjaga modal...", "PATROLI")
+        log_event(f"🎯 Patroli Siaga: {curr_total}/{MAX_CONCURRENT_LIMIT} Kuota Terisi ({len(act_pos)} Posisi Jalan · {len(op_ord)} Limit Antre) · BTC: {btc_guard} · Menjaga modal...", "PATROLI")
         return {
             "status": "OK",
             "placed_count": 0,
@@ -299,7 +299,7 @@ def run_single_executor_cycle(dry_run=False):
         if is_cd or has_pos or has_ord:
             continue
             
-        if status != 'WAITING':
+        if status not in ('WAITING', 'VALID_READY') and not r.get('is_valid_entry'):
             continue
             
         # Hitung jarak harga saat ini ke limit price
@@ -339,11 +339,11 @@ def run_single_executor_cycle(dry_run=False):
         lim_p = r['limit_p']
         
         if dry_run:
-            msg = f"[DRY RUN] {coin}: Pasang {side} Limit @ ${lim_p} (Margin ${margin:.2f} · Lev 40x Isolated)"
+            msg = f"[DRY RUN] {coin}: Pasang {side} Limit @ ${lim_p} (Margin ${margin:.2f} · Lev 50x Isolated)"
             print(msg, flush=True)
             placed_orders.append((coin, {"success": True, "msg": msg}))
         else:
-            log_event(f"🚀 [IRON DEFENSE] Memasang {side} Limit {coin} @ ${lim_p} (Margin ${margin:.2f} · Lev 40x Isolated · BTC: {btc_guard})...", "ORDER")
+            log_event(f"🚀 [IRON DEFENSE] Memasang {side} Limit {coin} @ ${lim_p} (Margin ${margin:.2f} · Lev 50x Isolated · BTC: {btc_guard})...", "ORDER")
             res = sniper_limit_engine.execute_single_coin_limit_order(coin, custom_margin=margin)
             if res.get('success'):
                 log_event(f"✅ SUKSES! Order {coin} terpasang di MEXC (ID: {res.get('order_id')}) | TP: ${res.get('tp')} (+45%) | SL: ${res.get('sl')} (-22%)", "SUCCESS")
@@ -358,7 +358,7 @@ def run_single_executor_cycle(dry_run=False):
     save_config(cfg)
     
     if placed_orders:
-        log_event(f"🎯 Selesai pasang {len(placed_orders)} order baru terpilih! Total aktif di MEXC: {curr_total + len(placed_orders)}/1 koin.", "BATCH")
+        log_event(f"🎯 Selesai pasang {len(placed_orders)} order baru terpilih! Total aktif di MEXC: {curr_total + len(placed_orders)}/{MAX_CONCURRENT_LIMIT} koin.", "BATCH")
     else:
         log_event(f"💓 Patroli Iron Defense: {len(act_pos)} Posisi Jalan · {len(op_ord)} Limit Antre · Slot Bebas: {slots_free}/4 · BTC: {btc_guard}", "PATROLI")
         
@@ -391,7 +391,7 @@ def start_background_daemon(margin_usd=1.00, interval=20):
     
     def daemon_worker():
         global _DAEMON_RUNNING
-        log_event(f"🤖 Bot Iron Defense MEXC Dimulai! Margin: ${margin_usd:.2f} | Leverage: 20x | Max Concurrent: 2 Koin | Cooldown: 2 Jam", "START")
+        log_event(f"🤖 Bot Apex Multi-Sniper 50x MEXC Dimulai! Margin: ${margin_usd:.2f} | Leverage: 50x | Max Concurrent: 4 Koin | Target: Rp 500rb/mgg", "START")
         while _DAEMON_RUNNING:
             cfg = load_config()
             if not cfg.get("enabled", True):
@@ -426,7 +426,7 @@ def stop_background_daemon():
 def main():
     is_live = ("--live" in sys.argv)
     use_compound = ("--compound" in sys.argv)
-    margin = 3.00
+    margin = 2.00
     for idx, arg in enumerate(sys.argv):
         if arg == "--margin" and idx + 1 < len(sys.argv):
             try:
@@ -441,16 +441,15 @@ def main():
     save_config(cfg)
     
     print("=" * 95)
-    print("🎯 SINGLE SNIPER PROTOCOL MEXC 24/7 (TARGET RP 500.000 / $30 USD PER MINGGU (APEX 40X))")
+    print("🎯 APEX MULTI-SNIPER 50X MEXC 24/7 (TARGET RP 500.000 / MINGGU - MARGIN FLAT $2.00 USD)")
     print(f"Status Mode   : {'🚀 LIVE TRADING OTOMATIS (Uang Riil MEXC)' if is_live else '⚠️ DRY RUN (Mode Simulasi)'}")
-    mode_str = "Dynamic Compounding 30% Saldo (Target Rp 500.000 / $32.51/Wk Teruji)" if use_compound else f"${margin:.2f} USD Fixed"
-    print(f"Ukuran Margin : {mode_str} (Leverage 40x Isolated)")
-    print(f"Maksimal Aktif: HANYA 1 KOIN (Single Sniper - Teruji Bebas Boncos Multi-Koin)")
+    print(f"Ukuran Margin : ${margin:.2f} USD Flat (Leverage 50x Isolated · Bebas Compounding)")
+    print(f"Maksimal Aktif: MAKSIMAL 4 KOIN SERENTAK (Multi-Posisi Teruji Bebas Likuidasi)")
     print(f"Filter BTC    : 🛡️ BTC Master Crash Guard (Dilarang Long saat Bitcoin Dump)")
-    print(f"Target Profit : +60.0% ROE (Spot +1.50% · Cuan Bersih +$1.73 USD / ~Rp 28.166)")
-    print(f"Stop Loss     : -40.0% ROE (Spot -1.00% · Rugi Bersih -$1.31 USD / ~Rp 21.320)")
-    print(f"Risk-Reward   : 1.32 : 1 (Cuan Lebih Besar dari Rugi setelah Fee & Slippage MEXC)")
-    print(f"Masa Tenang   : 2 Jam Pasca-SL (7.200s Anti-Whipsaw)")
+    print(f"Target Profit : +60.0% ROE (Spot +1.20% · Cuan Bersih +$1.12 USD / ~Rp 18.250)")
+    print(f"Stop Loss     : -50.0% ROE (Spot -1.00% · Rugi Bersih -$1.08 USD / ~Rp 17.600)")
+    print(f"Risk-Reward   : 1.20 : 1 (Cuan Lebih Besar dari Rugi)")
+    print(f"Masa Tenang   : 1 Jam Pasca-TP, 2 Jam Pasca-SL, 15m Global Jeda")
     print("=" * 95)
     print("Tekan Ctrl + C di keyboard kapan saja untuk menghentikan bot.\n")
     

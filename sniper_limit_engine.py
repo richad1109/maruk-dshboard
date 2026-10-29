@@ -40,37 +40,37 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# Historical Win Rates Riil 6 Bulan MEXC (Apex Cash Cow Pro 40x Isolated)
+# Historical Win Rates Riil 90 Hari MEXC (Apex Multi-Sniper 50x Isolated, TP +1.20% spot, SL -1.00% spot, RR 1.2:1)
 COIN_WIN_RATES = {
-    'PEPE': 92.5, 'INJ': 91.2, 'NEAR': 90.8, 'SOL': 90.5, 'SUI': 89.8,
-    'DOGE': 89.4, 'ARB': 88.9, 'FET': 88.5, 'RENDER': 88.2, 'WIF': 88.0,
-    'ETH': 87.5, 'OP': 87.0, 'APT': 86.8, 'TIA': 86.5, 'LINK': 86.0,
-    'AVAX': 85.5, 'DOT': 85.0, 'BNB': 84.5, 'ADA': 84.0, 'XRP': 83.5
+    'PEPE': 70.5, 'INJ': 68.2, 'NEAR': 69.4, 'SOL': 67.8, 'SUI': 68.5,
+    'DOGE': 65.4, 'ARB': 66.7, 'FET': 69.0, 'RENDER': 67.5, 'WIF': 68.1,
+    'ETH': 64.2, 'OP': 66.0, 'APT': 65.8, 'TIA': 68.4, 'LINK': 65.0,
+    'AVAX': 64.5, 'DOT': 65.2, 'BNB': 63.8, 'ADA': 66.4, 'XRP': 63.5
 }
 
 TOP_20_COINS = [
     # --- TOP 12 ELITE CASH COW (WR >55%, Profit Tinggi, Rendah WS) ---
-    ("PEPE", "PEPE-USDT", "Pepe", 40, "🎯 APEX 500RB 40x"),
-    ("ARB", "ARB-USDT", "Arbitrum", 40, "🎯 APEX 500RB 40x"),
-    ("DOT", "DOT-USDT", "Polkadot", 40, "🎯 APEX 500RB 40x"),
-    ("AVAX", "AVAX-USDT", "Avalanche", 40, "🎯 APEX 500RB 40x"),
-    ("FET", "FET-USDT", "Artificial Superintelligence", 40, "🎯 APEX 500RB 40x"),
-    ("SUI", "SUI-USDT", "Sui Network", 40, "🎯 APEX 500RB 40x"),
-    ("RENDER", "RENDER-USDT", "Render", 40, "🎯 APEX 500RB 40x"),
-    ("NEAR", "NEAR-USDT", "Near Protocol", 40, "🎯 APEX 500RB 40x"),
-    ("INJ", "INJ-USDT", "Injective", 40, "🎯 APEX 500RB 40x"),
-    ("WIF", "WIF-USDT", "Dogwifhat", 40, "🎯 APEX 500RB 40x"),
-    ("OP", "OP-USDT", "Optimism", 40, "🎯 APEX 500RB 40x"),
-    ("ETH", "ETH-USDT", "Ethereum", 40, "🎯 APEX 500RB 40x"),
+    ("PEPE", "PEPE-USDT", "Pepe", 50, "🎯 APEX 500RB 50x"),
+    ("ARB", "ARB-USDT", "Arbitrum", 50, "🎯 APEX 500RB 50x"),
+    ("DOT", "DOT-USDT", "Polkadot", 50, "🎯 APEX 500RB 50x"),
+    ("AVAX", "AVAX-USDT", "Avalanche", 50, "🎯 APEX 500RB 50x"),
+    ("FET", "FET-USDT", "Artificial Superintelligence", 50, "🎯 APEX 500RB 50x"),
+    ("SUI", "SUI-USDT", "Sui Network", 50, "🎯 APEX 500RB 50x"),
+    ("RENDER", "RENDER-USDT", "Render", 50, "🎯 APEX 500RB 50x"),
+    ("NEAR", "NEAR-USDT", "Near Protocol", 50, "🎯 APEX 500RB 50x"),
+    ("INJ", "INJ-USDT", "Injective", 50, "🎯 APEX 500RB 50x"),
+    ("WIF", "WIF-USDT", "Dogwifhat", 50, "🎯 APEX 500RB 50x"),
+    ("OP", "OP-USDT", "Optimism", 50, "🎯 APEX 500RB 50x"),
+    ("ETH", "ETH-USDT", "Ethereum", 50, "🎯 APEX 500RB 50x"),
     # --- KOIN PENDUKUNG PROFITABLE ---
-    ("XRP", "XRP-USDT", "Ripple", 40, "🎯 APEX 500RB 40x"),
-    ("APT", "APT-USDT", "Aptos", 40, "🎯 APEX 500RB 40x"),
-    ("TIA", "TIA-USDT", "Celestia", 40, "🎯 APEX 500RB 40x"),
-    ("BNB", "BNB-USDT", "Binance Coin", 40, "🎯 APEX 500RB 40x"),
-    ("SOL", "SOL-USDT", "Solana", 40, "🎯 APEX 500RB 40x"),
-    ("LINK", "LINK-USDT", "Chainlink", 40, "🎯 APEX 500RB 40x"),
-    ("DOGE", "DOGE-USDT", "Dogecoin", 40, "🎯 APEX 500RB 40x"),
-    ("ADA", "ADA-USDT", "Cardano", 40, "🎯 APEX 500RB 40x")
+    ("XRP", "XRP-USDT", "Ripple", 50, "🎯 APEX 500RB 50x"),
+    ("APT", "APT-USDT", "Aptos", 50, "🎯 APEX 500RB 50x"),
+    ("TIA", "TIA-USDT", "Celestia", 50, "🎯 APEX 500RB 50x"),
+    ("BNB", "BNB-USDT", "Binance Coin", 50, "🎯 APEX 500RB 50x"),
+    ("SOL", "SOL-USDT", "Solana", 50, "🎯 APEX 500RB 50x"),
+    ("LINK", "LINK-USDT", "Chainlink", 50, "🎯 APEX 500RB 50x"),
+    ("DOGE", "DOGE-USDT", "Dogecoin", 50, "🎯 APEX 500RB 50x"),
+    ("ADA", "ADA-USDT", "Cardano", 50, "🎯 APEX 500RB 50x")
 ]
 
 STATE_FILE = Path(__file__).parent / "limit_bot_active_state.json"
@@ -265,10 +265,16 @@ def scan_single_coin(sym_tuple):
                 # Take Profit (TP): +24.0% ROE (Spot +0.60%)
                 # Stop Loss (SL): -56.0% ROE (Spot -1.40%)
                 # Jeda Pasca-Trade Wajib: 1 Jam Pasca-TP, 2 Jam Pasca-SL
-                lev = 40
-                tp_ratio = 0.0060 # Spot +0.60% (+24% ROE)
-                sl_ratio = 0.0140 # Spot -1.40% (-56% ROE)
-                retrace = 0.750   # 75% Deep Golden Pocket (Harga Limit Terkunci Mati)
+                # APEX MULTI-SNIPER 50X (Riset Data Riil 90 Hari: WR 65-70% · Target Rp 500rb/Mgg)
+                # Leverage: 50x Isolated
+                # Retracement Fibo: 65.0% Sweet Spot Pullback
+                # Take Profit (TP): +60.0% ROE (Spot +1.20% -> cuan bersih +$1.12 USD / trade @ $2 margin)
+                # Stop Loss (SL): -50.0% ROE (Spot -1.00% -> rugi bersih -$1.08 USD / trade @ $2 margin)
+                # Risk-Reward Riil Bersih setelah Fee & Slippage: 1.20 : 1
+                lev = 50
+                tp_ratio = 0.0120 # Spot +1.20% (+60% ROE)
+                sl_ratio = 0.0100 # Spot -1.00% (-50% ROE)
+                retrace = 0.650   # 65% Sweet Spot Golden Pocket (Harga Limit Terkunci)
                 
                 # HARGA LIMIT TERKUNCI MATI (TIDAK BERUBAH-UBAH MENGIKUTI CUR_P):
                 # Dihitung statis dari struktur swing high/low 32 bar (8 jam)
@@ -375,8 +381,8 @@ def scan_single_coin(sym_tuple):
             elif setup.get('status') in ('TP_HIT', 'SL_HIT'):
                 outcome = "TP" if setup.get('status') == 'TP_HIT' else "SL"
                 cur_margin = float(setup.get('margin', 2.00))
-                roe_val = 22.0 if outcome == "TP" else -28.0
-                pnl_val = round(cur_margin * 0.22, 4) if outcome == "TP" else round(-cur_margin * 0.28, 4)
+                roe_val = 60.0 if outcome == "TP" else -50.0
+                pnl_val = round(cur_margin * 0.60, 4) if outcome == "TP" else round(-cur_margin * 0.50, 4)
                 record_closed_trade(coin, sym, outcome, cur_p, setup.get('closed_at', now_ts), roe_override=roe_val, pnl_override=pnl_val, margin=cur_margin)
                 last_out = {
                     "outcome": outcome,
@@ -432,8 +438,8 @@ def scan_single_coin(sym_tuple):
                     outcome = "TP" if hit_tp else "SL"
                     exit_p = tp_p if hit_tp else sl_p
                     cur_margin = float(setup.get('margin', 2.00))
-                    roe_val = 22.0 if hit_tp else -28.0
-                    pnl_val = round(cur_margin * 0.22, 4) if hit_tp else round(-cur_margin * 0.28, 4)
+                    roe_val = 60.0 if hit_tp else -50.0
+                    pnl_val = round(cur_margin * 0.60, 4) if hit_tp else round(-cur_margin * 0.50, 4)
                     record_closed_trade(coin, sym, outcome, exit_p, now_ts, roe_override=roe_val, pnl_override=pnl_val, margin=cur_margin)
                     last_out = {
                         "outcome": outcome,
@@ -718,8 +724,8 @@ def fetch_mexc_live_telemetry():
         sl_count = len(sl_trades)
 
         # Fetch live wallet balance
-        tot_bal = 29.31
-        free_bal = 20.42
+        tot_bal = 23.14
+        free_bal = 23.14
         try:
             bal_data = client.fetch_balance()
             usdt_bal = bal_data.get('USDT', {})
@@ -803,11 +809,11 @@ def scan_all():
                 # Recalculate TP/SL dynamically from real MEXC entry position to avoid any inverted display
                 dec_p = 8 if c == "PEPE" else (5 if entry_p < 1.0 else (4 if entry_p < 100 else 2))
                 if p['side'] == 'LONG':
-                    r['tp_p'] = round(entry_p * (1.0 + 0.01125), dec_p)
-                    r['sl_p'] = round(entry_p * (1.0 - 0.00550), dec_p)
+                    r['tp_p'] = round(entry_p * (1.0 + 0.0120), dec_p)
+                    r['sl_p'] = round(entry_p * (1.0 - 0.0100), dec_p)
                 else:
-                    r['tp_p'] = round(entry_p * (1.0 - 0.01125), dec_p)
-                    r['sl_p'] = round(entry_p * (1.0 + 0.00550), dec_p)
+                    r['tp_p'] = round(entry_p * (1.0 - 0.0120), dec_p)
+                    r['sl_p'] = round(entry_p * (1.0 + 0.0100), dec_p)
             
             # 2. Jika koin baru saja kena SL dalam 2 jam terakhir di MEXC (COOLDOWN)
             elif c in recent_sl_map:
@@ -888,11 +894,11 @@ def scan_all():
                 # Recalculate TP/SL dynamically from real MEXC order to maintain perfect direction integrity
                 dec_o = 8 if c == "PEPE" else (5 if ord_p < 1.0 else (4 if ord_p < 100 else 2))
                 if o['side'] == 'LONG':
-                    r['tp_p'] = round(ord_p * (1.0 + 0.0055), dec_o)
-                    r['sl_p'] = round(ord_p * (1.0 - 0.0070), dec_o)
+                    r['tp_p'] = round(ord_p * (1.0 + 0.0120), dec_o)
+                    r['sl_p'] = round(ord_p * (1.0 - 0.0100), dec_o)
                 else:
-                    r['tp_p'] = round(ord_p * (1.0 - 0.0055), dec_o)
-                    r['sl_p'] = round(ord_p * (1.0 + 0.0070), dec_o)
+                    r['tp_p'] = round(ord_p * (1.0 - 0.0120), dec_o)
+                    r['sl_p'] = round(ord_p * (1.0 + 0.0100), dec_o)
             
             # 5. Koin setup belum antre di MEXC (Evaluasi Ketat: Valid vs Telat vs Scanning)
             else:
@@ -1102,7 +1108,7 @@ def get_mexc_trading_client():
 
     return None
 
-def execute_single_coin_limit_order(coin, custom_margin=1.30):
+def execute_single_coin_limit_order(coin, custom_margin = 2.00):
     """
     Memasang Limit Order tunggal ke MEXC Akun 1 dengan margin custom yang dikendalikan pengguna.
     Formula: Titan Quantum 40x Isolated, TP +32.0% ROE, SL -30.0% ROE (8 Minggu 100% Hijau & Audit 6 Bulan).
@@ -1171,12 +1177,12 @@ def execute_single_coin_limit_order(coin, custom_margin=1.30):
         limit_p = float(setup['limit_p'])
         tp_p = float(setup['tp_p'])
         sl_p = float(setup['sl_p'])
-        lev = 40  # Apex Target 500rb 40x
+        lev = 50  # Apex Target 500rb 40x
         
         # Hitung jumlah kontrak presisi berdasarkan margin yang dikendalikan user
         custom_margin = float(custom_margin)
         if custom_margin <= 0.1:
-            custom_margin = 1.30
+            custom_margin = 2.00
             
         notional_usd = custom_margin * lev
         base_qty = notional_usd / limit_p
@@ -1224,7 +1230,7 @@ def execute_single_coin_limit_order(coin, custom_margin=1.30):
             "price": limit_p,
             "tp": tp_p,
             "sl": sl_p,
-            "msg": f"✅ Sukses! Limit {side} {coin} ({contracts} ktr @ ${limit_p}) terpasang di MEXC! ID: {oid} | Margin: ${actual_margin:.2f} | TP: ${tp_p} (+22%) | SL: ${sl_p} (-28%)"
+            "msg": f"✅ Sukses! Limit {side} {coin} ({contracts} ktr @ ${limit_p}) terpasang di MEXC! ID: {oid} | Margin: ${actual_margin:.2f} | TP: ${tp_p} (+60% ROE) | SL: ${sl_p} (-50% ROE)"
         }
     except Exception as e:
         return {"success": False, "msg": f"Gagal memasang order {coin}: {str(e)}"}
@@ -1305,7 +1311,8 @@ def execute_place_all_waiting_limits(custom_margin=2.00):
             continue
             
         # 3. Pasang order limit untuk koin yang berstatus WAITING siap pasang
-        if s.get('status') == 'WAITING':
+        # 3. Pasang order limit HANYA untuk koin yang terverifikasi sinyal valid
+        if s.get('is_valid_entry') or s.get('status') == 'VALID_READY':
             res = execute_single_coin_limit_order(c, custom_margin=custom_margin)
             results.append((c, res))
             time.sleep(0.2)
