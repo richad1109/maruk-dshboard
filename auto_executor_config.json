@@ -1,10 +1,10 @@
 {
   "enabled": true,
-  "margin_usd": 1.0,
+  "margin_usd": 3.0,
   "leverage": 40,
-  "max_concurrent": 2,
+  "max_concurrent": 4,
   "poll_interval": 20,
-  "strategy": "APEX_CASH_COW_PRO",
+  "strategy": "APEX_TARGET_500RB_40X",
   "status": "RUNNING",
   "last_cycle_time": "10:56:28 WIB",
   "last_action": "\ud83d\udee1\ufe0f Patroli Siaga: 2/2 Slot Penuh (0 Posisi Jalan \u00b7 16 Limit Antre) \u00b7 BTC: BEARISH \u00b7 Menjaga saldo...",

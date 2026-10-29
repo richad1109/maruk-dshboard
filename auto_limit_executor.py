@@ -45,15 +45,15 @@ if sys.stdout and hasattr(sys.stdout, 'reconfigure'):
     except Exception: pass
 
 CONFIG_FILE = Path(__file__).parent / "auto_executor_config.json"
-MAX_CONCURRENT_LIMIT = 2
+MAX_CONCURRENT_LIMIT = 4
 
 DEFAULT_CONFIG = {
     "enabled": True,
-    "margin_usd": 1.00,
-    "leverage": 20,
-    "max_concurrent": 2,
+    "margin_usd": 3.00,
+    "leverage": 40,
+    "max_concurrent": 4,
     "poll_interval": 20,
-    "strategy": "IRON_DEFENSE_20X",
+    "strategy": "APEX_TARGET_500RB_40X",
     "status": "RUNNING",
     "last_cycle_time": "-",
     "last_action": "Inisialisasi sistem Iron Defense...",
@@ -154,7 +154,7 @@ def run_single_executor_cycle(dry_run=False):
         
     margin = float(cfg.get("margin_usd", 1.00))
     if margin <= 0.1:
-        margin = 1.00
+        margin = 3.00
         
     now_ts = time.time()
     now_str = datetime.now(WIB).strftime('%Y-%m-%d %H:%M:%S WIB')
@@ -207,7 +207,7 @@ def run_single_executor_cycle(dry_run=False):
         cfg["last_action"] = summary_msg
         cfg["last_cycle_time"] = datetime.now(WIB).strftime('%H:%M:%S WIB')
         save_config(cfg)
-        log_event(f"🛡️ Patroli Siaga: 2/2 Slot Penuh ({len(act_pos)} Posisi Jalan · {len(op_ord)} Limit Antre) · BTC: {btc_guard} · Menjaga saldo...", "PATROLI")
+        log_event(f"🛡️ Patroli Siaga: 4/4 Slot Penuh ({len(act_pos)} Posisi Jalan · {len(op_ord)} Limit Antre) · BTC: {btc_guard} · Menjaga saldo...", "PATROLI")
         return {
             "status": "OK",
             "placed_count": 0,
@@ -263,14 +263,14 @@ def run_single_executor_cycle(dry_run=False):
         lim_p = r['limit_p']
         
         if dry_run:
-            msg = f"[DRY RUN] {coin}: Pasang {side} Limit @ ${lim_p} (Margin ${margin:.2f} · Lev 20x Isolated)"
+            msg = f"[DRY RUN] {coin}: Pasang {side} Limit @ ${lim_p} (Margin ${margin:.2f} · Lev 40x Isolated)"
             print(msg, flush=True)
             placed_orders.append((coin, {"success": True, "msg": msg}))
         else:
-            log_event(f"🚀 [IRON DEFENSE] Memasang {side} Limit {coin} @ ${lim_p} (Margin ${margin:.2f} · Lev 20x Isolated · BTC: {btc_guard})...", "ORDER")
+            log_event(f"🚀 [IRON DEFENSE] Memasang {side} Limit {coin} @ ${lim_p} (Margin ${margin:.2f} · Lev 40x Isolated · BTC: {btc_guard})...", "ORDER")
             res = sniper_limit_engine.execute_single_coin_limit_order(coin, custom_margin=margin)
             if res.get('success'):
-                log_event(f"✅ SUKSES! Order {coin} terpasang di MEXC (ID: {res.get('order_id')}) | TP: ${res.get('tp')} (+30%) | SL: ${res.get('sl')} (-20%)", "SUCCESS")
+                log_event(f"✅ SUKSES! Order {coin} terpasang di MEXC (ID: {res.get('order_id')}) | TP: ${res.get('tp')} (+45%) | SL: ${res.get('sl')} (-22%)", "SUCCESS")
                 placed_orders.append((coin, res))
             else:
                 log_event(f"⚠️ Gagal pasang order {coin}: {res.get('msg')}", "WARNING")
@@ -282,9 +282,9 @@ def run_single_executor_cycle(dry_run=False):
     save_config(cfg)
     
     if placed_orders:
-        log_event(f"🎯 Selesai pasang {len(placed_orders)} order baru terpilih! Total aktif di MEXC: {curr_total + len(placed_orders)}/2 koin.", "BATCH")
+        log_event(f"🎯 Selesai pasang {len(placed_orders)} order baru terpilih! Total aktif di MEXC: {curr_total + len(placed_orders)}/4 koin.", "BATCH")
     else:
-        log_event(f"💓 Patroli Iron Defense: {len(act_pos)} Posisi Jalan · {len(op_ord)} Limit Antre · Slot Bebas: {slots_free}/2 · BTC: {btc_guard}", "PATROLI")
+        log_event(f"💓 Patroli Iron Defense: {len(act_pos)} Posisi Jalan · {len(op_ord)} Limit Antre · Slot Bebas: {slots_free}/4 · BTC: {btc_guard}", "PATROLI")
         
     return {
         "status": "OK",
@@ -349,7 +349,7 @@ def stop_background_daemon():
 
 def main():
     is_live = ("--live" in sys.argv)
-    margin = 1.00
+    margin = 3.00
     for idx, arg in enumerate(sys.argv):
         if arg == "--margin" and idx + 1 < len(sys.argv):
             try:
@@ -363,14 +363,14 @@ def main():
     save_config(cfg)
     
     print("=" * 95)
-    print("🛡️ AUTO-PILOT EXECUTOR LIMIT ORDER MEXC 24/7 (PROTOKOL PERTAHANAN BAJA / IRON DEFENSE)")
+    print("🛡️ AUTO-PILOT EXECUTOR LIMIT ORDER MEXC 24/7 (TARGET RP 500.000 / $30 USD PER MINGGU (APEX 40X))")
     print(f"Status Mode   : {'🚀 LIVE TRADING OTOMATIS (Uang Riil MEXC)' if is_live else '⚠️ DRY RUN (Mode Simulasi)'}")
     print(f"Ukuran Margin : ${margin:.2f} USD per Koin (Leverage 20x Isolated - Hemat Fee 50%)")
-    print(f"Maksimal Aktif: HANYA 2 KOIN SEKALIGUS (Hard Cap Anti-Serok Crash)")
+    print(f"Maksimal Aktif: MAKSIMAL 4 KOIN SEKALIGUS SEKALIGUS (Hard Cap Anti-Serok Crash)")
     print(f"Filter BTC    : 🛡️ BTC Master Crash Guard (Dilarang Long saat Bitcoin Dump)")
-    print(f"Target Profit : +30.0% ROE (Spot +1.50% · Cuan Bersih +$0.28 USD)")
-    print(f"Stop Loss     : -20.0% ROE (Spot -1.00% · Rugi Bersih -$0.22 USD)")
-    print(f"Risk-Reward   : 1.27 : 1 (Sehat & Menguntungkan Jangka Panjang)")
+    print(f"Target Profit : +45.0% ROE (Spot +1.125% · Cuan Bersih +$1.28 USD / ~Rp 21.000)")
+    print(f"Stop Loss     : -22.0% ROE (Spot -0.550% · Rugi Bersih -$0.73 USD / ~Rp 12.000)")
+    print(f"Risk-Reward   : 1.75 : 1 (Cuan 1.75x Lipat Lebih Besar) (Sehat & Menguntungkan Jangka Panjang)")
     print(f"Masa Tenang   : 2 Jam Pasca-SL (7.200s Anti-Whipsaw)")
     print("=" * 95)
     print("Tekan Ctrl + C di keyboard kapan saja untuk menghentikan bot.\n")
