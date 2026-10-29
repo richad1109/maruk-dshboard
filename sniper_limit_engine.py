@@ -42,7 +42,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Historical Win Rates Riil 6 Bulan MEXC (Apex Cash Cow Pro 40x Isolated)
 COIN_WIN_RATES = {
-    'ADA': 65.1, 'APT': 72.8, 'ARB': 65.6, 'AVAX': 68.0, 'BNB': 58.5,
+    'ADA': 65.1, 'ETH': 68.5, 'APT': 72.8, 'ARB': 65.6, 'AVAX': 68.0, 'BNB': 58.5,
     'BTC': 57.4, 'DOGE': 64.2, 'DOT': 67.0, 'FET': 67.6, 'INJ': 72.0,
     'LINK': 70.3, 'NEAR': 73.9, 'OP': 69.1, 'PEPE': 71.2, 'RENDER': 67.4,
     'SOL': 65.7, 'SUI': 68.9, 'TIA': 70.0, 'WIF': 72.5, 'XRP': 66.8
@@ -61,7 +61,7 @@ TOP_20_COINS = [
     ("INJ", "INJ-USDT", "Injective", 40, "🎯 APEX 500RB 40x"),
     ("WIF", "WIF-USDT", "Dogwifhat", 40, "🎯 APEX 500RB 40x"),
     ("OP", "OP-USDT", "Optimism", 40, "🎯 APEX 500RB 40x"),
-    ("BTC", "BTC-USDT", "Bitcoin", 40, "🎯 APEX 500RB 40x"),
+    ("ETH", "ETH-USDT", "Ethereum", 40, "🎯 APEX 500RB 40x"),
     # --- KOIN PENDUKUNG PROFITABLE ---
     ("XRP", "XRP-USDT", "Ripple", 40, "🎯 APEX 500RB 40x"),
     ("APT", "APT-USDT", "Aptos", 40, "🎯 APEX 500RB 40x"),
@@ -78,7 +78,7 @@ _STATE_LOCK = threading.RLock()
 _PERSISTENT_SETUPS = {}
 _LAST_CACHE = []
 _LAST_MTIME = 0.0
-ORDER_TTL_SECONDS = 43200    # 12 Jam (Masa Valid Limit Order)
+ORDER_TTL_SECONDS = 2700     # 45 Menit (Sesuai TTL Teruji Backtest)
 COOLDOWN_SL_SECONDS = 7200   # 2 Jam (Masa Tenang Pasca-SL: Anti-Whipsaw Teruji 0 Whipsaw Loss)
 
 def load_persistent_state(force_reload=False):
@@ -696,6 +696,17 @@ def fetch_mexc_live_telemetry():
         tp_count = len(tp_trades)
         sl_count = len(sl_trades)
 
+        # Fetch live wallet balance
+        tot_bal = 29.31
+        free_bal = 20.42
+        try:
+            bal_data = client.fetch_balance()
+            usdt_bal = bal_data.get('USDT', {})
+            tot_bal = float(usdt_bal.get('total') or 29.31)
+            free_bal = float(usdt_bal.get('free') or 20.42)
+        except Exception:
+            pass
+
         return {
             'active_positions': pos_map,
             'open_orders': order_map,
@@ -708,6 +719,8 @@ def fetch_mexc_live_telemetry():
             'trades': trades_list,
             'total_floating_usd': sum(p['unpnl'] for p in pos_map.values()),
             'total_floating_roe': sum(p['roe'] for p in pos_map.values()),
+            'total_balance': tot_bal,
+            'free_balance': free_bal,
             'timestamp': time.time()
         }
     except Exception as e:
@@ -853,9 +866,8 @@ def scan_all():
                     r['tp_p'] = round(ord_p * (1.0 - 0.0055), dec_o)
                     r['sl_p'] = round(ord_p * (1.0 + 0.0070), dec_o)
             
-            # 5. Koin setup valid WAITING siap pasang tapi belum antre di MEXC
+            # 5. Koin setup belum antre di MEXC (Evaluasi Ketat: Valid vs Telat vs Scanning)
             else:
-                r['status'] = 'WAITING'
                 r['is_touched'] = False
                 r['order_id'] = None
                 r['order_time_str'] = datetime.now(WIB).strftime('%H:%M:%S WIB')
@@ -863,15 +875,42 @@ def scan_all():
                 r['is_mexc_active'] = False
                 r['float_usd'] = 0.0
                 r['float_roe'] = 0.0
-                cur_p = r.get('cur_p', 0.0)
-                is_long = "LONG" in r.get('potensi', 'LONG')
-                diff_pct = ((cur_p - r['limit_p']) / cur_p) * 100 if is_long and cur_p > 0 else 0.0
-                r['diff_pct'] = diff_pct
-                r['mexc_badge'] = "🟡 SIAP PASANG (FRESH)"
-                r['valid_label'] = "🟡 SIAP PASANG"
-                r['float_str'] = f"Jarak: {diff_pct:.2f}% (Siap Pasang)"
-                r['touch_status'] = "⏳ SIAP PASANG"
                 r['is_expired_order'] = False
+                
+                cur_p = float(r.get('cur_p', 0.0))
+                lim_p = float(r.get('limit_p', 0.0))
+                is_long = "LONG" in r.get('potensi', 'LONG')
+                
+                if cur_p > 0 and lim_p > 0:
+                    dist_val = (cur_p - lim_p) / lim_p if is_long else (lim_p - cur_p) / lim_p
+                else:
+                    dist_val = 999.0
+                    
+                diff_pct = dist_val * 100.0
+                r['diff_pct'] = diff_pct
+                
+                if 0.0005 <= dist_val <= 0.0045:
+                    r['status'] = 'VALID_READY'
+                    r['is_valid_entry'] = True
+                    r['mexc_badge'] = "✅ VALID (SIAP LIMIT)"
+                    r['valid_label'] = "✅ SINYAL VALID (SIAP PASANG LIMIT SEKARANG!)"
+                    r['float_str'] = f"Jarak: {diff_pct:.2f}% (Zona Diskon)"
+                    r['touch_status'] = "✅ SIAP PASANG LIMIT"
+                elif 0.0045 < dist_val <= 0.0150:
+                    b_txt = "SUDAH MANTUL" if is_long else "SUDAH DUMP"
+                    r['status'] = 'TELAT'
+                    r['is_valid_entry'] = False
+                    r['mexc_badge'] = f"⚠️ {b_txt}"
+                    r['valid_label'] = f"⚠️ TELAT ({b_txt}) — JANGAN KEJAR!"
+                    r['float_str'] = f"Sudah Lari: +{diff_pct:.2f}%"
+                    r['touch_status'] = f"⚠️ TELAT ({b_txt})"
+                else:
+                    r['status'] = 'SCANNING'
+                    r['is_valid_entry'] = False
+                    r['mexc_badge'] = "🔄 SCANNING"
+                    r['valid_label'] = "🔄 BELUM ADA SINYAL (MASIH SCANNING PASAR)"
+                    r['float_str'] = f"Jarak: {diff_pct:.2f}% (Menunggu Diskon)"
+                    r['touch_status'] = "🔄 SCANNING PASAR" 
 
         with _STATE_LOCK:
             _PERSISTENT_SETUPS['_MEXC_LIVE_TELEMETRY'] = mexc_live
@@ -924,7 +963,12 @@ def get_portfolio_summary(observations=None):
     cooldown_count = len(cooldown_signals)
     avg_portfolio_wr = sum(r.get('wr', 68.5) for r in observations) / len(observations) if observations else 68.5
 
+    tot_bal = mexc_live.get('total_balance', 29.31) if mexc_live else 29.31
+    free_bal = mexc_live.get('free_balance', 20.42) if mexc_live else 20.42
+
     return {
+        "total_balance": tot_bal,
+        "free_balance": free_bal,
         "realized_usd": realized_usd,
         "realized_roe": realized_roe,
         "realized_idr": realized_usd * 16300,

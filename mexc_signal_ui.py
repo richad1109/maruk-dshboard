@@ -275,6 +275,153 @@ def bias_cards():
         pass
 
     # =========================================================================
+    # =========================================================================
+    # PANDUAN TANGGA COMPOUNDING & MAKSIMAL POSISI (MILESTONE ROADMAP)
+    # =========================================================================
+    live_tot_bal = float(summary.get('total_balance', 29.31))
+    rec_m = round(live_tot_bal * 0.30, 2)
+    
+    tier_name = "TIER 1: STARTER SNIPER ($20 - $49)"
+    tier_pill = "🟢 TIER 1 AKTIF"
+    max_pos = 1
+    max_pos_desc = "Tepat 1 Koin (Single Sniper Hard Cap)"
+    target_cuan = "Rp 500.000 / Mgg (~+$32 USD)"
+    next_milestone = f"Jika saldo tembus $50.00 (+${max(0.0, 50.0 - live_tot_bal):.2f} lagi), margin otomatis naik ke $15.00!"
+    
+    if live_tot_bal >= 50.0 and live_tot_bal < 100.0:
+        tier_name = "TIER 2: ADVANCED SNIPER ($50 - $99)"
+        tier_pill = "🔵 TIER 2 AKTIF"
+        max_pos = 1
+        max_pos_desc = "Tepat 1 Koin (Single Sniper)"
+        target_cuan = "Rp 800rb - 1 Jt / Mgg (~+$50-$65 USD)"
+        next_milestone = f"Jika saldo tembus $100.00 (+${max(0.0, 100.0 - live_tot_bal):.2f} lagi), kuota posisi resmi naik ke 2 KOIN!"
+    elif live_tot_bal >= 100.0 and live_tot_bal < 250.0:
+        tier_name = "TIER 3: DUAL SNIPER ($100 - $249)"
+        tier_pill = "🟣 TIER 3 AKTIF"
+        rec_m = round(live_tot_bal * 0.15, 2)
+        max_pos = 2
+        max_pos_desc = "Maksimal 2 Koin (Dual Sniper)"
+        target_cuan = "Rp 1.5 Jt - 2.5 Jt / Mgg (~+$100-$160 USD)"
+        next_milestone = f"Jika saldo tembus $250.00 (+${max(0.0, 250.0 - live_tot_bal):.2f} lagi), margin naik ke $35/koin!"
+    elif live_tot_bal >= 250.0 and live_tot_bal < 500.0:
+        tier_name = "TIER 4: HIGH-ROLLER SNIPER ($250 - $499)"
+        tier_pill = "🟡 TIER 4 AKTIF"
+        rec_m = round(live_tot_bal * 0.15, 2)
+        max_pos = 2
+        max_pos_desc = "Maksimal 2 Koin (Dual Sniper)"
+        target_cuan = "Rp 3.5 Jt - 5 Jt / Mgg (~+$220-$320 USD)"
+        next_milestone = f"Jika saldo tembus $500.00 (+${max(0.0, 500.0 - live_tot_bal):.2f} lagi), Anda resmi naik ke Triple Titan (3 Posisi)!"
+    elif live_tot_bal >= 500.0:
+        tier_name = "TIER 5: INSTITUTIONAL TITAN ($500 - $1,000+)"
+        tier_pill = "👑 TIER 5 AKTIF"
+        rec_m = round(live_tot_bal * 0.10, 2)
+        max_pos = 3
+        max_pos_desc = "Maksimal 3 Koin (Triple Titan)"
+        target_cuan = "Rp 7.5 Jt+ / Mgg (~+$500+/mgg)"
+        next_milestone = "Compounding pasif wealth preservation."
+
+    html(f'''
+<div style="background: rgba(15, 23, 42, 0.9); border: 2px solid #3b82f6; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+    <div>
+      <div style="font-size: 14px; font-weight: 800; color: #60a5fa; letter-spacing: 0.5px;">📈 PANDUAN RESMI TANGGA COMPOUNDING & KUOTA POSISI (ROADMAP MILESTONE)</div>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">Aturan baku batas risiko: Berapa margin yang wajib dipasang dan berapa kuota maksimal posisi serentak sesuai saldo Anda.</div>
+    </div>
+    <span style="background: rgba(16, 185, 129, 0.2); border: 1.5px solid #10b981; color: #34d399; font-weight: 800; font-size: 11.5px; padding: 4px 10px; border-radius: 6px;">{tier_pill}</span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 14px;">
+    <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid #475569; border-radius: 8px; padding: 10px 14px;">
+      <div style="font-size: 10px; color: #94a3b8; font-weight: 700; text-transform: uppercase;">💰 Saldo MEXC Saat Ini</div>
+      <div style="font-size: 20px; font-weight: 900; color: #f8fafc; font-family: monospace;">&#36;{live_tot_bal:.2f} USDT</div>
+      <div style="font-size: 10.5px; color: #38bdf8;">~Rp {live_tot_bal*16300:,.0f}</div>
+    </div>
+    <div style="background: rgba(30, 41, 59, 0.7); border: 1.5px solid #10b981; border-radius: 8px; padding: 10px 14px;">
+      <div style="font-size: 10px; color: #93c5fd; font-weight: 700; text-transform: uppercase;">⚡ Rekomendasi Margin Compounding (30%)</div>
+      <div style="font-size: 20px; font-weight: 900; color: #34d399; font-family: monospace;">&#36;{rec_m:.2f} USDT</div>
+      <div style="font-size: 10.5px; color: #cbd5e1;">Per Trade ({tier_name.split(':')[0]})</div>
+    </div>
+    <div style="background: rgba(30, 41, 59, 0.7); border: 1.5px solid #f59e0b; border-radius: 8px; padding: 10px 14px;">
+      <div style="font-size: 10px; color: #fde68a; font-weight: 700; text-transform: uppercase;">🔒 Kuota Maksimal Posisi (Hard Cap)</div>
+      <div style="font-size: 20px; font-weight: 900; color: #fbbf24; font-family: monospace;">{max_pos} KOIN</div>
+      <div style="font-size: 10.5px; color: #cbd5e1;">{max_pos_desc}</div>
+    </div>
+    <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid #a855f7; border-radius: 8px; padding: 10px 14px;">
+      <div style="font-size: 10px; color: #c084fc; font-weight: 700; text-transform: uppercase;">🎯 Target Laba Mingguan</div>
+      <div style="font-size: 18px; font-weight: 900; color: #c084fc; font-family: monospace;">{target_cuan}</div>
+      <div style="font-size: 10.5px; color: #94a3b8;">40x Isolated (RR 1.67:1)</div>
+    </div>
+  </div>
+
+  <div style="background: rgba(16, 185, 129, 0.08); border-left: 3px solid #10b981; padding: 8px 12px; margin-bottom: 12px; font-size: 11px; color: #cbd5e1;">
+    💡 <strong>Instruksi Wajib Naik Tangga</strong>: {next_milestone}
+  </div>
+
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 11px;">
+      <thead>
+        <tr style="border-bottom: 1.5px solid #334155; color: #94a3b8; text-transform: uppercase; font-size: 9px;">
+          <th style="padding: 6px 10px;">Level Saldo</th>
+          <th style="padding: 6px 10px;">Tier</th>
+          <th style="padding: 6px 10px;">Margin Compounding (30%)</th>
+          <th style="padding: 6px 10px;">Leverage</th>
+          <th style="padding: 6px 10px;">Max Posisi Serentak</th>
+          <th style="padding: 6px 10px;">Target Cuan / Minggu</th>
+          <th style="padding: 6px 10px;">Aturan & Tindakan Disiplin</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom: 1px solid #1e293b; background: {'rgba(16, 185, 129, 0.15)' if live_tot_bal < 50 else 'transparent'};">
+          <td style="padding: 7px 10px; font-weight: 800; color: #34d399;">$20 - $49 <span style="font-size: 9px; color: #94a3b8;">(Saldo Kini)</span></td>
+          <td style="padding: 7px 10px;"><span style="background: rgba(16, 185, 129, 0.2); color: #34d399; font-weight: 800; font-size: 9.5px; padding: 2px 6px; border-radius: 4px;">Tier 1</span></td>
+          <td style="padding: 7px 10px; font-family: monospace; font-weight: 700; color: #38bdf8;">$6.00 - $14.70</td>
+          <td style="padding: 7px 10px; color: #fde047; font-weight: 700;">40x Isolated</td>
+          <td style="padding: 7px 10px; font-weight: 800; color: #f87171;">Tepat 1 Koin (Single Sniper)</td>
+          <td style="padding: 7px 10px; font-weight: 800; color: #34d399;">Rp 500.000 (~$32 USD)</td>
+          <td style="padding: 7px 10px; color: #cbd5e1;">Kunci 1 koin saja! Dilarang keras buka 2 koin agar tidak terbagi margin.</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #1e293b; background: {'rgba(59, 130, 246, 0.15)' if 50 <= live_tot_bal < 100 else 'transparent'};">
+          <td style="padding: 7px 10px; font-weight: 800; color: #60a5fa;">$50 - $99</td>
+          <td style="padding: 7px 10px;"><span style="background: rgba(59, 130, 246, 0.2); color: #60a5fa; font-weight: 800; font-size: 9.5px; padding: 2px 6px; border-radius: 4px;">Tier 2</span></td>
+          <td style="padding: 7px 10px; font-family: monospace; font-weight: 700; color: #38bdf8;">$15.00 - $29.70</td>
+          <td style="padding: 7px 10px; color: #fde047; font-weight: 700;">40x Isolated</td>
+          <td style="padding: 7px 10px; font-weight: 800; color: #f87171;">Tepat 1 Koin (Single Sniper)</td>
+          <td style="padding: 7px 10px; font-weight: 800; color: #60a5fa;">Rp 800.000 - Rp 1.000.000</td>
+          <td style="padding: 7px 10px; color: #cbd5e1;">Otomatis naikkan margin ke $15 begitu saldo tembus $50. Tetap 1 koin.</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #1e293b; background: {'rgba(168, 85, 247, 0.15)' if 100 <= live_tot_bal < 250 else 'transparent'};">
+          <td style="padding: 7px 10px; font-weight: 800; color: #c084fc;">$100 - $249</td>
+          <td style="padding: 7px 10px;"><span style="background: rgba(168, 85, 247, 0.2); color: #c084fc; font-weight: 800; font-size: 9.5px; padding: 2px 6px; border-radius: 4px;">Tier 3</span></td>
+          <td style="padding: 7px 10px; font-family: monospace; font-weight: 700; color: #38bdf8;">$15.00 - $35.00 <span style="font-size: 9px; color: #94a3b8;">(15%/koin)</span></td>
+          <td style="padding: 7px 10px; color: #fde047; font-weight: 700;">40x Isolated</td>
+          <td style="padding: 7px 10px; font-weight: 800; color: #34d399;">2 Koin (Dual Sniper)</td>
+          <td style="padding: 7px 10px; font-weight: 800; color: #c084fc;">Rp 1.500.000 - Rp 2.500.000</td>
+          <td style="padding: 7px 10px; color: #cbd5e1;">BARU BOLEH BUKA 2 KOIN! Saldo cadangan tebal aman dari drawdown.</td>
+        </tr>
+        <tr style="border-bottom: 1px solid #1e293b; background: {'rgba(245, 158, 11, 0.15)' if 250 <= live_tot_bal < 500 else 'transparent'};">
+          <td style="padding: 7px 10px; font-weight: 800; color: #fbbf24;">$250 - $499</td>
+          <td style="padding: 7px 10px;"><span style="background: rgba(245, 158, 11, 0.2); color: #fbbf24; font-weight: 800; font-size: 9.5px; padding: 2px 6px; border-radius: 4px;">Tier 4</span></td>
+          <td style="padding: 7px 10px; font-family: monospace; font-weight: 700; color: #38bdf8;">$35.00 - $70.00 <span style="font-size: 9px; color: #94a3b8;">(15%/koin)</span></td>
+          <td style="padding: 7px 10px; color: #fde047; font-weight: 700;">30x - 40x Isolated</td>
+          <td style="padding: 7px 10px; font-weight: 800; color: #34d399;">2 Koin (Dual Sniper)</td>
+          <td style="padding: 7px 10px; font-weight: 800; color: #fbbf24;">Rp 3.500.000 - Rp 5.000.000</td>
+          <td style="padding: 7px 10px; color: #cbd5e1;">Turunkan leverage bertahap ke 30x untuk memproteksi modal besar.</td>
+        </tr>
+        <tr style="background: {'rgba(236, 72, 153, 0.15)' if live_tot_bal >= 500 else 'transparent'};">
+          <td style="padding: 7px 10px; font-weight: 800; color: #f472b6;">$500 - $1,000+</td>
+          <td style="padding: 7px 10px;"><span style="background: rgba(236, 72, 153, 0.2); color: #f472b6; font-weight: 800; font-size: 9.5px; padding: 2px 6px; border-radius: 4px;">Tier 5</span></td>
+          <td style="padding: 7px 10px; font-family: monospace; font-weight: 700; color: #38bdf8;">$50.00 - $100.00 <span style="font-size: 9px; color: #94a3b8;">(10%/koin)</span></td>
+          <td style="padding: 7px 10px; color: #fde047; font-weight: 700;">20x - 30x Isolated</td>
+          <td style="padding: 7px 10px; font-weight: 800; color: #a855f7;">3 Koin (Triple Titan)</td>
+          <td style="padding: 7px 10px; font-weight: 800; color: #f472b6;">Rp 7.500.000+ / Minggu</td>
+          <td style="padding: 7px 10px; color: #cbd5e1;">Compounding pasif wealth preservation tingkat institusi.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+''')
+
     # TABEL RADAR SINYAL LIMIT BARU & STATUS VERIFIKASI DI MEXC
     # =========================================================================
     new_signals = summary.get('new_signals', [])
@@ -299,19 +446,31 @@ def bias_cards():
                 side_bg = "rgba(147, 51, 234, 0.25)"
                 side_text = "MASA TENANG"
             else:
-                valid_until_ts = created_ts + 43200
+                # Masa Valid Resmi: 45 Menit (Sesuai Siklus Candle 15m)
+                valid_until_ts = created_ts + 2700
                 valid_until = datetime.fromtimestamp(valid_until_ts, WIB).strftime('%H:%M WIB')
-                rem_min = max(0, int((valid_until_ts - time.time()) // 60))
-                time_info = f'<div style="color: #fde047; font-weight: 800;">🕒 Terbit: {t_str}</div><div style="font-size: 10px; color: #38bdf8; margin-top: 1px;">⏳ Valid s/d {valid_until} ({rem_min}m)</div>'
+                rem_min = int((valid_until_ts - time.time()) // 60)
+                if rem_min <= 0:
+                    time_info = f'<div style="color: #ef4444; font-weight: 800;">🛑 EXPIRED ({t_str})</div><div style="font-size: 10px; color: #94a3b8; margin-top: 1px;">Otomatis di-rescan ke level baru</div>'
+                else:
+                    time_info = f'<div style="color: #fde047; font-weight: 800;">🕒 Terbit: {t_str}</div><div style="font-size: 10px; color: #38bdf8; margin-top: 1px;">⏳ Valid: {rem_min}m lagi (s/d {valid_until})</div>'
                 cur_p_t = float(s.get('cur_p', 0))
                 lim_p_t = float(s.get('limit_p', 0))
-                dist_t = abs(cur_p_t - lim_p_t) / cur_p_t if cur_p_t > 0 else 999.0
-                if is_mexc:
-                    status_badge = f'<span style="background: rgba(16, 185, 129, 0.25); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🟢 TERPASANG DI MEXC (ID: {order_id})</span>'
-                elif dist_t <= 0.010:
-                    status_badge = f'<span style="background: rgba(16, 185, 129, 0.22); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">✅ VALID (Jarak: {dist_t*100:.2f}%)</span>'
+                is_long_s = "LONG" in s.get('potensi', 'LONG')
+                if cur_p_t > 0 and lim_p_t > 0:
+                    dist_t = (cur_p_t - lim_p_t) / lim_p_t if is_long_s else (lim_p_t - cur_p_t) / lim_p_t
                 else:
-                    status_badge = f'<span style="background: rgba(100, 116, 139, 0.22); border: 1px solid #64748b; color: #94a3b8; font-weight: 700; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🔄 MASIH SCANNING ({dist_t*100:.1f}%)</span>'
+                    dist_t = 999.0
+                    
+                if is_mexc:
+                    status_badge = f'<span style="background: rgba(16, 185, 129, 0.25); border: 1.5px solid #10b981; color: #34d399; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🟢 SUDAH TERPASANG DI MEXC (ID: {order_id})</span>'
+                elif 0.0005 <= dist_t <= 0.0045:
+                    status_badge = f'<span style="background: rgba(16, 185, 129, 0.25); border: 1.5px solid #10b981; color: #34d399; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">✅ SINYAL VALID (SIAP PASANG LIMIT — Jarak {dist_t*100:.2f}%)</span>'
+                elif 0.0045 < dist_t <= 0.0150:
+                    b_txt = "SUDAH MANTUL" if is_long_s else "SUDAH DUMP"
+                    status_badge = f'<span style="background: rgba(234, 179, 8, 0.2); border: 1.5px solid #eab308; color: #facc15; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">⚠️ TELAT ({b_txt} +{dist_t*100:.2f}%) — JANGAN KEJAR!</span>'
+                else:
+                    status_badge = f'<span style="background: rgba(100, 116, 139, 0.22); border: 1px solid #64748b; color: #94a3b8; font-weight: 700; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🔄 BELUM ADA SINYAL (MASIH SCANNING PASAR)</span>'
                 side_col = "#34d399" if "LONG" in s.get('potensi', 'LONG') else "#f87171"
                 side_bg = "#064e3b" if "LONG" in s.get('potensi', 'LONG') else "#7f1d1d"
                 side_text = s.get('side', 'LONG')
@@ -334,9 +493,9 @@ def bias_cards():
     <div>
       <div style="display: flex; align-items: center; gap: 8px;">
         <span style="font-size: 13.5px; font-weight: 800; color: #60a5fa; letter-spacing: 0.5px;">⚡ RADAR SINYAL LIMIT BARU & VERIFIKASI STATUS ORDER DI MEXC</span>
-        <span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 10px; padding: 2px 6px; border-radius: 4px;">🛡️ MASA VALID: 12 JAM / AUTO RE-SCAN</span>
+        <span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 10px; padding: 2px 6px; border-radius: 4px;">🛡️ MASA VALID: 45 MENIT (SESUAI SIKLUS CANDLE 15M)</span>
       </div>
-      <div style="font-size: 11px; color: #94a3b8; margin-top: 1px;">Setiap sinyal berlaku 12 jam penuh. Begitu lewat 12 jam atau level kesentuh, mesin OTOMATIS memindai ulang ke level baru!</div>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 1px;">Setiap sinyal berlaku 45 menit (3 candle 15m). Begitu lewat 12 jam atau level kesentuh, mesin OTOMATIS memindai ulang ke level baru!</div>
     </div>
     <span style="background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #93c5fd; font-weight: 800; font-size: 11.5px; padding: 3px 10px; border-radius: 6px;">● {len(radar_all_signals)} RADAR SINYAL & PROTEKSI</span>
   </div>
@@ -400,14 +559,14 @@ def bias_cards():
             if batch_m != st.session_state["batch_margin_val"]:
                 st.session_state["batch_margin_val"] = batch_m
                 
-        ready_signals = [r for r in observations if r.get('status') == 'WAITING' and not r.get('is_mexc_order') and not r.get('is_touched')]
+        ready_signals = [r for r in observations if r.get('is_valid_entry', False) and not r.get('is_mexc_order') and not r.get('is_touched')]
         ready_count = len(ready_signals)
         cooldown_coins = [r for r in observations if r.get('status') == 'COOLDOWN']
         cd_count = len(cooldown_coins)
 
         with col_b_btn:
             st.markdown("<div style='height: 27px;'></div>", unsafe_allow_html=True)
-            btn_label = f"⚡ Pasang Limit Semua Sinyal Siap Pasang ({ready_count} Koin) (${batch_m:.2f})" if ready_count > 0 else f"⚡ Semua Sinyal Sudah Terpasang / Cooldown (${batch_m:.2f})"
+            btn_label = f"⚡ Pasang {ready_count} Limit Sinyal Valid Sekarang (${batch_m:.2f})" if ready_count > 0 else f"🔄 Belum Ada Sinyal Valid Siap Pasang (Masih Scanning Pasar...)"
             if st.button(btn_label, key="btn_place_all_waiting", type="primary", use_container_width=True, disabled=(ready_count == 0)):
                 with st.spinner(f"Mengirim {ready_count} limit order siap pasang ke MEXC Futures (koin cooldown otomatis dilewati)..."):
                     res_list = sniper_limit_engine.execute_place_all_waiting_limits(custom_margin=batch_m)
