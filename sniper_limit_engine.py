@@ -50,18 +50,18 @@ COIN_WIN_RATES = {
 
 TOP_20_COINS = [
     # --- TOP 12 ELITE CASH COW (WR >55%, Profit Tinggi, Rendah WS) ---
-    ("PEPE", "PEPE-USDT", "Pepe", 40, "⭐ ELITE CASH COW"),
-    ("ARB", "ARB-USDT", "Arbitrum", 40, "⭐ ELITE CASH COW"),
-    ("DOT", "DOT-USDT", "Polkadot", 40, "⭐ ELITE CASH COW"),
-    ("AVAX", "AVAX-USDT", "Avalanche", 40, "⭐ ELITE CASH COW"),
-    ("FET", "FET-USDT", "Artificial Superintelligence", 40, "⭐ ELITE CASH COW"),
-    ("SUI", "SUI-USDT", "Sui Network", 40, "⭐ ELITE CASH COW"),
-    ("RENDER", "RENDER-USDT", "Render", 40, "⭐ ELITE CASH COW"),
-    ("NEAR", "NEAR-USDT", "Near Protocol", 40, "⭐ ELITE CASH COW"),
-    ("INJ", "INJ-USDT", "Injective", 40, "⭐ ELITE CASH COW"),
-    ("WIF", "WIF-USDT", "Dogwifhat", 40, "⭐ ELITE CASH COW"),
-    ("OP", "OP-USDT", "Optimism", 40, "⭐ ELITE CASH COW"),
-    ("BTC", "BTC-USDT", "Bitcoin", 40, "⭐ ELITE CASH COW"),
+    ("PEPE", "PEPE-USDT", "Pepe", 20, "🛡️ IRON DEFENSE 20x"),
+    ("ARB", "ARB-USDT", "Arbitrum", 20, "🛡️ IRON DEFENSE 20x"),
+    ("DOT", "DOT-USDT", "Polkadot", 20, "🛡️ IRON DEFENSE 20x"),
+    ("AVAX", "AVAX-USDT", "Avalanche", 20, "🛡️ IRON DEFENSE 20x"),
+    ("FET", "FET-USDT", "Artificial Superintelligence", 20, "🛡️ IRON DEFENSE 20x"),
+    ("SUI", "SUI-USDT", "Sui Network", 20, "🛡️ IRON DEFENSE 20x"),
+    ("RENDER", "RENDER-USDT", "Render", 20, "🛡️ IRON DEFENSE 20x"),
+    ("NEAR", "NEAR-USDT", "Near Protocol", 20, "🛡️ IRON DEFENSE 20x"),
+    ("INJ", "INJ-USDT", "Injective", 20, "🛡️ IRON DEFENSE 20x"),
+    ("WIF", "WIF-USDT", "Dogwifhat", 20, "🛡️ IRON DEFENSE 20x"),
+    ("OP", "OP-USDT", "Optimism", 20, "🛡️ IRON DEFENSE 20x"),
+    ("BTC", "BTC-USDT", "Bitcoin", 20, "🛡️ IRON DEFENSE 20x"),
     # --- KOIN PENDUKUNG PROFITABLE ---
     ("XRP", "XRP-USDT", "Ripple", 40, "⚡ TIER 2"),
     ("APT", "APT-USDT", "Aptos", 40, "⚡ TIER 2"),
@@ -252,13 +252,14 @@ def scan_single_coin(sym_tuple):
                 sw_high = max(highs[-33:-1])
                 range_span = sw_high - sw_low if sw_high > sw_low else (closes[-1] * 0.01)
                 
-                # Apex Cash Cow Pro Parameters:
-                # Leverage: 40x Flat Isolated
+                # Iron Defense Parameters:
+                # Leverage: 20x Isolated (Fee hemat 50%)
                 # Retracement Fibo: 48% Golden Pullback
-                # Take Profit (TP): +22.0% ROE (spot target 0.550%)
-                # Stop Loss (SL): -28.0% ROE (spot target 0.700%)
-                tp_ratio = 0.22 / lev # 0.00550 pada Lev 40x
-                sl_ratio = 0.28 / lev # 0.00700 pada Lev 40x
+                # Take Profit (TP): +30.0% ROE (spot target 1.500%)
+                # Stop Loss (SL): -20.0% ROE (spot target 1.000%)
+                lev = 20
+                tp_ratio = 0.30 / lev # 0.0150 (TP +30% ROE)
+                sl_ratio = 0.20 / lev # 0.0100 (SL -20% ROE)
                 retrace = 0.48        # Fibo 48% Sweet Spot
                 
                 if is_long:
@@ -760,11 +761,11 @@ def scan_all():
                 # Recalculate TP/SL dynamically from real MEXC entry position to avoid any inverted display
                 dec_p = 8 if c == "PEPE" else (5 if entry_p < 1.0 else (4 if entry_p < 100 else 2))
                 if p['side'] == 'LONG':
-                    r['tp_p'] = round(entry_p * (1.0 + 0.0055), dec_p)
-                    r['sl_p'] = round(entry_p * (1.0 - 0.0070), dec_p)
+                    r['tp_p'] = round(entry_p * (1.0 + 0.0150), dec_p)
+                    r['sl_p'] = round(entry_p * (1.0 - 0.0100), dec_p)
                 else:
-                    r['tp_p'] = round(entry_p * (1.0 - 0.0055), dec_p)
-                    r['sl_p'] = round(entry_p * (1.0 + 0.0070), dec_p)
+                    r['tp_p'] = round(entry_p * (1.0 - 0.0150), dec_p)
+                    r['sl_p'] = round(entry_p * (1.0 + 0.0100), dec_p)
             
             # 2. Jika koin baru saja kena SL dalam 2 jam terakhir di MEXC (COOLDOWN)
             elif c in recent_sl_map:
@@ -1097,7 +1098,7 @@ def execute_single_coin_limit_order(coin, custom_margin=1.30):
         limit_p = float(setup['limit_p'])
         tp_p = float(setup['tp_p'])
         sl_p = float(setup['sl_p'])
-        lev = 40  # Titan Harmonic 40x
+        lev = 20  # Iron Defense 20x Isolated
         
         # Hitung jumlah kontrak presisi berdasarkan margin yang dikendalikan user
         custom_margin = float(custom_margin)

@@ -2,15 +2,18 @@
   "enabled": true,
   "margin_usd": 1.0,
   "leverage": 40,
+  "max_concurrent": 2,
   "poll_interval": 20,
   "strategy": "APEX_CASH_COW_PRO",
   "status": "RUNNING",
-  "last_cycle_time": "02:08:57 WIB",
-  "last_action": "\ud83e\udd16 Bot Auto-Pilot MEXC Dimulai! Margin: $1.00 | Leverage: 40x | Cooldown: 2 Jam | Interval: 20s",
-  "cooldown_coins_count": 7,
-  "active_positions_count": 5,
-  "open_orders_count": 9,
+  "last_cycle_time": "10:56:28 WIB",
+  "last_action": "\ud83d\udee1\ufe0f Patroli Siaga: 2/2 Slot Penuh (0 Posisi Jalan \u00b7 16 Limit Antre) \u00b7 BTC: BEARISH \u00b7 Menjaga saldo...",
+  "cooldown_coins_count": 4,
+  "active_positions_count": 0,
+  "open_orders_count": 16,
+  "btc_guard_status": "BEARISH (BTC di bawah EMA 20 & 50 (Bearish 15m @ $79,800). Hanya boleh SHORT.)",
   "recent_events": [
+    "[10:56:28 WIB] [PATROLI] \ud83d\udee1\ufe0f Patroli Siaga: 2/2 Slot Penuh (0 Posisi Jalan \u00b7 16 Limit Antre) \u00b7 BTC: BEARISH \u00b7 Menjaga saldo...",
     "[02:08:57 WIB] [START] \ud83e\udd16 Bot Auto-Pilot MEXC Dimulai! Margin: $1.00 | Leverage: 40x | Cooldown: 2 Jam | Interval: 20s"
   ]
 }
