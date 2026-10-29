@@ -225,11 +225,11 @@ def run_single_executor_cycle(dry_run=False):
     
     # Jika kuota penuh (sudah ada 2 koin jalan atau antre): JANGAN BUKA LAGI!
     if slots_free <= 0:
-        summary_msg = f"🛡️ Slot Penuh (4/4 Terisi): {len(act_pos)} Posisi Aktif, {len(op_ord)} Limit Antre. Portofolio Terkunci Aman."
+        summary_msg = f"🎯 Kuota Single Sniper (1/1 Aktif): {len(act_pos)} Posisi Aktif, {len(op_ord)} Limit Antre. Menunggu TP/SL..."
         cfg["last_action"] = summary_msg
         cfg["last_cycle_time"] = datetime.now(WIB).strftime('%H:%M:%S WIB')
         save_config(cfg)
-        log_event(f"🛡️ Patroli Siaga: 4/4 Slot Penuh ({len(act_pos)} Posisi Jalan · {len(op_ord)} Limit Antre) · BTC: {btc_guard} · Menjaga saldo...", "PATROLI")
+        log_event(f"🎯 Patroli Siaga: 1/1 Kuota Terisi ({len(act_pos)} Posisi Jalan · {len(op_ord)} Limit Antre) · BTC: {btc_guard} · Menjaga modal...", "PATROLI")
         return {
             "status": "OK",
             "placed_count": 0,
@@ -304,7 +304,7 @@ def run_single_executor_cycle(dry_run=False):
     save_config(cfg)
     
     if placed_orders:
-        log_event(f"🎯 Selesai pasang {len(placed_orders)} order baru terpilih! Total aktif di MEXC: {curr_total + len(placed_orders)}/4 koin.", "BATCH")
+        log_event(f"🎯 Selesai pasang {len(placed_orders)} order baru terpilih! Total aktif di MEXC: {curr_total + len(placed_orders)}/1 koin.", "BATCH")
     else:
         log_event(f"💓 Patroli Iron Defense: {len(act_pos)} Posisi Jalan · {len(op_ord)} Limit Antre · Slot Bebas: {slots_free}/4 · BTC: {btc_guard}", "PATROLI")
         
