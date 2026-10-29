@@ -183,17 +183,31 @@ def run_single_executor_cycle(dry_run=False):
     cfg["btc_guard_status"] = f"{btc_guard} ({btc_reason})"
     save_config(cfg)
     
-    # Jika BTC Flash Crash: Otomatis batalkan order antre LONG yang berisiko tersambar!
+    # SINKRONISASI BENTENG: Batalkan order berlawanan arah BTC
     if btc_guard in ['FLASH_CRASH', 'BEARISH']:
         for sym_key, o_info in list(op_ord.items()):
             o_side = o_info.get('side', '').upper()
-            if o_side == 'BUY' or o_side == 'LONG':
-                try:
-                    client.cancel_order(o_info['order_id'], symbol=f"{sym_key}/USDT:USDT")
-                    log_event(f"🛡️ AUTO-CANCEL: Membatalkan limit buy {sym_key} karena Bitcoin sedang dump!", "GUARD")
-                    time.sleep(0.2)
-                except Exception:
-                    pass
+            if o_side in ['BUY', 'LONG']:
+                oid = o_info.get('id') or o_info.get('order_id')
+                if oid:
+                    try:
+                        client.cancel_order(oid, symbol=f"{sym_key}/USDT:USDT")
+                        log_event(f"🛡️ AUTO-CANCEL: Membatalkan limit Long {sym_key} karena Bitcoin sedang turun/dump!", "GUARD")
+                        time.sleep(0.15)
+                    except Exception:
+                        pass
+    elif btc_guard == 'BULLISH':
+        for sym_key, o_info in list(op_ord.items()):
+            o_side = o_info.get('side', '').upper()
+            if o_side in ['SELL', 'SHORT']:
+                oid = o_info.get('id') or o_info.get('order_id')
+                if oid:
+                    try:
+                        client.cancel_order(oid, symbol=f"{sym_key}/USDT:USDT")
+                        log_event(f"🛡️ AUTO-CANCEL: Membatalkan limit Short {sym_key} karena Bitcoin sedang terbang!", "GUARD")
+                        time.sleep(0.15)
+                    except Exception:
+                        pass
                     
     # 3. Hitung Kuota Portofolio (MAKSIMAL 2 POSISI / ORDER AKTIF)
     curr_total = len(act_pos) + len(op_ord)
@@ -203,7 +217,7 @@ def run_single_executor_cycle(dry_run=False):
     
     # Jika kuota penuh (sudah ada 2 koin jalan atau antre): JANGAN BUKA LAGI!
     if slots_free <= 0:
-        summary_msg = f"🛡️ Slot Penuh (2/2 Terisi): {len(act_pos)} Posisi Aktif, {len(op_ord)} Limit Antre. Portofolio Terkunci Aman."
+        summary_msg = f"🛡️ Slot Penuh (4/4 Terisi): {len(act_pos)} Posisi Aktif, {len(op_ord)} Limit Antre. Portofolio Terkunci Aman."
         cfg["last_action"] = summary_msg
         cfg["last_cycle_time"] = datetime.now(WIB).strftime('%H:%M:%S WIB')
         save_config(cfg)

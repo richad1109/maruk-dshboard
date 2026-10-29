@@ -6,13 +6,14 @@
   "poll_interval": 20,
   "strategy": "APEX_TARGET_500RB_40X",
   "status": "RUNNING",
-  "last_cycle_time": "10:56:28 WIB",
-  "last_action": "\ud83d\udee1\ufe0f Patroli Siaga: 2/2 Slot Penuh (0 Posisi Jalan \u00b7 16 Limit Antre) \u00b7 BTC: BEARISH \u00b7 Menjaga saldo...",
-  "cooldown_coins_count": 4,
+  "last_cycle_time": "11:07:41 WIB",
+  "last_action": "\ud83c\udfaf Selesai pasang 1 order baru terpilih! Total aktif di MEXC: 1/4 koin.",
+  "cooldown_coins_count": 1,
   "active_positions_count": 0,
-  "open_orders_count": 16,
-  "btc_guard_status": "BEARISH (BTC di bawah EMA 20 & 50 (Bearish 15m @ $79,800). Hanya boleh SHORT.)",
+  "open_orders_count": 0,
+  "btc_guard_status": "BEARISH (BTC di bawah EMA 20 & 50 (Bearish 15m @ $79,791). Hanya boleh SHORT.)",
   "recent_events": [
+    "[11:07:41 WIB] [BATCH] \ud83c\udfaf Selesai pasang 1 order baru terpilih! Total aktif di MEXC: 1/4 koin.",
     "[10:56:28 WIB] [PATROLI] \ud83d\udee1\ufe0f Patroli Siaga: 2/2 Slot Penuh (0 Posisi Jalan \u00b7 16 Limit Antre) \u00b7 BTC: BEARISH \u00b7 Menjaga saldo...",
     "[02:08:57 WIB] [START] \ud83e\udd16 Bot Auto-Pilot MEXC Dimulai! Margin: $1.00 | Leverage: 40x | Cooldown: 2 Jam | Interval: 20s"
   ]
