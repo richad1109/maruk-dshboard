@@ -318,95 +318,191 @@ def bias_cards():
 </div>
 ''')
 
-        # TABEL RADAR SINYAL LIMIT BARU & STATUS VERIFIKASI DI MEXC
+        # =========================================================================
+    # TABEL RADAR KATEGORI LENGKAP: VALID, LAGI PASANG, UDAH TP, UDAH SL, TELAT, SCANNING
     # =========================================================================
-    new_signals = summary.get('new_signals', [])
-    cooldown_signals = summary.get('cooldown_signals', [])
-    radar_all_signals = new_signals + cooldown_signals
-    if radar_all_signals:
-        sig_rows_html = []
-        for s in radar_all_signals:
-            is_mexc = s.get('is_mexc_order', False)
-            is_cd = (s.get('status') == 'COOLDOWN')
-            order_id = s.get('order_id', '-')
-            t_str = s.get('time_str', s.get('order_time_str', '-'))
-            created_ts = s.get('created_at', time.time())
-            
-            if is_cd:
-                cd_end = float(s.get('cooldown_until', time.time() + 7200))
-                rem_min = max(1, int((cd_end - time.time()) // 60))
-                valid_until = s.get('cooldown_until_str', datetime.fromtimestamp(cd_end, WIB).strftime('%H:%M WIB'))
-                status_badge = f'<span style="background: rgba(147, 51, 234, 0.2); border: 1px solid #a855f7; color: #c084fc; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">⏸️ COOLDOWN PASCA-SL ({rem_min}m)</span>'
-                time_info = f'<div style="color: #f87171; font-weight: 800;">🛑 Kena SL: {t_str}</div><div style="font-size: 10px; color: #c084fc; margin-top: 1px;">⏸️ Masa Tenang s/d {valid_until} ({rem_min}m)</div>'
-                side_col = "#c084fc"
-                side_bg = "rgba(147, 51, 234, 0.25)"
-                side_text = "MASA TENANG"
-            else:
-                # Masa Valid Resmi: 45 Menit (Sesuai Siklus Candle 15m)
-                valid_until_ts = created_ts + 2700
-                valid_until = datetime.fromtimestamp(valid_until_ts, WIB).strftime('%H:%M WIB')
-                rem_min = int((valid_until_ts - time.time()) // 60)
-                if rem_min <= 0:
-                    time_info = f'<div style="color: #ef4444; font-weight: 800;">🛑 EXPIRED ({t_str})</div><div style="font-size: 10px; color: #94a3b8; margin-top: 1px;">Otomatis di-rescan ke level baru</div>'
-                else:
-                    time_info = f'<div style="color: #fde047; font-weight: 800;">🕒 Terbit: {t_str}</div><div style="font-size: 10px; color: #38bdf8; margin-top: 1px;">⏳ Valid: {rem_min}m lagi (s/d {valid_until})</div>'
-                cur_p_t = float(s.get('cur_p', 0))
-                lim_p_t = float(s.get('limit_p', 0))
-                is_long_s = "LONG" in s.get('potensi', 'LONG')
-                if cur_p_t > 0 and lim_p_t > 0:
-                    dist_t = (cur_p_t - lim_p_t) / lim_p_t if is_long_s else (lim_p_t - cur_p_t) / lim_p_t
-                else:
-                    dist_t = 999.0
-                    
-                if is_mexc:
-                    status_badge = f'<span style="background: rgba(16, 185, 129, 0.25); border: 1.5px solid #10b981; color: #34d399; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🟢 SUDAH TERPASANG DI MEXC (ID: {order_id})</span>'
-                elif 0.0005 <= dist_t <= 0.0045:
-                    status_badge = f'<span style="background: rgba(16, 185, 129, 0.25); border: 1.5px solid #10b981; color: #34d399; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">✅ SINYAL VALID (SIAP PASANG LIMIT — Jarak {dist_t*100:.2f}%)</span>'
-                elif 0.0045 < dist_t <= 0.0150:
-                    b_txt = "SUDAH MANTUL" if is_long_s else "SUDAH DUMP"
-                    status_badge = f'<span style="background: rgba(234, 179, 8, 0.2); border: 1.5px solid #eab308; color: #facc15; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">⚠️ TELAT ({b_txt} +{dist_t*100:.2f}%) — JANGAN KEJAR!</span>'
-                else:
-                    status_badge = f'<span style="background: rgba(100, 116, 139, 0.22); border: 1px solid #64748b; color: #94a3b8; font-weight: 700; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🔄 BELUM ADA SINYAL (MASIH SCANNING PASAR)</span>'
-                side_col = "#34d399" if "LONG" in s.get('potensi', 'LONG') else "#f87171"
-                side_bg = "#064e3b" if "LONG" in s.get('potensi', 'LONG') else "#7f1d1d"
-                side_text = s.get('side', 'LONG')
+    valid_coins = [r for r in observations if (r.get('is_valid_entry') or r.get('status') == 'VALID_READY') and not r.get('is_mexc_order') and not r.get('is_touched')]
+    active_coins = [r for r in observations if r.get('is_mexc_order') or r.get('is_touched')]
+    cooldown_coins = [r for r in observations if r.get('status') == 'COOLDOWN']
+    telat_coins = [r for r in observations if r.get('status') == 'TELAT']
+    scanning_coins = [r for r in observations if r.get('status') == 'SCANNING']
+    tp_history = summary.get('tp_trades', [])
+    sl_history = summary.get('sl_trades', [])
 
-            sig_rows_html.append(f'''
+    st.markdown('''
+<div style="background: rgba(15, 23, 42, 0.95); border: 1.5px solid #3b82f6; border-radius: 12px; padding: 14px 18px; margin-bottom: 12px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+    <div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 14px; font-weight: 900; color: #60a5fa; letter-spacing: 0.5px;">⚡ RADAR LENGKAP 20 KOIN: VALID · LAGI PASANG · UDAH TP · UDAH SL · TELAT</span>
+        <span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 10px; padding: 2px 8px; border-radius: 4px;">20 KOIN AKTIF DIPANTAU</span>
+      </div>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">
+        Pilih kategori di bawah untuk menyaring status koin secara real-time. Semua koin dimonitor dengan formula Apex 50x Isolated.
+      </div>
+    </div>
+  </div>
+</div>
+''', unsafe_allow_html=True)
+
+    filter_opts = [
+        f"Semua Koin (20)",
+        f"✅ Sinyal Valid ({len(valid_coins)})",
+        f"🟢 Lagi Pasang ({len(active_coins)})",
+        f"🎯 Udah TP Hari Ini ({len(tp_history)})",
+        f"🛑 Udah SL / Cooldown ({len(cooldown_coins)})",
+        f"⚠️ Telat Mantul ({len(telat_coins)})",
+        f"🔄 Masih Scanning ({len(scanning_coins)})"
+    ]
+    
+    sel_filter = st.radio("Saring Tampilan Koin:", filter_opts, horizontal=True, key="radar_filter_selector", label_visibility="collapsed")
+
+    # Siapkan data baris berdasarkan filter yang dipilih pengguna
+    display_rows_html = []
+
+    if "Udah TP Hari Ini" in sel_filter:
+        # Tampilkan Riwayat Koin yang Sudah Hit TP Hari Ini
+        if not tp_history:
+            display_rows_html.append('<tr><td colspan="7" style="text-align: center; padding: 20px; color: #94a3b8;">Belum ada koin yang selesai TP pada sesi hari ini.</td></tr>')
+        else:
+            for t in tp_history:
+                display_rows_html.append(f'''
+<tr style="border-bottom: 1px solid #1e293b; background: rgba(16, 185, 129, 0.04);">
+  <td style="padding: 10px; font-weight: 800; font-size: 12px; color: #34d399;">🎯 {t['coin']} / USDT</td>
+  <td style="padding: 10px;"><span style="background: #064e3b; color: #6ee7b7; font-weight: 800; font-size: 9.5px; padding: 2px 6px; border-radius: 4px;">{t['side']}</span></td>
+  <td style="padding: 10px; font-family: monospace; color: #94a3b8;">${t['entry_price']}</td>
+  <td style="padding: 10px; font-family: monospace; font-weight: 700; color: #34d399;">${t['exit_price']}</td>
+  <td style="padding: 10px; font-family: monospace; font-weight: 800; color: #34d399;">+${t['pnl_usd']:.4f} USD (+{t['roe']:.1f}% ROE)</td>
+  <td style="padding: 10px; font-size: 11px; color: #fde047;">🕒 Jam TP: <strong>{t['time_str']}</strong></td>
+  <td style="padding: 10px; text-align: right;"><span style="background: rgba(16, 185, 129, 0.25); border: 1.5px solid #10b981; color: #34d399; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🎯 SUDAH TP (SELESAI)</span></td>
+</tr>
+''')
+    else:
+        # Saring dari 20 koin
+        target_coins = []
+        if "Sinyal Valid" in sel_filter:
+            target_coins = valid_coins
+        elif "Lagi Pasang" in sel_filter:
+            target_coins = active_coins
+        elif "Udah SL / Cooldown" in sel_filter:
+            target_coins = cooldown_coins
+        elif "Telat Mantul" in sel_filter:
+            target_coins = telat_coins
+        elif "Masih Scanning" in sel_filter:
+            target_coins = scanning_coins
+        else:
+            # Semua Koin: Urutkan Valid & Lagi Pasang paling atas, lalu Cooldown, Telat, Scanning
+            order_rank = lambda x: 0 if (x.get('is_valid_entry') or x.get('status') == 'VALID_READY') else (1 if (x.get('is_mexc_order') or x.get('is_touched')) else (2 if x.get('status') == 'COOLDOWN' else (3 if x.get('status') == 'TELAT' else 4)))
+            target_coins = sorted(observations, key=order_rank)
+
+        if not target_coins:
+            display_rows_html.append('<tr><td colspan="7" style="text-align: center; padding: 20px; color: #94a3b8;">Tidak ada koin dalam kategori ini saat ini.</td></tr>')
+        else:
+            for s in target_coins:
+                c_name = s['coin']
+                is_mexc = s.get('is_mexc_order', False)
+                is_tch = s.get('is_touched', False)
+                is_cd = (s.get('status') == 'COOLDOWN')
+                is_val = s.get('is_valid_entry', False) or (s.get('status') == 'VALID_READY')
+                is_telat = (s.get('status') == 'TELAT')
+                order_id = s.get('order_id', '-')
+                t_str = s.get('time_str', s.get('order_time_str', '-'))
+                cur_p = float(s.get('cur_p', 0))
+                lim_p = float(s.get('limit_p', 0))
+                tp_p = float(s.get('tp_p', 0))
+                sl_p = float(s.get('sl_p', 0))
+                is_long = "LONG" in s.get('potensi', 'LONG')
+                
+                # Jarak
+                if cur_p > 0 and lim_p > 0:
+                    dist_val = (cur_p - lim_p) / lim_p if is_long else (lim_p - cur_p) / lim_p
+                else:
+                    dist_val = 0.0
+                dist_pct = dist_val * 100.0
+
+                if is_cd:
+                    cd_end = float(s.get('cooldown_until', time.time() + 7200))
+                    rem_min = max(1, int((cd_end - time.time()) // 60))
+                    valid_until = s.get('cooldown_until_str', datetime.fromtimestamp(cd_end, WIB).strftime('%H:%M WIB'))
+                    status_badge = f'<span style="background: rgba(147, 51, 234, 0.25); border: 1.5px solid #a855f7; color: #c084fc; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">⏸️ UDAH SL (COOLDOWN {rem_min}m)</span>'
+                    time_info = f'<div style="color: #f87171; font-weight: 800;">🛑 Kena SL @ {t_str}</div><div style="font-size: 10px; color: #c084fc;">Masa tenang s/d {valid_until}</div>'
+                    side_col = "#c084fc"
+                    side_bg = "rgba(147, 51, 234, 0.25)"
+                    side_text = "MASA TENANG"
+                elif is_tch:
+                    status_badge = f'<span style="background: rgba(16, 185, 129, 0.25); border: 1.5px solid #10b981; color: #34d399; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">⚡ POSISI AKTIF (MANTUL)</span>'
+                    time_info = f'<div style="color: #34d399; font-weight: 800;">Floating: {s.get("float_str", "-")}</div>'
+                    side_col = "#34d399" if is_long else "#f87171"
+                    side_bg = "#064e3b" if is_long else "#7f1d1d"
+                    side_text = "LONG" if is_long else "SHORT"
+                elif is_mexc:
+                    status_badge = f'<span style="background: rgba(56, 189, 248, 0.25); border: 1.5px solid #38bdf8; color: #38bdf8; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🟢 LAGI PASANG DI MEXC (ID: {order_id})</span>'
+                    time_info = f'<div style="color: #38bdf8; font-weight: 800;">⏳ Menunggu Jemputan</div><div style="font-size: 10px; color: #94a3b8;">Jarak: {dist_pct:+.2f}%</div>'
+                    side_col = "#34d399" if is_long else "#f87171"
+                    side_bg = "#064e3b" if is_long else "#7f1d1d"
+                    side_text = "LONG" if is_long else "SHORT"
+                elif is_val:
+                    status_badge = f'<span style="background: rgba(16, 185, 129, 0.3); border: 2px solid #10b981; color: #34d399; font-weight: 900; font-size: 11.5px; padding: 4px 10px; border-radius: 6px; box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);">✅ SINYAL VALID (SIAP LIMIT)</span>'
+                    arah_str = "perlu turun" if is_long else "perlu naik"
+                    time_info = f'<div style="color: #34d399; font-weight: 800;">🎯 Jarak Manis: {dist_pct:+.2f}%</div><div style="font-size: 10px; color: #fde047;">Diskon ({arah_str} sedikit lagi)</div>'
+                    side_col = "#34d399" if is_long else "#f87171"
+                    side_bg = "#064e3b" if is_long else "#7f1d1d"
+                    side_text = "LONG" if is_long else "SHORT"
+                elif is_telat:
+                    b_txt = "SUDAH MANTUL" if is_long else "SUDAH DUMP"
+                    status_badge = f'<span style="background: rgba(234, 179, 8, 0.2); border: 1.5px solid #eab308; color: #facc15; font-weight: 800; font-size: 11px; padding: 4px 8px; border-radius: 6px;">⚠️ TELAT ({b_txt} +{dist_pct:.2f}%)</span>'
+                    time_info = f'<div style="color: #facc15; font-weight: 800;">⚠️ JANGAN KEJAR!</div><div style="font-size: 10px; color: #94a3b8;">Harga sudah lari dari level</div>'
+                    side_col = "#34d399" if is_long else "#f87171"
+                    side_bg = "#064e3b" if is_long else "#7f1d1d"
+                    side_text = "LONG" if is_long else "SHORT"
+                else:
+                    status_badge = f'<span style="background: rgba(100, 116, 139, 0.22); border: 1px solid #64748b; color: #94a3b8; font-weight: 700; font-size: 11px; padding: 4px 8px; border-radius: 6px;">🔄 SCANNING PASAR</span>'
+                    time_info = f'<div style="color: #cbd5e1;">Jarak: {dist_pct:+.2f}%</div><div style="font-size: 10px; color: #64748b;">Menunggu konfirmasi level</div>'
+                    side_col = "#34d399" if is_long else "#f87171"
+                    side_bg = "#064e3b" if is_long else "#7f1d1d"
+                    side_text = "LONG" if is_long else "SHORT"
+
+                display_rows_html.append(f'''
 <tr style="border-bottom: 1px solid #1e293b;">
-  <td style="padding: 8px 10px; font-weight: 800; font-size: 12px; color: #f8fafc;">⚡ {s['coin']}</td>
+  <td style="padding: 8px 10px; font-weight: 800; font-size: 12px; color: #f8fafc;">⚡ {c_name} <span style="font-size: 10px; color: #94a3b8; font-weight: normal;">(${cur_p:,.4f})</span></td>
   <td style="padding: 8px 10px;"><span style="background: {side_bg}; color: {side_col}; font-weight: 800; font-size: 9.5px; padding: 2px 6px; border-radius: 4px;">{side_text}</span></td>
-  <td style="padding: 8px 10px; font-family: monospace; font-weight: 700; color: #38bdf8;">${s['limit_p']}</td>
-  <td style="padding: 8px 10px; font-family: monospace; color: #34d399;">${s['tp_p']}</td>
-  <td style="padding: 8px 10px; font-family: monospace; color: #f87171;">${s['sl_p']}</td>
+  <td style="padding: 8px 10px; font-family: monospace; font-weight: 700; color: #38bdf8;">${lim_p}</td>
+  <td style="padding: 8px 10px; font-family: monospace; color: #34d399;">${tp_p}</td>
+  <td style="padding: 8px 10px; font-family: monospace; color: #f87171;">${sl_p}</td>
   <td style="padding: 8px 10px; font-size: 11px;">{time_info}</td>
   <td style="padding: 8px 10px; text-align: right;">{status_badge}</td>
 </tr>
 ''')
-        rows_str = "".join(sig_rows_html)
-        html(f'''
+
+    rows_str = "".join(display_rows_html)
+    th_header = '''
+        <tr style="border-bottom: 1.5px solid #334155; color: #94a3b8; text-transform: uppercase; font-size: 9.5px;">
+          <th style="padding: 6px 10px;">Koin (Mark Price)</th>
+          <th style="padding: 6px 10px;">Arah</th>
+          <th style="padding: 6px 10px;">Entry Limit (50x)</th>
+          <th style="padding: 6px 10px;">Take Profit (+60%)</th>
+          <th style="padding: 6px 10px;">Stop Loss (-50%)</th>
+          <th style="padding: 6px 10px;">Jarak / Waktu Real-Time</th>
+          <th style="padding: 6px 10px; text-align: right;">Status di MEXC</th>
+        </tr>
+''' if "Udah TP Hari Ini" not in sel_filter else '''
+        <tr style="border-bottom: 1.5px solid #334155; color: #94a3b8; text-transform: uppercase; font-size: 9.5px;">
+          <th style="padding: 6px 10px;">Koin Selesai TP</th>
+          <th style="padding: 6px 10px;">Arah</th>
+          <th style="padding: 6px 10px;">Harga Entry</th>
+          <th style="padding: 6px 10px;">Harga Exit TP</th>
+          <th style="padding: 6px 10px;">Realisasi Cuan</th>
+          <th style="padding: 6px 10px;">Waktu Eksekusi</th>
+          <th style="padding: 6px 10px; text-align: right;">Hasil di MEXC</th>
+        </tr>
+'''
+
+    html(f'''
 <div style="background: rgba(15, 23, 42, 0.85); border: 1.5px solid #3b82f6; border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;">
-  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-    <div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 13.5px; font-weight: 800; color: #60a5fa; letter-spacing: 0.5px;">⚡ RADAR SINYAL LIMIT BARU & VERIFIKASI STATUS ORDER DI MEXC</span>
-        <span style="background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; color: #34d399; font-weight: 800; font-size: 10px; padding: 2px 6px; border-radius: 4px;">🛡️ MASA VALID: 45 MENIT (SESUAI SIKLUS CANDLE 15M)</span>
-      </div>
-      <div style="font-size: 11px; color: #94a3b8; margin-top: 1px;">Setiap sinyal berlaku 45 menit (3 candle 15m). Begitu lewat 12 jam atau level kesentuh, mesin OTOMATIS memindai ulang ke level baru!</div>
-    </div>
-    <span style="background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #93c5fd; font-weight: 800; font-size: 11.5px; padding: 3px 10px; border-radius: 6px;">● {len(radar_all_signals)} RADAR SINYAL & PROTEKSI</span>
-  </div>
   <div style="overflow-x: auto;">
     <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 11px;">
       <thead>
-        <tr style="border-bottom: 1.5px solid #334155; color: #94a3b8; text-transform: uppercase; font-size: 9.5px;">
-          <th style="padding: 6px 10px;">Koin</th>
-          <th style="padding: 6px 10px;">Arah</th>
-          <th style="padding: 6px 10px;">Entry Limit</th>
-          <th style="padding: 6px 10px;">Take Profit</th>
-          <th style="padding: 6px 10px;">Stop Loss</th>
-          <th style="padding: 6px 10px;">Waktu & Masa Valid Sinyal</th>
-          <th style="padding: 6px 10px; text-align: right;">Status di MEXC</th>
-        </tr>
+        {th_header}
       </thead>
       <tbody>
         {rows_str}
@@ -416,66 +512,66 @@ def bias_cards():
 </div>
 ''')
 
-        # =====================================================================
-        # TOOLBAR BATCH ORDER KENDALI MARGIN + PRESET TARGET RP 500RB
-        # =====================================================================
-        st.session_state.setdefault("batch_margin_val", 2.00)
-        
-        st.markdown("<div style='font-size: 13px; font-weight: 800; color: #f8fafc; margin-bottom: 6px;'>🎯 Preset Cepat Ukuran Margin Bersama:</div>", unsafe_allow_html=True)
-        def update_all_margin_inputs(new_val):
-            st.session_state["batch_margin_val"] = float(new_val)
-            for c_info in sniper_limit_engine.TOP_20_COINS:
-                st.session_state[f"m_inp_{c_info[0]}"] = float(new_val)
+    # =====================================================================
+    # TOOLBAR BATCH ORDER KENDALI MARGIN + PRESET TARGET RP 500RB
+    # =====================================================================
+    st.session_state.setdefault("batch_margin_val", 2.00)
+    
+    st.markdown("<div style='font-size: 13px; font-weight: 800; color: #f8fafc; margin-bottom: 6px;'>🎯 Preset Cepat Ukuran Margin Bersama:</div>", unsafe_allow_html=True)
+    def update_all_margin_inputs(new_val):
+        st.session_state["batch_margin_val"] = float(new_val)
+        for c_info in sniper_limit_engine.TOP_20_COINS:
+            st.session_state[f"m_inp_{c_info[0]}"] = float(new_val)
 
-        col_p1, col_p2, col_p3, col_p4 = st.columns(4)
-        with col_p1:
-            if st.button("💰 $1.00 (~Rp 250rb/mgg)", key="preset_100", use_container_width=True):
-                update_all_margin_inputs(1.00)
-                st.rerun()
-        with col_p2:
-            if st.button("💰 $1.50 (~Rp 375rb/mgg)", key="preset_150", use_container_width=True):
-                update_all_margin_inputs(1.50)
-                st.rerun()
-        with col_p3:
-            if st.button("🎯 $2.00 (Target Rp 500rb/mgg)", key="preset_200", type="primary", use_container_width=True):
-                update_all_margin_inputs(2.00)
-                st.rerun()
-        with col_p4:
-            if st.button("🚀 $2.50 (~Rp 625rb/mgg)", key="preset_250", use_container_width=True):
-                update_all_margin_inputs(2.50)
-                st.rerun()
+    col_p1, col_p2, col_p3, col_p4 = st.columns(4)
+    with col_p1:
+        if st.button("💰 $1.00 (~Rp 250rb/mgg)", key="preset_100", use_container_width=True):
+            update_all_margin_inputs(1.00)
+            st.rerun()
+    with col_p2:
+        if st.button("💰 $1.50 (~Rp 375rb/mgg)", key="preset_150", use_container_width=True):
+            update_all_margin_inputs(1.50)
+            st.rerun()
+    with col_p3:
+        if st.button("🎯 $2.00 (Target Rp 500rb/mgg)", key="preset_200", type="primary", use_container_width=True):
+            update_all_margin_inputs(2.00)
+            st.rerun()
+    with col_p4:
+        if st.button("🚀 $2.50 (~Rp 625rb/mgg)", key="preset_250", use_container_width=True):
+            update_all_margin_inputs(2.50)
+            st.rerun()
 
-        col_b_margin, col_b_btn = st.columns([1.5, 2.5])
-        with col_b_margin:
-            batch_m = st.number_input(
-                "Margin Serentak Semua Koin (USD):",
-                min_value=0.50,
-                max_value=50.00,
-                value=float(st.session_state["batch_margin_val"]),
-                step=0.10,
-                format="%.2f",
-                key="global_batch_margin_input"
-            )
-            # update session state if user typed manually
-            if batch_m != st.session_state.get("batch_margin_val"):
-                update_all_margin_inputs(batch_m)
-                
-        ready_signals = [r for r in observations if r.get('is_valid_entry', False) and not r.get('is_mexc_order') and not r.get('is_touched')]
-        ready_count = len(ready_signals)
-        cooldown_coins = [r for r in observations if r.get('status') == 'COOLDOWN']
-        cd_count = len(cooldown_coins)
+    col_b_margin, col_b_btn = st.columns([1.5, 2.5])
+    with col_b_margin:
+        batch_m = st.number_input(
+            "Margin Serentak Semua Koin (USD):",
+            min_value=0.50,
+            max_value=50.00,
+            value=float(st.session_state["batch_margin_val"]),
+            step=0.10,
+            format="%.2f",
+            key="global_batch_margin_input"
+        )
+        # update session state if user typed manually
+        if batch_m != st.session_state.get("batch_margin_val"):
+            update_all_margin_inputs(batch_m)
+            
+    ready_signals = [r for r in observations if r.get('is_valid_entry', False) and not r.get('is_mexc_order') and not r.get('is_touched')]
+    ready_count = len(ready_signals)
+    cooldown_coins = [r for r in observations if r.get('status') == 'COOLDOWN']
+    cd_count = len(cooldown_coins)
 
-        with col_b_btn:
-            st.markdown("<div style='height: 27px;'></div>", unsafe_allow_html=True)
-            btn_label = f"⚡ Pasang {ready_count} Limit Sinyal Valid Sekarang (${batch_m:.2f})" if ready_count > 0 else f"🔄 Belum Ada Sinyal Valid Siap Pasang (Masih Scanning Pasar...)"
-            if st.button(btn_label, key="btn_place_all_waiting", type="primary", use_container_width=True, disabled=(ready_count == 0)):
-                with st.spinner(f"Mengirim {ready_count} limit order siap pasang ke MEXC Futures (koin cooldown otomatis dilewati)..."):
-                    res_list = sniper_limit_engine.execute_place_all_waiting_limits(custom_margin=batch_m)
-                    st.success(f"Selesai memproses {len(res_list)} koin siap pasang!")
-                    st.cache_data.clear()
-                    st.rerun()
-            if cd_count > 0:
-                st.markdown(f"<div style='color: #c084fc; font-size: 11px; font-weight: 700; margin-top: 4px;'>⏸️ Proteksi Anti-Whipsaw: <strong>{cd_count} koin</strong> sedang masa tenang pasca-SL 2 jam dan <strong>OTOMATIS DILEWATI</strong> dari pemasangan batch!</div>", unsafe_allow_html=True)
+    with col_b_btn:
+        st.markdown("<div style='height: 27px;'></div>", unsafe_allow_html=True)
+        btn_label = f"⚡ Pasang {ready_count} Limit Sinyal Valid Sekarang (${batch_m:.2f})" if ready_count > 0 else f"🔄 Belum Ada Sinyal Valid Siap Pasang (Masih Scanning Pasar...)"
+        if st.button(btn_label, key="btn_place_all_waiting", type="primary", use_container_width=True, disabled=(ready_count == 0)):
+            with st.spinner(f"Mengirim {ready_count} limit order siap pasang ke MEXC Futures (koin cooldown otomatis dilewati)..."):
+                res_list = sniper_limit_engine.execute_place_all_waiting_limits(custom_margin=batch_m)
+                st.success(f"Selesai memproses {len(res_list)} koin siap pasang!")
+                st.cache_data.clear()
+                st.rerun()
+        if cd_count > 0:
+            st.markdown(f"<div style='color: #c084fc; font-size: 11px; font-weight: 700; margin-top: 4px;'>⏸️ Proteksi Anti-Whipsaw: <strong>{cd_count} koin</strong> sedang masa tenang pasca-SL 2 jam dan <strong>OTOMATIS DILEWATI</strong> dari pemasangan batch!</div>", unsafe_allow_html=True)
 
     # =========================================================================
     # GRID KARTU 20 KOIN (JELAS, TANPA KONFLIK & FRESH SETUP)
