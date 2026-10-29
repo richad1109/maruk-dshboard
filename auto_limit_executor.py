@@ -165,7 +165,7 @@ def run_single_executor_cycle(dry_run=False):
             b = client.fetch_balance()
             tot = float(b.get('total', {}).get('USDT') or b.get('free', {}).get('USDT') or 0.0)
             if tot >= 12.0:
-                margin = max(2.50, min(12.00, round(tot * 0.20, 2)))
+                margin = max(3.00, min(25.00, round(tot * 0.30, 2)))
         except Exception:
             pass
     if client is None:
@@ -416,7 +416,7 @@ def main():
     print("=" * 95)
     print("🎯 SINGLE SNIPER PROTOCOL MEXC 24/7 (TARGET RP 500.000 / $30 USD PER MINGGU (APEX 40X))")
     print(f"Status Mode   : {'🚀 LIVE TRADING OTOMATIS (Uang Riil MEXC)' if is_live else '⚠️ DRY RUN (Mode Simulasi)'}")
-    mode_str = "Dynamic Compounding 20% Saldo (Target Cuan $30/Wk & $80/Bulan)" if use_compound else f"${margin:.2f} USD Fixed"
+    mode_str = "Dynamic Compounding 30% Saldo (Target Rp 500.000 / $32.51/Wk Teruji)" if use_compound else f"${margin:.2f} USD Fixed"
     print(f"Ukuran Margin : {mode_str} (Leverage 40x Isolated)")
     print(f"Maksimal Aktif: HANYA 1 KOIN (Single Sniper - Teruji Bebas Boncos Multi-Koin)")
     print(f"Filter BTC    : 🛡️ BTC Master Crash Guard (Dilarang Long saat Bitcoin Dump)")
