@@ -558,22 +558,12 @@ def score_and_generate(rows_4h: list[dict], rows_1h: list[dict]) -> Optional[dic
 
 def get_signal_status(sig: dict, current_price: float) -> str:
     """
-    Status real-time sinyal berdasarkan harga saat ini:
-      SCANNING    → Menunggu retrace ke entry (harga belum sampai)
-      MENDEKATI   → Harga dalam 0.5% dari entry (hampir terisi)
-      AKTIF       → Harga sudah menyentuh/melewati entry (posisi terisi)
-      TP1_HIT     → TP1 tercapai
-      TP2_HIT     → TP2 tercapai
-      TP3_HIT     → TP3 tercapai (jackpot)
-      KENA_SL     → Stop loss tercapai
-      TELAT       → Harga lari terlalu jauh dari entry (sinyal basi)
-      EXPIRED     → Waktu validitas habis
+    Status real-time sinyal dengan PERSISTENT ACTIVE LATCH:
+    Sekali sinyal AKTIF (tersentuh/posisi bursa terbuka), sinyal TIDAK BOLEH hilang
+    atau kembali ke SCANNING/TELAT. Sinyal tetap AKTIF sampai menyentuh TP1/2/3 atau SL!
     """
     now_ts = time.time()
     valid_until = sig.get("valid_until", now_ts)
-
-    if now_ts > valid_until:
-        return "EXPIRED"
 
     d = sig["direction"]
     entry = float(sig["entry"])
@@ -582,83 +572,75 @@ def get_signal_status(sig: dict, current_price: float) -> str:
     tp2 = float(sig["tp2"])
     tp3 = float(sig["tp3"])
 
-    # Catatan: Level Entry, SL, TP dikunci mati (tidak digeser).
-    # Evaluasi status berdasarkan posisi harga real-time terhadap limit:
+    was_active = sig.get("is_active", False) or sig.get("_is_real_pos", False)
+
     if d == "LONG":
-        # Jika harga menembus batas bawah SL:
+        # 1. Cek SL & TP
         if current_price <= sl:
+            sig["is_active"] = False
             return "KENA_SL"
-        # Target bertingkat:
         if current_price >= tp3:
+            sig["is_active"] = False
             return "TP3_HIT"
         if current_price >= tp2:
             return "TP2_HIT"
         if current_price >= tp1:
             return "TP1_HIT"
 
-        # Jarak harga saat ini terhadap limit order beli (entry):
-        dist_pct = ((current_price - entry) / entry) * 100.0
-
-        # Jika harga sudah lari terbang ke atas > 2.5% tanpa sempat menyentuh limit:
-        if dist_pct > 2.5:
-            return "TELAT"
-
-        # Jika harga saat ini menyentuh/berada di bawah limit buy (sampai batas SL):
-        if current_price <= entry:
+        # 2. Jika sudah pernah aktif / sedang aktif di bursa: KUNCI MATI TETAP AKTIF!
+        if was_active:
+            sig["is_active"] = True
             return "AKTIF"
 
-        # Jika harga berada sedikit di atas limit buy (dalam rentang 0.4%):
+        # 3. Baru pertama kali menyentuh/melewati limit beli:
+        if current_price <= entry:
+            sig["is_active"] = True
+            return "AKTIF"
+
+        # 4. Jika belum aktif, cek expired & jarak
+        if now_ts > valid_until:
+            return "EXPIRED"
+
+        dist_pct = ((current_price - entry) / (entry + 1e-10)) * 100.0
+        if dist_pct > 2.5:
+            return "TELAT"
         if dist_pct <= 0.4:
             return "MENDEKATI"
-
-        # Di atas rentang 0.4% s/d 2.5%: Sedang menunggu retrace/pullback
         return "SCANNING"
 
     else:  # SHORT
-        # Jika harga menembus batas atas SL:
+        # 1. Cek SL & TP
         if current_price >= sl:
+            sig["is_active"] = False
             return "KENA_SL"
-        # Target bertingkat:
         if current_price <= tp3:
+            sig["is_active"] = False
             return "TP3_HIT"
         if current_price <= tp2:
             return "TP2_HIT"
         if current_price <= tp1:
             return "TP1_HIT"
 
-        # Jarak harga saat ini terhadap limit order jual (entry):
-        dist_pct = ((entry - current_price) / entry) * 100.0
-
-        # Jika harga sudah longsor jatuh ke bawah > 2.5% tanpa sempat menyentuh limit:
-        if dist_pct > 2.5:
-            return "TELAT"
-
-        # Jika harga saat ini menyentuh/berada di atas limit sell (sampai batas SL):
-        if current_price >= entry:
+        # 2. Jika sudah pernah aktif / sedang aktif di bursa: KUNCI MATI TETAP AKTIF!
+        if was_active:
+            sig["is_active"] = True
             return "AKTIF"
 
-        # Jika harga berada sedikit di bawah limit sell (dalam rentang 0.4%):
+        # 3. Baru pertama kali menyentuh/melewati limit jual:
+        if current_price >= entry:
+            sig["is_active"] = True
+            return "AKTIF"
+
+        # 4. Jika belum aktif, cek expired & jarak
+        if now_ts > valid_until:
+            return "EXPIRED"
+
+        dist_pct = ((entry - current_price) / (entry + 1e-10)) * 100.0
+        if dist_pct > 2.5:
+            return "TELAT"
         if dist_pct <= 0.4:
             return "MENDEKATI"
-
-        # Di bawah rentang 0.4% s/d 2.5%: Sedang menunggu bounce/pullback
-        return "SCANNING"
-
-
-def status_label(status: str) -> tuple[str, str]:
-    """Return (emoji_label, css_color) untuk tampilan UI dengan label BingX transparan."""
-    MAP = {
-        "SCANNING":  ("🔍 SCANNING BINGX",     "#7ec8e3"),
-        "MENDEKATI": ("⚡ MENDEKATI LIMIT",    "#f0c040"),
-        "AKTIF":     ("✅ AKTIF DI BINGX",     "#4caf50"),
-        "TP1_HIT":   ("🎯 DONE TP1 (AMBIL 70%)", "#00e676"),
-        "TP2_HIT":   ("🎯🎯 DONE TP2 (RUNNER)",  "#00bcd4"),
-        "TP3_HIT":   ("💰 DONE TP3 (JACKPOT)",  "#ffd700"),
-        "KENA_SL":   ("❌ KENA SL DI BINGX",   "#f44336"),
-        "TELAT":     ("⏰ TELAT / HARGA LARI",  "#9e9e9e"),
-        "EXPIRED":   ("💀 EXPIRED",             "#616161"),
-    }
-    return MAP.get(status, ("❓ UNKNOWN", "#ffffff"))
+        return "SCANNING" 
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -298,12 +298,21 @@ def sinyal_page(summary=None):
             st.info(f"**{b_lbl}** · BTC: ${b_price:,.1f} (1H Change: {b_chg:+}% | RSI: {b_rsi}) · *{b_rec}*")
 
     with col_kill:
-        if st.button("🛑 BATALKAN SEMUA LIMIT BINGX", type="secondary", use_container_width=True, help="Batalkan seketika semua antrean limit order di BingX semua akun saat terjadi lonjakan BTC"):
-            with st.spinner("Membatalkan seluruh limit order di bursa BingX..."):
-                c_res = bingx_executor.cancel_all_bingx_open_orders("all")
-                st.warning(f"Hasil Pembatalan Limit: {c_res}")
-                time.sleep(1)
-                st.rerun()
+        col_k1, col_k2 = st.columns(2)
+        with col_k1:
+            if st.button("🛑 Cancel Limit Web", type="secondary", use_container_width=True, help="Batalkan limit order antre yang dipasang via Web. Order manual di BingX 100% AMAN!"):
+                with st.spinner("Membatalkan limit order web..."):
+                    c_res = bingx_executor.cancel_web_orders_only("all")
+                    st.warning(f"Hasil: {c_res}")
+                    time.sleep(1)
+                    st.rerun()
+        with col_k2:
+            if st.button("⚡ Tutup Posisi Web", type="secondary", use_container_width=True, help="Tutup darurat posisi yang dibuka via Web. Posisi manual (seperti ENS, dll.) 100% AMAN!"):
+                with st.spinner("Menutup posisi web..."):
+                    c_res = bingx_executor.close_web_positions_only("all")
+                    st.warning(f"Hasil: {c_res}")
+                    time.sleep(1)
+                    st.rerun()
 
     # ── 2. HEADER KONTROL & FILTER ──────────────────────────────────────
     c1, c2, c3 = st.columns([2, 1, 1])

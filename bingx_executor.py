@@ -189,6 +189,96 @@ def fetch_live_active_bingx_coins():
             pass
     return active_map
 
+def cancel_web_orders_only(account_key: str = "all") -> dict:
+    """
+    Batalkan HANYA open limit order yang dipasang lewat Web Dashboard.
+    Order manual yang dipasang sendiri oleh user di aplikasi BingX 100% AMAN & TIDAK DISENTUH!
+    """
+    state = load_bingx_order_state()
+    web_order_ids = {str(v.get("order_id")) for v in state.values() if v.get("order_id")}
+    web_symbols = {v.get("symbol") for v in state.values() if v.get("symbol")}
+
+    accs = get_accounts_credentials()
+    target_accs = ["akun_1", "akun_2", "akun_3"] if account_key == "all" else [account_key]
+    results = {}
+
+    for acc in target_accs:
+        client = get_bingx_client(acc)
+        if not client:
+            continue
+        try:
+            orders = client.fetch_open_orders()
+            cancelled = 0
+            skipped_manual = 0
+            for o in orders:
+                oid = str(o.get("id", ""))
+                sym_clean = o["symbol"].split(":")[0].replace("/", "-")
+                if oid in web_order_ids or (f"{acc}_{sym_clean}" in state and state[f"{acc}_{sym_clean}"].get("status") == "SUKSES_BINGX"):
+                    try:
+                        client.cancel_order(oid, o["symbol"])
+                        cancelled += 1
+                    except Exception:
+                        pass
+                else:
+                    skipped_manual += 1
+            results[acc] = f"Dibatalkan Web: {cancelled} | Manual Aman: {skipped_manual}"
+        except Exception as e:
+            results[acc] = f"Error: {str(e)}"
+    return results
+
+def close_web_positions_only(account_key: str = "all") -> dict:
+    """
+    Tutup HANYA posisi yang dibuka lewat Web Dashboard.
+    Posisi manual (seperti ENS, KAS, dll. yang dibuka manual) 100% AMAN & TIDAK AKAN DISENTUH!
+    """
+    state = load_bingx_order_state()
+    web_symbols_per_acc = {}
+    for k, v in state.items():
+        if v.get("status") == "SUKSES_BINGX":
+            acc = v.get("account", "akun_1")
+            web_symbols_per_acc.setdefault(acc, set()).add(v.get("symbol"))
+
+    accs = get_accounts_credentials()
+    target_accs = ["akun_1", "akun_2", "akun_3"] if account_key == "all" else [account_key]
+    results = {}
+
+    for acc in target_accs:
+        client = get_bingx_client(acc)
+        if not client:
+            continue
+        allowed_web_syms = web_symbols_per_acc.get(acc, set())
+        try:
+            raw_pos_resp = client.swapV2PrivateGetUserPositions()
+            pos = raw_pos_resp.get("data", [])
+            closed = 0
+            skipped_manual = 0
+            for p in pos:
+                amt = float(p.get("positionAmt") or 0)
+                if amt != 0:
+                    sym_raw = p.get("symbol", "")
+                    base = sym_raw.split("-")[0]
+                    if sym_raw in allowed_web_syms or f"{base}-USDT" in allowed_web_syms or base in allowed_web_syms:
+                        side = "sell" if float(amt) > 0 else "buy"
+                        pos_side = str(p.get("positionSide", "BOTH")).upper()
+                        ccxt_sym = f"{base}/USDT:USDT"
+                        try:
+                            client.create_order(
+                                symbol=ccxt_sym,
+                                type="market",
+                                side=side,
+                                amount=abs(amt),
+                                params={"positionSide": pos_side}
+                            )
+                            closed += 1
+                        except Exception:
+                            pass
+                    else:
+                        skipped_manual += 1
+            results[acc] = f"Ditutup Web: {closed} | Manual Aman: {skipped_manual}"
+        except Exception as e:
+            results[acc] = f"Error: {str(e)}"
+    return results
+
 def cancel_all_bingx_open_orders(account_key: str = "all") -> dict:
     """
     Batalkan SEMUA open limit order yang sedang antre di BingX Futures.
