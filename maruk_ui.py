@@ -1,4 +1,4 @@
-"""Maruk Terminal: eight-wallet, read-only portfolio interface."""
+﻿"""Maruk Terminal: eight-wallet, read-only portfolio interface."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -16,13 +16,15 @@ import streamlit as st
 import maruk_data as data
 import sakti_monitor
 import btc_research
+import sinyal_engine
 
 ROOT=Path(__file__).resolve().parent
 WIB=timezone(timedelta(hours=7))
 PALETTE=["#b9df8a","#91b4c8","#d8bb87"]
 PAGE={"Ringkasan":("Semua akun. Satu pandangan.","Pantau portofolio, pergerakan pasar, dan posisi dalam satu ruang."),
       "Posisi & Bursa":("Setiap posisi, lebih jelas.","Detail eksposur dan koneksi delapan wallet di tiga bursa."),
-      "Bot Sakti":("Satu sistem. Setiap langkah terpantau.","Jurnal Termux terenkripsi, peringatan proteksi, dan status Bot Final.")}
+      "Bot Sakti":("Satu sistem. Setiap langkah terpantau.","Jurnal Termux terenkripsi, peringatan proteksi, dan status Bot Final."),
+      "Sinyal":("50 koin. Sniper presisi.","Sinyal limit order multi-konfirmasi dari BingX. Skor 1-100, status real-time, TP1/2/3 otomatis.")}
 
 CUSTOM_BALANCE_FILE = ROOT / "assets" / "custom_display_balance.json"
 
@@ -231,6 +233,257 @@ def overview(snapshot,info,summary,base):
     heading("Posisi aktif","Floating PnL dari sumber yang ditampilkan")
     position_cards(summary["positions"],limit=None)
 
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# HALAMAN SINYAL — Multi-Confirmation Sniper Limit Order Signal Room
+# ═══════════════════════════════════════════════════════════════════════
+def sinyal_page():
+    """Halaman sinyal limit order 50 koin BingX dengan scoring 1-100."""
+
+    # ── CSS Kartu Sinyal ────────────────────────────────────────────────
+    st.markdown("""
+<style>
+.sig-card{background:#111a22;border:1px solid #1e2d3d;border-radius:12px;padding:16px 18px;margin-bottom:10px;position:relative;overflow:hidden}
+.sig-card:hover{border-color:#2a4060}
+.sig-card-long{border-left:4px solid #00e676}
+.sig-card-short{border-left:4px solid #f44336}
+.sig-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sig-sym{font-size:18px;font-weight:700;color:#e8f0fe;letter-spacing:1px}
+.sig-dir-long{background:#00e676;color:#000;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px}
+.sig-dir-short{background:#f44336;color:#fff;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px}
+.sig-score-bar-wrap{background:#1e2d3d;border-radius:6px;height:6px;width:100%;margin:6px 0 10px}
+.sig-score-bar{border-radius:6px;height:6px;transition:width .3s}
+.sig-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:8px}
+.sig-cell{background:#0d1520;border-radius:8px;padding:8px 10px}
+.sig-cell-label{color:#4e6b8a;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.sig-cell-val{color:#c8d8e8;font-size:13px;font-weight:700;margin-top:2px}
+.sig-cell-val.green{color:#00e676}
+.sig-cell-val.red{color:#f44336}
+.sig-cell-val.gold{color:#ffd700}
+.sig-status{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-left:8px}
+.sig-reasons{margin-top:8px;padding-top:8px;border-top:1px solid #1e2d3d}
+.sig-reason-item{color:#5a7a9a;font-size:11px;padding:1px 0}
+.sig-meta{display:flex;gap:12px;margin-top:6px;flex-wrap:wrap}
+.sig-meta-item{color:#3a5a7a;font-size:10px}
+.sig-valid{color:#4a8a6a;font-size:10px;font-weight:600}
+.empty-state{background:#0d1520;border:1px dashed #1e2d3d;border-radius:12px;padding:40px;text-align:center;color:#3a5a7a}
+.scan-summary{background:#0d1520;border:1px solid #1e2d3d;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap}
+.scan-summary-item{color:#4e6b8a;font-size:12px}
+.scan-summary-item strong{color:#c8d8e8;font-size:15px;display:block}
+</style>
+""", unsafe_allow_html=True)
+
+    WIB_TZ = timezone(timedelta(hours=7))
+    now_wib = datetime.now(WIB_TZ)
+
+    # ── Header & Kontrol ────────────────────────────────────────────────
+    c1, c2, c3 = st.columns([2, 1, 1])
+    with c1:
+        filter_dir = st.selectbox("Filter Arah", ["Semua", "LONG", "SHORT"], key="sinyal_dir_filter")
+    with c2:
+        filter_min_score = st.slider("Skor Minimum", 70, 100, 70, 5, key="sinyal_score_filter")
+    with c3:
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+        do_scan = st.button("🔄 Scan 50 Koin", type="primary", use_container_width=True, key="sinyal_scan_btn")
+
+    # ── Ambil / refresh sinyal ──────────────────────────────────────────
+    cache_key = "sinyal_signals"
+    scan_time_key = "sinyal_scan_time"
+
+    if do_scan or cache_key not in st.session_state:
+        # Cek cache file dulu (max 15 menit)
+        cached = sinyal_engine.get_cached_signals(max_age_minutes=15)
+        if cached is not None and not do_scan:
+            st.session_state[cache_key] = cached
+            st.session_state[scan_time_key] = sinyal_engine.load_cache().get("scanned_at", time.time())
+        else:
+            # Scan penuh
+            progress_bar = st.progress(0, text="🔍 Scanning 50 koin BingX...")
+            prog_state = {"done": 0, "total": 50}
+
+            def on_progress(done, total):
+                prog_state["done"] = done
+                prog_state["total"] = total
+                pct = done / max(total, 1)
+                try:
+                    progress_bar.progress(pct, text=f"🔍 Scanning... {done}/{total} koin")
+                except Exception:
+                    pass
+
+            with st.spinner(""):
+                signals = sinyal_engine.refresh_scan(progress_callback=on_progress)
+
+            progress_bar.empty()
+            st.session_state[cache_key] = signals
+            st.session_state[scan_time_key] = time.time()
+
+    all_signals = st.session_state.get(cache_key, [])
+    scan_ts = st.session_state.get(scan_time_key, 0)
+    scan_age_min = int((time.time() - scan_ts) / 60) if scan_ts else 0
+
+    # ── Fetch harga current untuk status update ─────────────────────────
+    @st.cache_data(ttl=30)
+    def get_prices(symbols_tuple):
+        prices = {}
+        for sym in symbols_tuple:
+            p = sinyal_engine.fetch_current_price(sym)
+            if p:
+                prices[sym] = p
+        return prices
+
+    sym_tuple = tuple(s["symbol"] for s in all_signals)
+    live_prices = get_prices(sym_tuple) if sym_tuple else {}
+
+    # ── Filter ─────────────────────────────────────────────────────────
+    filtered = [
+        s for s in all_signals
+        if s["score"] >= filter_min_score
+        and (filter_dir == "Semua" or s["direction"] == filter_dir)
+    ]
+
+    # ── Status setiap sinyal ────────────────────────────────────────────
+    status_counts = {"SCANNING": 0, "AKTIF": 0, "MENDEKATI": 0,
+                     "TP1_HIT": 0, "TP2_HIT": 0, "TP3_HIT": 0,
+                     "KENA_SL": 0, "TELAT": 0, "EXPIRED": 0}
+    long_count = sum(1 for s in all_signals if s.get("direction") == "LONG")
+    short_count = sum(1 for s in all_signals if s.get("direction") == "SHORT")
+
+    for s in all_signals:
+        cp = live_prices.get(s["symbol"], s["current_price"])
+        st_key = sinyal_engine.get_signal_status(s, cp)
+        s["_live_status"] = st_key
+        s["_live_price"] = cp
+        status_counts[st_key] = status_counts.get(st_key, 0) + 1
+
+    # ── Ringkasan scan ─────────────────────────────────────────────────
+    st.markdown(f"""
+<div class="scan-summary">
+  <div class="scan-summary-item"><strong>{len(all_signals)}</strong>Sinyal Valid</div>
+  <div class="scan-summary-item"><strong style="color:#00e676">{long_count}</strong>LONG</div>
+  <div class="scan-summary-item"><strong style="color:#f44336">{short_count}</strong>SHORT</div>
+  <div class="scan-summary-item"><strong style="color:#4caf50">{status_counts.get('AKTIF',0)+status_counts.get('MENDEKATI',0)}</strong>Aktif/Mendekati</div>
+  <div class="scan-summary-item"><strong style="color:#00e676">{status_counts.get('TP1_HIT',0)+status_counts.get('TP2_HIT',0)+status_counts.get('TP3_HIT',0)}</strong>TP Hit</div>
+  <div class="scan-summary-item"><strong style="color:#f44336">{status_counts.get('KENA_SL',0)}</strong>SL Hit</div>
+  <div class="scan-summary-item"><strong style="color:#9e9e9e">{status_counts.get('TELAT',0)}</strong>Telat</div>
+  <div class="scan-summary-item"><strong style="color:#5a7a9a">{scan_age_min}m</strong>Usia Cache</div>
+</div>
+""", unsafe_allow_html=True)
+
+    if not filtered:
+        st.markdown("""
+<div class="empty-state">
+  <div style="font-size:40px">🔍</div>
+  <div style="font-size:16px;margin-top:10px;color:#5a7a9a">Belum ada sinyal yang memenuhi kriteria</div>
+  <div style="font-size:12px;margin-top:6px;color:#3a5a7a">Tekan "Scan 50 Koin" untuk memindai pasar BingX</div>
+</div>
+""", unsafe_allow_html=True)
+        return
+
+    # ── Render Kartu Sinyal ─────────────────────────────────────────────
+    for sig in filtered:
+        sym = sig["symbol"]
+        coin = sym.replace("-USDT", "")
+        direction = sig["direction"]
+        score = sig["score"]
+        entry = sig["entry"]
+        sl = sig["sl"]
+        tp1 = sig["tp1"]
+        tp2 = sig["tp2"]
+        tp3 = sig["tp3"]
+        live_price = sig.get("_live_price", sig["current_price"])
+        live_status = sig.get("_live_status", "SCANNING")
+        rsi_4h = sig["rsi_4h"]
+        rsi_1h = sig["rsi_1h"]
+        ker = sig["ker"]
+        rr = sig["rr"]
+        reasons = sig.get("reasons", [])
+        valid_wib = sig.get("valid_until_wib", "—")
+        vol_ratio = sig.get("vol_ratio", 0)
+
+        # Score bar color
+        if score >= 90:
+            bar_color = "#ffd700"
+        elif score >= 80:
+            bar_color = "#00e676"
+        elif score >= 70:
+            bar_color = "#7ec8e3"
+        else:
+            bar_color = "#4e6b8a"
+
+        dir_class = "sig-dir-long" if direction == "LONG" else "sig-dir-short"
+        card_class = "sig-card-long" if direction == "LONG" else "sig-card-short"
+
+        # Status badge
+        status_lbl, status_color = sinyal_engine.status_label(live_status)
+
+        # Hitung jarak ke entry
+        if direction == "LONG":
+            dist_to_entry = ((live_price - entry) / entry * 100)
+            dist_str = f"▲{dist_to_entry:.2f}% dari entry" if dist_to_entry > 0 else f"✅ Di entry"
+        else:
+            dist_to_entry = ((entry - live_price) / entry * 100)
+            dist_str = f"▲{dist_to_entry:.2f}% ke entry" if dist_to_entry > 0 else f"✅ Di entry"
+
+        reasons_html = "".join(f'<div class="sig-reason-item">• {r}</div>' for r in reasons)
+
+        card_html = f"""
+<div class="sig-card {card_class}">
+  <div class="sig-top">
+    <div>
+      <span class="sig-sym">{coin}</span>
+      <span class="{dir_class}">{direction}</span>
+      <span class="sig-status" style="background:{status_color}22;color:{status_color};border:1px solid {status_color}55">{status_lbl}</span>
+    </div>
+    <div style="text-align:right">
+      <div style="color:{bar_color};font-size:22px;font-weight:800;line-height:1">{score}</div>
+      <div style="color:#3a5a7a;font-size:10px">SKOR</div>
+    </div>
+  </div>
+  <div class="sig-score-bar-wrap"><div class="sig-score-bar" style="width:{score}%;background:{bar_color}"></div></div>
+  <div class="sig-grid">
+    <div class="sig-cell">
+      <div class="sig-cell-label">💎 Entry Limit</div>
+      <div class="sig-cell-val">{entry}</div>
+      <div style="color:#3a5a7a;font-size:10px">{dist_str}</div>
+    </div>
+    <div class="sig-cell">
+      <div class="sig-cell-label">❌ Stop Loss</div>
+      <div class="sig-cell-val red">{sl}</div>
+      <div style="color:#3a5a7a;font-size:10px">RR {rr}:1</div>
+    </div>
+    <div class="sig-cell">
+      <div class="sig-cell-label">🎯 TP1 / TP2</div>
+      <div class="sig-cell-val green">{tp1}</div>
+      <div class="sig-cell-val" style="color:#00bcd4;font-size:11px">{tp2}</div>
+    </div>
+    <div class="sig-cell">
+      <div class="sig-cell-label">💰 TP3 (4R)</div>
+      <div class="sig-cell-val gold">{tp3}</div>
+      <div style="color:#3a5a7a;font-size:10px">Harga saat ini: {live_price}</div>
+    </div>
+  </div>
+  <div class="sig-reasons">
+    <div style="color:#3a5a7a;font-size:10px;margin-bottom:4px">KONFIRMASI SINYAL:</div>
+    {reasons_html}
+  </div>
+  <div class="sig-meta">
+    <div class="sig-meta-item">RSI 4H: <strong style="color:#7ec8e3">{rsi_4h}</strong></div>
+    <div class="sig-meta-item">RSI 1H: <strong style="color:#7ec8e3">{rsi_1h}</strong></div>
+    <div class="sig-meta-item">KER: <strong style="color:#7ec8e3">{ker}</strong></div>
+    <div class="sig-meta-item">Vol: <strong style="color:#7ec8e3">{vol_ratio}x</strong></div>
+    <div class="sig-valid">⏱ Valid s/d: {valid_wib}</div>
+  </div>
+</div>
+"""
+        st.markdown(card_html, unsafe_allow_html=True)
+
+    st.markdown(
+        f"<div style='color:#2a4060;font-size:11px;text-align:center;padding:16px'>Sinyal limit order berbasis analisis teknikal multi-konfirmasi. "
+        f"Bukan rekomendasi investasi. Selalu gunakan manajemen risiko. "
+        f"Data dari BingX Futures API. Diperbarui: {now_wib.strftime('%H:%M:%S WIB')}</div>",
+        unsafe_allow_html=True
+    )
 
 def office():
     # Static authored HTML only; no credentials or exchange data enters JS.
@@ -545,5 +798,6 @@ def main():
         if nav=='Ringkasan':overview(snapshot,info,summary,base)
         elif nav=='Posisi & Bursa':positions_page(snapshot,summary)
         elif nav=='Bot Sakti':strategy_page(snapshot)
+        elif nav=='Sinyal':sinyal_page()
         html(f'<div class="footnote"><span>KANTOR RAKUS · BOT FINAL</span><span>MONITOR SAJA · TANPA ORDER / CANCEL · {datetime.now(WIB).strftime("%H:%M:%S WIB")}</span></div>')
     body()
