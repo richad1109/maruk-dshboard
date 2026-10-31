@@ -221,7 +221,15 @@ def query_ledger(account, venue, config, specs=None, client_factory=None):
 
 
 def read_state():
-    paths = [os.getenv("SAKTI_STATE_PATH"), os.getenv("MARUK_STATE_PATH"), str(ROOT/"sakti_live_state.json"), str(ROOT/"riset8_live_state.json"), str(ROOT/"live_bot_state.json")]
+    paths = [
+        os.getenv("SAKTI_STATE_PATH"),
+        os.getenv("MARUK_STATE_PATH"),
+        str(ROOT/"multi_wallet_state.json"),
+        str(ROOT/"assets"/"multi_wallet_state.json"),
+        str(ROOT/"sakti_live_state.json"),
+        str(ROOT/"riset8_live_state.json"),
+        str(ROOT/"live_bot_state.json")
+    ]
     for value in paths:
         if value:
             try:
@@ -237,12 +245,20 @@ def snapshot_ledgers(state):
     """An old export is a dated snapshot, never a live exchange connection."""
     root = state.get("accounts",state)
     rows = []
+    wallets = state.get("wallets", {})
     for account, venue in ACTIVE:
         source = root.get(account,{})
         detail = source.get("ex_details",{}).get(venue,{})
         row = empty_ledger(account,venue,"snapshot")
-        row.update(equity=first(detail,"total"), free=first(detail,"free"),
-                   updated=timestamp(source.get("updated_at")))
+        w_key = f"{account}_{venue.lower()}"
+        if wallets and w_key in wallets:
+            w_info = wallets[w_key]
+            bal = w_info.get("current_balance", w_info.get("initial_balance"))
+            if bal is not None:
+                row.update(equity=float(bal), free=float(bal), updated=time.time())
+        if row.get("equity") is None:
+            row.update(equity=first(detail,"total"), free=first(detail,"free"),
+                       updated=timestamp(source.get("updated_at")))
         for old in source.get("pos_list",[]):
             if old.get("exchange") == venue:
                 p = {k:old.get(k) for k in ["symbol","side","margin","leverage","entry","mark","notional","pnl","roe","liquidation","stop","take"]}
