@@ -478,11 +478,11 @@ def sinyal_page(summary=None):
 
         orig_sig = _find_orig_sig(ct["symbol"])
         time_wib_str = datetime.fromtimestamp(ct.get("time", time.time()*1000)/1000, WIB_TZ).strftime("%d/%m %H:%M WIB")
-        entry_v = orig_sig["entry"] if orig_sig else 0.0
-        sl_v    = orig_sig["sl"]    if orig_sig else 0.0
-        tp1_v   = orig_sig["tp1"]   if orig_sig else 0.0
-        tp2_v   = orig_sig["tp2"]   if orig_sig else 0.0
-        tp3_v   = orig_sig["tp3"]   if orig_sig else 0.0
+        entry_v = orig_sig["entry"] if orig_sig and orig_sig.get("entry",0) > 0 else 1.0
+        sl_v    = orig_sig["sl"]    if orig_sig and orig_sig.get("sl",0) > 0 else round(entry_v * 0.985, 6)
+        tp1_v   = orig_sig["tp1"]   if orig_sig and orig_sig.get("tp1",0) > 0 else round(entry_v * 1.02, 6)
+        tp2_v   = orig_sig["tp2"]   if orig_sig and orig_sig.get("tp2",0) > 0 else round(entry_v * 1.03, 6)
+        tp3_v   = orig_sig["tp3"]   if orig_sig and orig_sig.get("tp3",0) > 0 else round(entry_v * 1.05, 6)
         dir_v   = orig_sig.get("direction", ct.get("direction","LONG")) if orig_sig else ct.get("direction","LONG")
 
         all_signals.insert(0, {
@@ -528,11 +528,11 @@ def sinyal_page(summary=None):
 
         orig_sig = _find_orig_sig(ct["symbol"])
         time_wib_str = datetime.fromtimestamp(ct.get("time", time.time()*1000)/1000, WIB_TZ).strftime("%d/%m %H:%M WIB")
-        entry_v = orig_sig["entry"] if orig_sig else 0.0
-        sl_v    = orig_sig["sl"]    if orig_sig else 0.0
-        tp1_v   = orig_sig["tp1"]   if orig_sig else 0.0
-        tp2_v   = orig_sig["tp2"]   if orig_sig else 0.0
-        tp3_v   = orig_sig["tp3"]   if orig_sig else 0.0
+        entry_v = orig_sig["entry"] if orig_sig and orig_sig.get("entry",0) > 0 else 1.0
+        sl_v    = orig_sig["sl"]    if orig_sig and orig_sig.get("sl",0) > 0 else round(entry_v * 0.985, 6)
+        tp1_v   = orig_sig["tp1"]   if orig_sig and orig_sig.get("tp1",0) > 0 else round(entry_v * 1.02, 6)
+        tp2_v   = orig_sig["tp2"]   if orig_sig and orig_sig.get("tp2",0) > 0 else round(entry_v * 1.03, 6)
+        tp3_v   = orig_sig["tp3"]   if orig_sig and orig_sig.get("tp3",0) > 0 else round(entry_v * 1.05, 6)
         dir_v   = orig_sig.get("direction", ct.get("direction","LONG")) if orig_sig else ct.get("direction","LONG")
 
         all_signals.insert(0, {
@@ -575,7 +575,13 @@ def sinyal_page(summary=None):
             if norm_k in seen_live_pos:
                 continue
             seen_live_pos.add(norm_k)
-            
+
+            # SKIP jika koin sudah kena SL resmi (closed_bx sudah konfirmasi) —
+            # live_bx mungkin belum terupdate tapi closed_bx sudah final
+            base_raw = s_raw.split("-")[0]
+            if s_raw in sl_closed_map or base_raw in sl_closed_map or (norm_k and norm_k in sl_closed_map):
+                continue
+
             # Jika belum ada di kartu scanner, buatkan kartu posisi aktif riil
             if s_raw not in existing_syms and norm_k not in existing_norms:
                 entry_val = float(p_bx.get("entry", 0))
@@ -614,6 +620,9 @@ def sinyal_page(summary=None):
                         f"Floating PnL: ${pnl_val:.4f} USD · ROE: {roe_val:+.2f}%"
                     ]
                 })
+
+    # ── 4.5 LOAD WEB ORDER STATE (dipakai di status loop & render) ─────
+    bx_state = bingx_executor.load_bingx_order_state()
 
     # ── 5. UPDATE HARGA REAL-TIME CEPAT & STATUS ───────────────────────
     bulk_prices = sinyal_engine.fetch_all_tickers()
@@ -757,13 +766,13 @@ def sinyal_page(summary=None):
     def match_signal_tab(s, tab_name: str) -> bool:
         st_val = s.get("_live_status", "SCANNING")
         is_tp = bool(s.get("_is_real_tp"))
-        is_sl = bool(s.get("_is_real_sl") or s.get("_live_status") == "KENA_SL_RESMI")
+        is_sl = bool(s.get("_is_real_sl"))
         is_pos_bx = bool(s.get("_in_bingx_pos") or s.get("_is_real_pos"))
         is_order_bx = bool(s.get("_in_bingx_order") or s.get("_is_open_order"))
         is_in_bx = is_pos_bx or is_order_bx
 
-        # Filter dasar skor & arah
-        if not (is_pos_bx or is_tp or s["score"] >= filter_min_score):
+        # Filter dasar skor & arah — kartu TP/SL/Aktif SELALU lolos, tidak terblok filter skor
+        if not (is_pos_bx or is_tp or is_sl or s["score"] >= filter_min_score):
             return False
         if filter_dir != "Semua" and s.get("direction") != filter_dir:
             return False
@@ -836,7 +845,6 @@ def sinyal_page(summary=None):
         return
 
     # ── 8. RENDER KARTU ANALISA SINYAL MURNI ───────────────────────────
-    bx_state = bingx_executor.load_bingx_order_state()
 
     for card_idx, sig in enumerate(filtered):
         sym = sig["symbol"]
@@ -864,6 +872,7 @@ def sinyal_page(summary=None):
 
         # Badge koin aktif di BingX (Presisi & Informatif)
         active_bx_badge = ""
+        float_html = ""  # default kosong — diisi di blok badge atau posisi aktif di bawah
         is_pos_bingx = sig.get("_is_real_pos", False) or sig.get("_in_bingx_pos", False)
         acc_label = sig.get("_real_acc", "Akun 1")
 
