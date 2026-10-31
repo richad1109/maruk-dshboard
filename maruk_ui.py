@@ -382,28 +382,38 @@ def sinyal_page(summary=None):
         if st.button("↻ Refresh Layar", use_container_width=True):
             st.rerun()
 
-    # ── 3. AMBIL / REFRESH SINYAL MURNI ────────────────────────────────
+    # ── 3. AMBIL / REFRESH SINYAL MURNI (SELALU BACA CACHE SEGAR DARI DISK) ──
     cache_key = "sinyal_signals"
     scan_time_key = "sinyal_scan_time"
 
-    if do_scan or cache_key not in st.session_state:
-        cached = sinyal_engine.get_cached_signals(max_age_minutes=30)
-        if cached is not None and not do_scan:
-            st.session_state[cache_key] = cached
-            st.session_state[scan_time_key] = (sinyal_engine.load_cache() or {}).get("scanned_at", time.time())
-        else:
-            progress_bar = st.progress(0, text="🔍 Scanning 100+ koin kripto BingX...")
-            def on_progress(done, total):
-                pct = done / max(total, 1)
-                try:
-                    progress_bar.progress(pct, text=f"🔍 Scanning... {done}/{total} koin")
-                except Exception:
-                    pass
+    disk_data = sinyal_engine.load_cache() or {}
+    disk_signals = disk_data.get("signals", [])
+    disk_scan_ts = disk_data.get("scanned_at", 0)
 
-            with st.spinner(""):
-                signals = sinyal_engine.refresh_scan(progress_callback=on_progress)
+    if do_scan:
+        progress_bar = st.progress(0, text="🔍 Scanning 100+ koin kripto BingX...")
+        def on_progress(done, total):
+            pct = done / max(total, 1)
+            try:
+                progress_bar.progress(pct, text=f"🔍 Scanning... {done}/{total} koin")
+            except Exception:
+                pass
 
-            progress_bar.empty()
+        with st.spinner(""):
+            signals = sinyal_engine.refresh_scan(progress_callback=on_progress)
+
+        progress_bar.empty()
+        st.session_state[cache_key] = signals
+        st.session_state[scan_time_key] = time.time()
+    else:
+        # SELALU update session state dari file cache disk jika file disk ada & valid
+        # Mencegah bug session membeku (94 menit lalu) yang dialami user
+        if disk_signals:
+            st.session_state[cache_key] = disk_signals
+            st.session_state[scan_time_key] = disk_scan_ts
+        elif cache_key not in st.session_state:
+            with st.spinner("Inisialisasi scan 100+ koin..."):
+                signals = sinyal_engine.refresh_scan()
             st.session_state[cache_key] = signals
             st.session_state[scan_time_key] = time.time()
 
