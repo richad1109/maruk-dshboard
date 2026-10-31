@@ -45,14 +45,14 @@ _SCAN_LOCK = threading.Lock()
 FALLBACK_50_COINS = [
     "BTC-USDT","ETH-USDT","SOL-USDT","BNB-USDT","XRP-USDT",
     "DOGE-USDT","ADA-USDT","AVAX-USDT","DOT-USDT","LINK-USDT",
-    "MATIC-USDT","NEAR-USDT","OP-USDT","ARB-USDT","SUI-USDT",
-    "APT-USDT","INJ-USDT","TIA-USDT","WIF-USDT","PEPE-USDT",
-    "FET-USDT","RENDER-USDT","JTO-USDT","BONK-USDT","WLD-USDT",
+    "POL-USDT","NEAR-USDT","OP-USDT","ARB-USDT","SUI-USDT",
+    "APT-USDT","INJ-USDT","TIA-USDT","WIF-USDT","1000PEPE-USDT",
+    "FET-USDT","RENDER-USDT","JTO-USDT","1000BONK-USDT","WLD-USDT",
     "MANTA-USDT","PYTH-USDT","JUP-USDT","STRK-USDT","BLUR-USDT",
     "LTC-USDT","BCH-USDT","FIL-USDT","ATOM-USDT","UNI-USDT",
     "AAVE-USDT","MKR-USDT","SAND-USDT","MANA-USDT","AXS-USDT",
     "GMT-USDT","GALA-USDT","IMX-USDT","DYDX-USDT","CFX-USDT",
-    "AGIX-USDT","OCEAN-USDT","LQTY-USDT","CYBER-USDT","ID-USDT",
+    "SEI-USDT","KAS-USDT","TAO-USDT","CYBER-USDT","ID-USDT",
 ]
 
 
@@ -105,19 +105,29 @@ def fetch_klines(symbol: str, interval: str = "1h", limit: int = 200) -> Optiona
 
 
 def fetch_top_50_symbols() -> list[str]:
-    """Ambil 50 simbol BingX Futures teratas berdasarkan quote volume 24 jam."""
+    """Ambil 50 simbol Kripto Futures murni (tanpa komoditas emas/minyak) teratas berdasarkan volume 24 jam."""
     data = _get(f"{BINGX}/openApi/swap/v2/quote/ticker", {})
     if data is None:
         return FALLBACK_50_COINS
     tickers = data.get("data", [])
     if not isinstance(tickers, list):
         tickers = [tickers] if isinstance(tickers, dict) else []
-    usdt = [
-        t for t in tickers
-        if isinstance(t, dict) and str(t.get("symbol", "")).endswith("-USDT")
-    ]
-    usdt.sort(key=lambda x: float(x.get("quoteVolume") or 0), reverse=True)
-    symbols = [t["symbol"] for t in usdt[:50]]
+
+    # Filter khusus KRIPTO SAJA (buang NCCO emas/minyak, indeks, dll)
+    NON_CRYPTO_PREFIXES = ("NCCO", "US100", "US500", "US30", "GER40", "UK100", "JPN225")
+    crypto_tickers = []
+    for t in tickers:
+        if not isinstance(t, dict):
+            continue
+        sym = str(t.get("symbol", ""))
+        if not sym.endswith("-USDT"):
+            continue
+        if any(sym.startswith(prefix) for prefix in NON_CRYPTO_PREFIXES):
+            continue
+        crypto_tickers.append(t)
+
+    crypto_tickers.sort(key=lambda x: float(x.get("quoteVolume") or 0), reverse=True)
+    symbols = [t["symbol"] for t in crypto_tickers[:50]]
     return symbols if len(symbols) >= 10 else FALLBACK_50_COINS
 
 
