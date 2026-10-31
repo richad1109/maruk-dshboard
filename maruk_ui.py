@@ -281,7 +281,10 @@ def sinyal_page(summary=None):
     now_wib = datetime.now(WIB_TZ)
 
     # ── 1. SCANNER MAKRO BTC & KONTROL DARURAT ───────────────────────────
-    btc_sent = bingx_executor.get_btc_macro_sentiment()
+    if 'cached_btc_sent' not in st.session_state or (time.time() - st.session_state.get('cached_btc_time', 0)) > 60:
+        st.session_state['cached_btc_sent'] = bingx_executor.get_btc_macro_sentiment()
+        st.session_state['cached_btc_time'] = time.time()
+    btc_sent = st.session_state['cached_btc_sent']
     b_stat = btc_sent.get("status", "NORMAL")
     b_lbl = btc_sent.get("label", "🛡️ BTC TREN NETRAL")
     b_price = btc_sent.get("price", 0)
@@ -360,11 +363,13 @@ def sinyal_page(summary=None):
     scan_age_min = int((time.time() - scan_ts) / 60) if scan_ts else 0
 
     # ── 4. CEK STATUS AKTIF DI BURSA BINGX (UNTUK BADGE SAJA) ──────────
-    live_bx = {}
-    try:
-        live_bx = bingx_executor.fetch_live_active_bingx_coins()
-    except Exception:
-        pass
+    if 'cached_live_bx' not in st.session_state or (time.time() - st.session_state.get('cached_bx_time', 0)) > 60:
+        try:
+            st.session_state['cached_live_bx'] = bingx_executor.fetch_live_active_bingx_coins()
+        except Exception:
+            st.session_state['cached_live_bx'] = {}
+        st.session_state['cached_bx_time'] = time.time()
+    live_bx = st.session_state.get('cached_live_bx', {})
 
     # ── 5. UPDATE HARGA REAL-TIME CEPAT & STATUS ───────────────────────
     bulk_prices = sinyal_engine.fetch_all_tickers()
@@ -998,6 +1003,12 @@ def main():
     html(f'<div class="page-intro"><div><div class="eyebrow">KANTOR RAKUS / {escape(nav.upper())}</div><h1>{title}</h1><p>{description}</p></div><div class="page-count">03 ACCOUNTS<br><span style="color:#bac9d7;display:block;margin-top:6px">08 WALLETS / 03 EXCHANGES</span></div></div>')
     if 'view' in st.query_params:
         del st.query_params['view']
+
+    # ── JALUR CEPAT MENU SINYAL (INSTAN & STABIL TANPA KONEKSI DROP) ──
+    if nav == 'Sinyal':
+        sinyal_page()
+        html(f'<div class="footnote"><span>KANTOR RAKUS · BOT FINAL</span><span>ANALISA SINYAL 100+ KOIN · {datetime.now(WIB).strftime("%H:%M:%S WIB")}</span></div>')
+        return
     controls=st.columns([1.3,1,1.2,.7])
     with controls[0]:account_label=st.selectbox("Tampilan akun",["Semua akun","Akun 1","Akun 2","Akun 3"],key="account_filter")
     st.session_state['account']='all' if account_label=='Semua akun' else 'akun_'+account_label[-1]
