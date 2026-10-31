@@ -542,10 +542,13 @@ def get_signal_status(sig: dict, current_price: float) -> str:
     tp2 = float(sig["tp2"])
     tp3 = float(sig["tp3"])
 
+    # Catatan: Level Entry, SL, TP dikunci mati (tidak digeser).
+    # Evaluasi status berdasarkan posisi harga real-time terhadap limit:
     if d == "LONG":
-        # Sudah kena exit?
+        # Jika harga menembus batas bawah SL:
         if current_price <= sl:
             return "KENA_SL"
+        # Target bertingkat:
         if current_price >= tp3:
             return "TP3_HIT"
         if current_price >= tp2:
@@ -553,24 +556,29 @@ def get_signal_status(sig: dict, current_price: float) -> str:
         if current_price >= tp1:
             return "TP1_HIT"
 
-        dist_pct = (current_price - entry) / entry * 100
+        # Jarak harga saat ini terhadap limit order beli (entry):
+        dist_pct = ((current_price - entry) / entry) * 100.0
 
-        # Harga lari naik > 3% tanpa terisi entry → sinyal telat
-        if dist_pct > 3.0:
+        # Jika harga sudah lari terbang ke atas > 2.5% tanpa sempat menyentuh limit:
+        if dist_pct > 2.5:
             return "TELAT"
-        # Harga sudah di bawah atau dalam 0.5% entry → terisi
-        if current_price <= entry * 1.005:
-            # Sudah terisi, cek apakah harga masih di antara entry dan SL
+
+        # Jika harga saat ini menyentuh/berada di bawah limit buy (sampai batas SL):
+        if current_price <= entry:
             return "AKTIF"
-        # Harga dalam 0.5% di atas entry → mendekati
-        if current_price <= entry * 1.005:
+
+        # Jika harga berada sedikit di atas limit buy (dalam rentang 0.4%):
+        if dist_pct <= 0.4:
             return "MENDEKATI"
-        # Masih menunggu retrace
+
+        # Di atas rentang 0.4% s/d 2.5%: Sedang menunggu retrace/pullback
         return "SCANNING"
 
     else:  # SHORT
+        # Jika harga menembus batas atas SL:
         if current_price >= sl:
             return "KENA_SL"
+        # Target bertingkat:
         if current_price <= tp3:
             return "TP3_HIT"
         if current_price <= tp2:
@@ -578,13 +586,22 @@ def get_signal_status(sig: dict, current_price: float) -> str:
         if current_price <= tp1:
             return "TP1_HIT"
 
-        dist_pct = (entry - current_price) / entry * 100
+        # Jarak harga saat ini terhadap limit order jual (entry):
+        dist_pct = ((entry - current_price) / entry) * 100.0
 
-        # Harga drop > 3% tanpa terisi → telat
-        if dist_pct > 3.0:
+        # Jika harga sudah longsor jatuh ke bawah > 2.5% tanpa sempat menyentuh limit:
+        if dist_pct > 2.5:
             return "TELAT"
-        if current_price >= entry * 0.995:
+
+        # Jika harga saat ini menyentuh/berada di atas limit sell (sampai batas SL):
+        if current_price >= entry:
             return "AKTIF"
+
+        # Jika harga berada sedikit di bawah limit sell (dalam rentang 0.4%):
+        if dist_pct <= 0.4:
+            return "MENDEKATI"
+
+        # Di bawah rentang 0.4% s/d 2.5%: Sedang menunggu bounce/pullback
         return "SCANNING"
 
 
@@ -701,7 +718,32 @@ def get_cached_signals(max_age_minutes: int = 15) -> Optional[list[dict]]:
 
 
 def refresh_scan(progress_callback=None) -> list[dict]:
-    """Scan ulang 50 koin dan update cache."""
-    signals = scan_50_coins(progress_callback=progress_callback)
-    save_cache(signals)
-    return signals
+    """Scan 50 koin dan kunci level (Persistent Locked Setup). Level entry tidak berubah-ubah sebelum expired."""
+    cached = load_cache() or {}
+    old_signals = {s["symbol"]: s for s in cached.get("signals", [])}
+
+    fresh_signals = scan_50_coins(progress_callback=progress_callback)
+    now_ts = time.time()
+
+    merged = []
+    for sig in fresh_signals:
+        sym = sig["symbol"]
+        if sym in old_signals:
+            old = old_signals[sym]
+            # Jika sinyal lama masih dalam masa berlaku TTL dan belum expired:
+            if now_ts < old.get("valid_until", 0):
+                # KUNCI MATI level harga entry, TP, SL, waktu validitas agar tidak bergeser!
+                sig["entry"] = old["entry"]
+                sig["sl"] = old["sl"]
+                sig["tp1"] = old["tp1"]
+                sig["tp2"] = old["tp2"]
+                sig["tp3"] = old["tp3"]
+                sig["direction"] = old["direction"]
+                sig["generated_at"] = old.get("generated_at", sig.get("generated_at", now_ts))
+                sig["valid_until"] = old.get("valid_until", sig.get("valid_until", now_ts + 28800))
+                sig["valid_until_wib"] = old.get("valid_until_wib", sig.get("valid_until_wib"))
+        merged.append(sig)
+
+    merged.sort(key=lambda x: x["score"], reverse=True)
+    save_cache(merged)
+    return merged
