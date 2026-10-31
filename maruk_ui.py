@@ -333,6 +333,26 @@ def sinyal_page(summary=None):
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
         do_scan = st.button("🔄 Scan 100+ Koin", type="primary", use_container_width=True, key="sinyal_scan_btn")
 
+    # ── BAR AKSI CEPAT AUTO-BEP (Break-Even Lock) ────────────────────────
+    col_act1, col_act2, col_act3 = st.columns([1.6, 1.4, 1.0])
+    with col_act1:
+        if st.button("🛡️ Kunci BEP Semua Posisi Profit (Sekali Klik)", type="secondary", use_container_width=True, help="Otomatis geser Stop Loss ke harga Entry untuk semua posisi yang sedang floating profit di BingX"):
+            with st.spinner("Mengunci Stop Loss ke Entry (BEP) di bursa BingX..."):
+                bep_res = bingx_executor.apply_bep_to_profit_positions("akun_1", min_roe=5.0)
+                if bep_res.get("success"):
+                    st.success(f"✅ Selesai! {bep_res.get('msg')}")
+                    for d in bep_res.get("details", []):
+                        st.caption(d)
+                else:
+                    st.error(f"Gagal: {bep_res.get('msg')}")
+    with col_act2:
+        if st.button("❌ Batalkan Order Limit Web Saja", use_container_width=True, help="Batalkan antrean limit yang dipasang via web (order manual BingX tetap aman)"):
+            cancel_res = bingx_executor.cancel_web_orders_only("akun_1")
+            st.info(str(cancel_res))
+    with col_act3:
+        if st.button("↻ Refresh Layar", use_container_width=True):
+            st.rerun()
+
     # ── 3. AMBIL / REFRESH SINYAL MURNI ────────────────────────────────
     cache_key = "sinyal_signals"
     scan_time_key = "sinyal_scan_time"

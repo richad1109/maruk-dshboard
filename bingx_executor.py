@@ -524,3 +524,122 @@ def place_bingx_sniper_order(account_key: str, symbol_clean: str, direction: str
 
     except Exception as e:
         return {"success": False, "msg": f"Gagal pasang di BingX: {str(e)}"}
+
+
+def apply_bep_to_profit_positions(account_key: str = "akun_1", min_roe: float = 8.0) -> dict:
+    """
+    Otomatis geser Stop Loss ke harga modal (BEP / Break-Even) untuk SEMUA posisi yang sedang floating profit.
+    User tidak perlu lagi geser manual satu per satu di aplikasi BingX!
+    """
+    client = get_bingx_client(account_key)
+    if not client:
+        return {"success": False, "msg": f"Client BingX untuk {account_key} tidak ditemukan."}
+
+    results = []
+    try:
+        # 1. Ambil semua open orders yang ada saat ini
+        open_orders = client.fetch_open_orders()
+        
+        # Map symbol -> list of orders
+        existing_orders_map = {}
+        for o in open_orders:
+            sym_raw = o.get("symbol", "").split(":")[0].replace("/", "-")
+            existing_orders_map.setdefault(sym_raw, []).append(o)
+
+        # 2. Ambil semua active positions
+        resp = client.swapV2PrivateGetUserPositions()
+        positions = resp.get("data", [])
+
+        for p in positions:
+            amt = float(p.get("positionAmt") or 0)
+            if amt == 0:
+                continue
+            
+            sym = p.get("symbol", "")
+            base = sym.split("-")[0]
+            entry_p = float(p.get("avgPrice") or 0)
+            unrealized = float(p.get("unrealizedProfit") or 0)
+            leverage = float(p.get("leverage") or 20)
+            pos_side = str(p.get("positionSide", "SHORT")).upper()
+
+            # Hitung ROE
+            margin = (abs(amt) * entry_p) / (leverage + 1e-10)
+            roe = (unrealized / margin * 100.0) if margin > 0 else 0.0
+
+            # Cek apakah posisi sedang profit memenuhi syarat (ROE >= min_roe)
+            if unrealized > 0 and roe >= min_roe:
+                sym_clean = sym
+                sym_orders = existing_orders_map.get(sym_clean, []) + existing_orders_map.get(f"{base}/USDT:USDT", [])
+                
+                already_bep = False
+                old_sl_orders = []
+                for o in sym_orders:
+                    o_type = str(o.get("info", {}).get("type") or o.get("type", "")).upper()
+                    o_price = float(o.get("price") or o.get("stopPrice") or 0)
+                    if "STOP" in o_type:
+                        # Cek selisih harga dengan entry
+                        if abs(o_price - entry_p) / (entry_p + 1e-10) < 0.002:
+                            already_bep = True
+                        else:
+                            old_sl_orders.append(o)
+
+                if already_bep:
+                    results.append(f"🔒 {base}: Sudah terkunci di BEP ({entry_p})")
+                    continue
+
+                # Batalkan SL lama yang masih di level awal (rugi)
+                for old_o in old_sl_orders:
+                    try:
+                        client.cancel_order(old_o["id"], old_o.get("symbol"))
+                    except Exception:
+                        pass
+
+                # Pasang STOP_MARKET di harga Entry
+                order_side = "BUY" if pos_side == "SHORT" else "SELL"
+                ccxt_sym = f"{base}/USDT:USDT"
+                
+                bep_placed = False
+                # Cara 1: via endpoint swapV2 resmi BingX
+                try:
+                    price_str = client.price_to_precision(ccxt_sym, entry_p) if hasattr(client, 'price_to_precision') else str(entry_p)
+                    amt_str = client.amount_to_precision(ccxt_sym, abs(amt)) if hasattr(client, 'amount_to_precision') else str(abs(amt))
+                    client.swapV2PrivatePostTradeOrder({
+                        "symbol": sym,
+                        "type": "STOP_MARKET",
+                        "side": order_side,
+                        "positionSide": pos_side,
+                        "stopPrice": price_str,
+                        "quantity": amt_str,
+                    })
+                    results.append(f"🛡️ {base}: BERHASIL dikunci BEP @ {entry_p} (ROE +{roe:.1f}%)")
+                    bep_placed = True
+                except Exception:
+                    pass
+
+                # Cara 2: Fallback via CCXT create_order
+                if not bep_placed:
+                    try:
+                        client.create_order(
+                            symbol=ccxt_sym,
+                            type="market",
+                            side=order_side.lower(),
+                            amount=abs(amt),
+                            params={
+                                "stopLossPrice": entry_p,
+                                "positionSide": pos_side,
+                                "reduceOnly": True
+                            }
+                        )
+                        results.append(f"🛡️ {base}: BERHASIL dikunci BEP via CCXT @ {entry_p} (ROE +{roe:.1f}%)")
+                        bep_placed = True
+                    except Exception as e_ccxt:
+                        results.append(f"⚠️ {base}: Gagal pasang BEP ({str(e_ccxt)})")
+
+        return {
+            "success": True,
+            "count": len(results),
+            "details": results,
+            "msg": f"Diproses {len(results)} posisi profit." if results else "Belum ada posisi baru yang memenuhi target ROE profit untuk di-BEP."
+        }
+    except Exception as e:
+        return {"success": False, "msg": f"Error apply BEP: {str(e)}"}
