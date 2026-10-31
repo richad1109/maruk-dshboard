@@ -403,6 +403,26 @@ def sinyal_page():
         gen_wib = datetime.fromtimestamp(gen_ts, WIB_TZ).strftime("%H:%M WIB")
         vol_ratio = sig.get("vol_ratio", 0)
 
+        # Kalkulasi floating PnL (hanya relevan saat AKTIF/TP/SL)
+        if direction == "LONG":
+            float_pct = ((live_price - sig["entry"]) / (sig["entry"] + 1e-10)) * LEVERAGE_DISPLAY * 100
+        else:
+            float_pct = ((sig["entry"] - live_price) / (sig["entry"] + 1e-10)) * LEVERAGE_DISPLAY * 100
+        float_usd  = (abs(float_pct) / 100) * MARGIN_DISPLAY
+        float_sign = "+" if float_pct >= 0 else ""
+        float_color = "#00e676" if float_pct >= 0 else "#f44336"
+        float_icon  = "📈" if float_pct >= 0 else "📉"
+        # Hanya tampilkan floating jika posisi sudah aktif
+        if live_status in ("AKTIF", "MENDEKATI", "TP1_HIT", "TP2_HIT", "TP3_HIT", "KENA_SL"):
+            float_html = (
+                f'<span style="color:{float_color};font-size:13px;font-weight:700;margin-left:10px">' +
+                f'{float_icon} {float_sign}{float_pct:.1f}% ROE&nbsp;' +
+                f'<span style="font-size:11px;opacity:.8">({float_sign}${float_usd:.2f})</span></span>'
+            )
+        else:
+            float_html = ""
+
+
         # Score bar color
         if score >= 90:
             bar_color = "#ffd700"
@@ -433,7 +453,7 @@ def sinyal_page():
 <div class="sig-card {card_class}">
   <div class="sig-top">
     <div>
-      <span class="sig-sym">{coin}</span>
+      <span class="sig-sym">{coin}</span>{float_html}
       <span class="{dir_class}">{direction}</span>
       <span class="sig-status" style="background:{status_color}22;color:{status_color};border:1px solid {status_color}55">{status_lbl}</span>
     </div>
@@ -681,6 +701,7 @@ def main():
     html("<style>"+(ROOT/"assets/terminal.css").read_text(encoding="utf8")+"</style>")
     settings=secrets();stamp=datetime.now(WIB).strftime("%d %b %Y · %H:%M WIB")
     html(f'<div class="masthead"><div class="brand-wrap"><div class="brand-symbol"><svg viewBox="0 0 32 32"><path d="M6 6v20m0-10L24 6M12 13l13 13M21 7h5v7"/></svg></div><div><div class="brand">KANTOR<span>rakus.</span></div><div class="brand-sub">BOT SAKTI / PERSONAL TRADING FLOOR</div></div></div><div class="top-meta"><span>{stamp}</span><span class="chip neutral"><span class="dot"></span>REAL ACCOUNT MONITOR</span></div></div>')
+
     # === SISTEM LOGIN ADMIN (PW: Baumemek123) ===
     if "admin_logged_in" not in st.session_state:
         st.session_state["admin_logged_in"] = False
