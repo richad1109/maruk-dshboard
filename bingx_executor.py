@@ -833,9 +833,11 @@ def batch_place_all_valid_limits(signals: list, account_key: str = "akun_1", min
         if norm in seen_in_batch:
             continue
 
-        # Skip jika statusnya TELAT, EXPIRED, TP_HIT, atau KENA_SL
-        if status in ("TELAT", "EXPIRED", "TP1_HIT", "TP2_HIT", "TP3_HIT", "KENA_SL") or s.get("_is_real_tp"):
-            skipped_list.append(f"{sym} (Status {status})")
+        # Skip jika statusnya TELAT, EXPIRED, TP_HIT, KENA_SL — atau closed SL/TP resmi bursa
+        if (status in ("TELAT", "EXPIRED", "TP1_HIT", "TP2_HIT", "TP3_HIT", "KENA_SL")
+                or s.get("_is_real_tp")
+                or s.get("_is_real_sl")):
+            skipped_list.append(f"{sym} (Status {status} / closed)")
             continue
 
         if score >= min_score:

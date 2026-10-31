@@ -438,51 +438,130 @@ def sinyal_page(summary=None):
     live_bx = st.session_state.get('cached_live_bx', {})
     closed_bx = st.session_state.get('cached_closed_bx', [])
 
-    # Map closed trades (TP)
+    # Map closed trades: TP (income > 0) dan SL (income <= 0)
     tp_closed_map = {}
+    sl_closed_map = {}
     for ct in closed_bx:
+        sym_ct  = ct.get("symbol", "")
+        base_ct = ct.get("base", "")
         if ct.get("is_tp"):
-            tp_closed_map[ct["symbol"]] = ct
-            tp_closed_map[ct["base"]] = ct
+            tp_closed_map[sym_ct] = ct
+            if base_ct:
+                tp_closed_map[base_ct] = ct
+        else:
+            # income <= 0 berarti kena SL / loss
+            sl_closed_map[sym_ct] = ct
+            if base_ct:
+                sl_closed_map[base_ct] = ct
 
-    # Sisipkan SEMUA riwayat trade yang SUDAH TAKE PROFIT dari bursa BingX sebagai kartu permanen
-    # User ingin: Walaupun nanti ada sinyal RENDER baru yang discan, kartu RENDER yang sudah TP tetap ada (numpuk tidak apa-apa)
+    def _find_orig_sig(sym_ct):
+        """Cari sinyal scanner asli untuk koin ini (agar entry/tp/sl tidak hardcode)."""
+        base_ct = sym_ct.split("-")[0]
+        norm_ct = bingx_executor.normalize_coin_symbol(sym_ct)
+        for _s in all_signals:
+            _sn = bingx_executor.normalize_coin_symbol(_s.get("symbol", ""))
+            if (_s.get("symbol") == sym_ct
+                    or _s.get("symbol", "").split("-")[0] == base_ct
+                    or (_sn and _sn == norm_ct)):
+                return _s
+        return None
+
+    # ── INJECT kartu TP resmi bursa BingX ───────────────────────────────
     seen_tp_ids = set()
     for idx_ct, ct in enumerate(closed_bx):
+        if not ct.get("is_tp"):
+            continue
+        ct_uid = f"closed_tp_{ct['symbol']}_{ct.get('time', idx_ct)}"
+        if ct_uid in seen_tp_ids:
+            continue
+        seen_tp_ids.add(ct_uid)
+
+        orig_sig = _find_orig_sig(ct["symbol"])
+        time_wib_str = datetime.fromtimestamp(ct.get("time", time.time()*1000)/1000, WIB_TZ).strftime("%d/%m %H:%M WIB")
+        entry_v = orig_sig["entry"] if orig_sig else 0.0
+        sl_v    = orig_sig["sl"]    if orig_sig else 0.0
+        tp1_v   = orig_sig["tp1"]   if orig_sig else 0.0
+        tp2_v   = orig_sig["tp2"]   if orig_sig else 0.0
+        tp3_v   = orig_sig["tp3"]   if orig_sig else 0.0
+        dir_v   = orig_sig.get("direction", ct.get("direction","LONG")) if orig_sig else ct.get("direction","LONG")
+
+        all_signals.insert(0, {
+            "symbol": ct["symbol"],
+            "direction": dir_v,
+            "score": 99,
+            "entry": entry_v,
+            "current_price": entry_v,
+            "sl": sl_v,
+            "bep": orig_sig.get("bep", entry_v) if orig_sig else entry_v,
+            "tp1": tp1_v,
+            "tp2": tp2_v,
+            "tp3": tp3_v,
+            "rr": orig_sig.get("rr", 2.5) if orig_sig else 2.5,
+            "ker": orig_sig.get("ker", 0.42) if orig_sig else 0.42,
+            "rsi_4h": orig_sig.get("rsi_4h", 55.0) if orig_sig else 55.0,
+            "rsi_1h": orig_sig.get("rsi_1h", 55.0) if orig_sig else 55.0,
+            "vol_ratio": orig_sig.get("vol_ratio", 1.5) if orig_sig else 1.5,
+            "is_active": False,
+            "_is_real_tp": True,
+            "_real_income": ct.get("income", 0.0),
+            "_close_info": ct.get("info", "Take Profit"),
+            "_live_status": "TP1_HIT",
+            "_card_uid": ct_uid,
+            "reasons": [
+                f"🏆 Take Profit Resmi Berhasil Terpenuhi di BingX (+${ct.get('income', 0.0):.4f} USD)",
+                f"Waktu Eksekusi: {time_wib_str} · Posisi sukses cuan cair masuk dompet bursa"
+            ]
+        })
+
+    # ── INJECT kartu SL resmi bursa BingX (biar muncul di tab Kena SL) ──
+    seen_sl_ids = set()
+    for idx_ct, ct in enumerate(closed_bx):
         if ct.get("is_tp"):
-            ct_uid = f"closed_tp_{ct['symbol']}_{ct.get('time', idx_ct)}"
-            if ct_uid in seen_tp_ids:
-                continue
-            seen_tp_ids.add(ct_uid)
-            
-            time_wib_str = datetime.fromtimestamp(ct.get("time", time.time()*1000)/1000, WIB_TZ).strftime("%d/%m %H:%M WIB") if "WIB_TZ" in globals() else "Hari ini"
-            all_signals.insert(0, {
-                "symbol": ct["symbol"],
-                "direction": ct.get("direction", "SHORT"),
-                "score": 99,
-                "entry": 1.582 if "RENDER" in ct["symbol"] else 0.033,
-                "current_price": 1.565 if "RENDER" in ct["symbol"] else 0.032,
-                "sl": 1.62 if "RENDER" in ct["symbol"] else 0.034,
-                "bep": 1.575 if "RENDER" in ct["symbol"] else 0.0328,
-                "tp1": 1.565 if "RENDER" in ct["symbol"] else 0.0325,
-                "tp2": 1.55 if "RENDER" in ct["symbol"] else 0.032,
-                "tp3": 1.53 if "RENDER" in ct["symbol"] else 0.0315,
-                "rr": 2.5,
-                "ker": 0.42,
-                "rsi_4h": 68.5,
-                "rsi_1h": 70.0,
-                "vol_ratio": 1.8,
-                "is_active": False,
-                "_is_real_tp": True,
-                "_real_income": ct.get("income", 0.0),
-                "_close_info": ct.get("info", "Take Profit"),
-                "_live_status": "TP1_HIT",
-                "_card_uid": ct_uid,
-                "reasons": [
-                    f"🏆 Take Profit Resmi Berhasil Terpenuhi di BingX (+${ct.get('income', 0.0):.4f} USD)",
-                    f"Waktu Eksekusi: {time_wib_str} · Posisi sukses cuan cair masuk dompet bursa"
-                ]
-            })
+            continue
+        income_v = float(ct.get("income", 0.0))
+        if income_v == 0.0:
+            continue  # skip netral, bukan SL nyata
+        ct_uid = f"closed_sl_{ct['symbol']}_{ct.get('time', idx_ct)}"
+        if ct_uid in seen_sl_ids:
+            continue
+        seen_sl_ids.add(ct_uid)
+
+        orig_sig = _find_orig_sig(ct["symbol"])
+        time_wib_str = datetime.fromtimestamp(ct.get("time", time.time()*1000)/1000, WIB_TZ).strftime("%d/%m %H:%M WIB")
+        entry_v = orig_sig["entry"] if orig_sig else 0.0
+        sl_v    = orig_sig["sl"]    if orig_sig else 0.0
+        tp1_v   = orig_sig["tp1"]   if orig_sig else 0.0
+        tp2_v   = orig_sig["tp2"]   if orig_sig else 0.0
+        tp3_v   = orig_sig["tp3"]   if orig_sig else 0.0
+        dir_v   = orig_sig.get("direction", ct.get("direction","LONG")) if orig_sig else ct.get("direction","LONG")
+
+        all_signals.insert(0, {
+            "symbol": ct["symbol"],
+            "direction": dir_v,
+            "score": 60,
+            "entry": entry_v,
+            "current_price": entry_v,
+            "sl": sl_v,
+            "bep": entry_v,
+            "tp1": tp1_v,
+            "tp2": tp2_v,
+            "tp3": tp3_v,
+            "rr": orig_sig.get("rr", 1.5) if orig_sig else 1.5,
+            "ker": orig_sig.get("ker", 0.3) if orig_sig else 0.3,
+            "rsi_4h": orig_sig.get("rsi_4h", 50.0) if orig_sig else 50.0,
+            "rsi_1h": orig_sig.get("rsi_1h", 50.0) if orig_sig else 50.0,
+            "vol_ratio": orig_sig.get("vol_ratio", 1.0) if orig_sig else 1.0,
+            "is_active": False,
+            "_is_real_sl": True,
+            "_real_income": income_v,
+            "_close_info": ct.get("info", "Stop Loss"),
+            "_live_status": "KENA_SL",
+            "_card_uid": ct_uid,
+            "reasons": [
+                f"❌ Stop Loss Terpicu di BingX (Rugi: ${income_v:.4f} USD)",
+                f"Waktu SL: {time_wib_str} · Posisi telah ditutup otomatis oleh sistem proteksi"
+            ]
+        })
 
     # Sisipkan SEMUA posisi live yang sedang jalan di BingX ke all_signals (agar tidak ada koin aktif yang hilang!)
     existing_syms = {s["symbol"] for s in all_signals}
@@ -590,6 +669,8 @@ def sinyal_page(summary=None):
 
         if s.get("_is_real_tp"):
             st_key = "TP1_HIT"
+        elif s.get("_is_real_sl"):
+            st_key = "KENA_SL"
         elif is_pos_bursa:
             try:
                 tp1_v = float(s.get("tp1", 0))
@@ -676,7 +757,7 @@ def sinyal_page(summary=None):
     def match_signal_tab(s, tab_name: str) -> bool:
         st_val = s.get("_live_status", "SCANNING")
         is_tp = bool(s.get("_is_real_tp"))
-        is_sl = bool(s.get("_is_real_sl"))
+        is_sl = bool(s.get("_is_real_sl") or s.get("_live_status") == "KENA_SL_RESMI")
         is_pos_bx = bool(s.get("_in_bingx_pos") or s.get("_is_real_pos"))
         is_order_bx = bool(s.get("_in_bingx_order") or s.get("_is_open_order"))
         is_in_bx = is_pos_bx or is_order_bx
@@ -695,15 +776,17 @@ def sinyal_page(summary=None):
         if tab_name == "🎯 TP Cuan":
             return is_tp
 
-        # 2. Kena SL: Hanya yang sudah Stop Loss resmi bursa
+        # 2. Kena SL: Hanya yang sudah Stop Loss resmi bursa (real closed SL)
         if tab_name == "❌ Kena SL":
-            return is_sl
+            return is_sl or bool(s.get("_is_real_sl"))
 
         # 3. Posisi Sedang Aktif: Yang sudah antre kalau sudah kejemput -> PINDAH KE AKTIF!
+        #    KECUALIKAN koin yang kena SL / TP (sudah closed) agar tidak numpuk!
         if tab_name == "✅ Posisi Sedang Aktif":
             return is_pos_bx and not is_tp and not is_sl
 
         # 4. Sedang Antre Limit: Yang sudah dilimit -> PINDAH KE SEDANG ANTRE (Belum kejemput)!
+        #    KECUALIKAN koin yang kena SL (sudah closed di BingX)!
         if tab_name == "⏳ Sedang Antre Limit":
             return is_order_bx and not is_pos_bx and not is_tp and not is_sl and (st_val not in ("EXPIRED", "TELAT"))
 
@@ -788,6 +871,10 @@ def sinyal_page(summary=None):
             inc_val = sig.get("_real_income", 0.0)
             active_bx_badge = f'<span style="background:#ffd70022;color:#ffd700;border:1px solid #ffd700;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🏆 TP CUAN BINGX (+${inc_val:.4f} USD)</span>'
             float_html = f'<span style="color:#00e676;font-size:13px;font-weight:700;margin-left:10px">🎯 REALIZED CUAN (+${inc_val:.4f})</span>'
+        elif sig.get("_is_real_sl"):
+            inc_val = sig.get("_real_income", 0.0)
+            active_bx_badge = f'<span style="background:#f4433622;color:#f44336;border:1px solid #f44336;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">❌ KENA SL BINGX (${inc_val:.4f} USD)</span>'
+            float_html = f'<span style="color:#f44336;font-size:13px;font-weight:700;margin-left:10px">❌ SL HIT (${inc_val:.4f})</span>'
         elif is_pos_bingx:
             active_bx_badge = f'<span style="background:#00e67622;color:#00e676;border:1px solid #00e676;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🟢 LIVE POSISI BINGX ({acc_label})</span>'
         elif sig.get("_in_bingx_order"):
@@ -919,10 +1006,19 @@ def sinyal_page(summary=None):
 
         # ── 9. PANEL EKSEKUSI LIMIT ORDER BINGX ───────────────────────────
         if sig.get("_is_real_tp"):
-            # Jika kartu adalah riwayat sukses Take Profit resmi bursa
+            # Kartu riwayat Take Profit resmi bursa
             st.markdown(
                 f"<div style='background:#ffd70011;border:1px solid #ffd70044;border-radius:8px;padding:8px 12px;margin-top:6px;font-size:12px;color:#ffd700'>"
                 f"🏆 <strong>RIWAYAT TAKE PROFIT SUKSES:</strong> Trade {coin} telah berhasil cair senilai <strong>+${sig.get('_real_income', 0.0):.4f} USDT</strong> di bursa BingX."
+                f"</div>",
+                unsafe_allow_html=True
+            )
+        elif sig.get("_is_real_sl"):
+            # Kartu riwayat Stop Loss resmi bursa
+            inc_val = sig.get("_real_income", 0.0)
+            st.markdown(
+                f"<div style='background:#f4433611;border:1px solid #f4433644;border-radius:8px;padding:8px 12px;margin-top:6px;font-size:12px;color:#f44336'>"
+                f"❌ <strong>RIWAYAT STOP LOSS:</strong> Trade {coin} ditutup oleh sistem proteksi SL · Rugi terealisasi: <strong>${inc_val:.4f} USDT</strong>. Posisi sudah aman tertutup di bursa BingX."
                 f"</div>",
                 unsafe_allow_html=True
             )
