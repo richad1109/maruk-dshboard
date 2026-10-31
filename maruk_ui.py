@@ -240,6 +240,8 @@ def overview(snapshot,info,summary,base):
 # ═══════════════════════════════════════════════════════════════════════
 def sinyal_page():
     """Halaman sinyal limit order 50 koin BingX dengan scoring 1-100."""
+    LEVERAGE_DISPLAY = 20   # asumsi leverage untuk kalkulasi ROE
+    MARGIN_DISPLAY   = 2.0  # asumsi margin per trade (USD)
 
     # ── CSS Kartu Sinyal ────────────────────────────────────────────────
     st.markdown("""
