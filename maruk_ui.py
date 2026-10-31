@@ -1009,14 +1009,12 @@ def main():
         sinyal_page()
         html(f'<div class="footnote"><span>KANTOR RAKUS · BOT FINAL</span><span>ANALISA SINYAL 100+ KOIN · {datetime.now(WIB).strftime("%H:%M:%S WIB")}</span></div>')
         return
-    controls=st.columns([1.3,1,1.2,.7])
+    controls=st.columns([1.5, 1.2, 0.8])
     with controls[0]:account_label=st.selectbox("Tampilan akun",["Semua akun","Akun 1","Akun 2","Akun 3"],key="account_filter")
     st.session_state['account']='all' if account_label=='Semua akun' else 'akun_'+account_label[-1]
     with controls[1]:base=st.selectbox("Pasar",['BTC','ETH','SOL','BNB','DOGE','ADA'],key='market_filter')
-    with controls[2]:auto=st.toggle("Pembaruan otomatis · 15 dtk",value=True,key='auto_refresh')
-    with controls[3]:
-        if st.button('↻ Refresh',width='stretch'):portfolio.clear();market.clear()
-    @st.fragment(run_every=15 if auto else None)
+    with controls[2]:
+        if st.button('↻ Refresh Manual',width='stretch'):portfolio.clear();market.clear();st.rerun()
     def body():
         config=data.credentials(settings)
         fingerprint=hashlib.sha256(json.dumps(config,sort_keys=True).encode()).hexdigest()
