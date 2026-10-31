@@ -402,6 +402,13 @@ def sinyal_page(summary=None):
     live_bx = st.session_state.get('cached_live_bx', {})
     closed_bx = st.session_state.get('cached_closed_bx', [])
 
+    # Map closed trades (TP)
+    tp_closed_map = {}
+    for ct in closed_bx:
+        if ct.get("is_tp"):
+            tp_closed_map[ct["symbol"]] = ct
+            tp_closed_map[ct["base"]] = ct
+
     # Sisipkan SEMUA riwayat trade yang SUDAH TAKE PROFIT dari bursa BingX sebagai kartu permanen
     # User ingin: Walaupun nanti ada sinyal RENDER baru yang discan, kartu RENDER yang sudah TP tetap ada (numpuk tidak apa-apa)
     seen_tp_ids = set()
@@ -459,8 +466,7 @@ def sinyal_page(summary=None):
             s["_real_income"] = ct_info.get("income", 0.0)
             s["_close_info"] = ct_info.get("info", "Take Profit")
             s["_live_status"] = "TP1_HIT"
-        sym = s["symbol"]
-        base = sym.replace("-USDT", "").replace("1000", "")
+
         cp = bulk_prices.get(sym) or bulk_prices.get(base) or s.get("current_price") or 0.0
         s["_live_price"] = cp
 
