@@ -25,7 +25,8 @@ PALETTE=["#b9df8a","#91b4c8","#d8bb87"]
 PAGE={"Ringkasan":("Semua akun. Satu pandangan.","Pantau portofolio, pergerakan pasar, dan posisi dalam satu ruang."),
       "Posisi & Bursa":("Setiap posisi, lebih jelas.","Detail eksposur dan koneksi delapan wallet di tiga bursa."),
       "Bot Sakti":("Satu sistem. Setiap langkah terpantau.","Jurnal Termux terenkripsi, peringatan proteksi, dan status Bot Final."),
-      "Sinyal":("50 koin. Sniper presisi.","Sinyal limit order multi-konfirmasi dari BingX. Skor 1-100, status real-time, TP1/2/3 otomatis.")}
+      "Sinyal":("50 koin. Sniper presisi.","Sinyal limit order multi-konfirmasi dari BingX. Skor 1-100, status real-time, TP1/2/3 otomatis."),
+      "⚡ Belum Limit BingX":("Koin Siap Limit. Bebas Double Order.","Daftar koin sinyal valid yang 100% belum dipasang limit dan belum open posisi di BingX.")}
 
 CUSTOM_BALANCE_FILE = ROOT / "assets" / "custom_display_balance.json"
 
@@ -239,7 +240,7 @@ def overview(snapshot,info,summary,base):
 # ═══════════════════════════════════════════════════════════════════════
 # HALAMAN SINYAL — Multi-Confirmation Sniper Limit Order Signal Room
 # ═══════════════════════════════════════════════════════════════════════
-def sinyal_page(summary=None):
+def sinyal_page(summary=None, default_tab=None):
     """Halaman Analisa Sinyal Limit Order Kripto BingX Berbasis Multi-Konfirmasi Teknikal Kuantitatif."""
     LEVERAGE_DISPLAY = 20   # asumsi leverage untuk kalkulasi ROE
     MARGIN_DISPLAY   = 0.20  # asumsi margin per trade (USD)
@@ -666,9 +667,17 @@ def sinyal_page(summary=None):
         "💀 Expired"
     ]
 
+    tab_default_index = 0
+    if default_tab:
+        for idx_t, tc in enumerate(tab_categories):
+            if tc == default_tab:
+                tab_default_index = idx_t
+                break
+
+    radio_key = f"sinyal_status_tab_{default_tab}" if default_tab else "sinyal_status_tab"
     tab_labels = [f"{k} ({sum(1 for s in all_signals if match_signal_tab(s, k))})" for k in tab_categories]
     selected_tab_idx = st.radio(
-        "Filter Status", tab_labels, horizontal=True, key="sinyal_status_tab",
+        "Filter Status", tab_labels, index=tab_default_index, horizontal=True, key=radio_key,
         label_visibility="collapsed"
     )
     selected_tab_key = selected_tab_idx.split(" (")[0]
@@ -1224,10 +1233,14 @@ def main():
     if 'view' in st.query_params:
         del st.query_params['view']
 
-    # ── JALUR CEPAT MENU SINYAL (INSTAN & STABIL TANPA KONEKSI DROP) ──
+    # ── JALUR CEPAT MENU SINYAL & MENU BELUM LIMIT BINGX ──
     if nav == 'Sinyal':
         sinyal_page()
         html(f'<div class="footnote"><span>KANTOR RAKUS · BOT FINAL</span><span>ANALISA SINYAL 100+ KOIN · {datetime.now(WIB).strftime("%H:%M:%S WIB")}</span></div>')
+        return
+    if nav == '⚡ Belum Limit BingX':
+        sinyal_page(default_tab="⚡ Siap Pasang Limit (Belum di BingX)")
+        html(f'<div class="footnote"><span>KANTOR RAKUS · BOT FINAL</span><span>KOIN SIAP PASANG LIMIT BINGX · {datetime.now(WIB).strftime("%H:%M:%S WIB")}</span></div>')
         return
     controls=st.columns([1.5, 1.2, 0.8])
     with controls[0]:account_label=st.selectbox("Tampilan akun",["Semua akun","Akun 1","Akun 2","Akun 3"],key="account_filter")
