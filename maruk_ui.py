@@ -445,14 +445,30 @@ def sinyal_page():
         gen_wib = datetime.fromtimestamp(gen_ts, WIB_TZ).strftime("%H:%M WIB")
         vol_ratio = sig.get("vol_ratio", 0)
 
-        # Cek apakah koin ini sudah terpasang/aktif di bursa BingX
+        # Cek apakah koin ini sudah terpasang/aktif di bursa BingX (dari live bursa & state)
+        if "live_bingx_coins" not in st.session_state:
+            try:
+                st.session_state["live_bingx_coins"] = bingx_executor.fetch_live_active_bingx_coins()
+            except Exception:
+                st.session_state["live_bingx_coins"] = {}
+
+        live_bx = st.session_state.get("live_bingx_coins", {})
         bx_state = bingx_executor.load_bingx_order_state()
         active_bx_badge = ""
-        for acc_k, acc_lbl in [("akun_1", "Akun 1"), ("akun_2", "Akun 2"), ("akun_3", "Akun 3")]:
-            rec = bx_state.get(f"{acc_k}_{sym}")
-            if rec and rec.get("status") == "SUKSES_BINGX":
-                active_bx_badge = f'<span style="background:#00e67622;color:#00e676;border:1px solid #00e676;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🟢 AKTIF BINGX ({acc_lbl})</span>'
-                break
+
+        # 1. Cek di posisi/order riil bursa BingX
+        if coin in live_bx or sym in live_bx:
+            info_bx = live_bx.get(coin) or live_bx.get(sym)
+            acc_name = str(info_bx.get("account", "akun_1")).replace("akun_", "Akun ")
+            tipe = "POSISI" if info_bx.get("type") == "POSITION" else "ORDER"
+            active_bx_badge = f'<span style="background:#00e67622;color:#00e676;border:1px solid #00e676;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🟢 AKTIF BINGX ({acc_name})</span>'
+        else:
+            # 2. Cek di file order state
+            for acc_k, acc_lbl in [("akun_1", "Akun 1"), ("akun_2", "Akun 2"), ("akun_3", "Akun 3")]:
+                rec = bx_state.get(f"{acc_k}_{sym}")
+                if rec and rec.get("status") == "SUKSES_BINGX":
+                    active_bx_badge = f'<span style="background:#00e67622;color:#00e676;border:1px solid #00e676;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🟢 AKTIF BINGX ({acc_lbl})</span>'
+                    break
 
         # Kalkulasi floating PnL (hanya relevan saat AKTIF/TP/SL)
         if direction == "LONG":

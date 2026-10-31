@@ -5,6 +5,7 @@ Eksekutor Order BingX Futures Resmi:
 - Eksekusi Limit Order + Take Profit (TP1/TP2/TP3) + Stop Loss otomatis
 - Dukungan Akun 1, Akun 2, Akun 3
 - Pencatatan status persisten sukses di disk & state
+- Membaca credentials dari Streamlit Cloud secrets (st.secrets) secara native
 """
 
 import os
@@ -20,7 +21,20 @@ SECRETS_FILE = ROOT / ".streamlit" / "secrets.toml"
 STATE_FILE = ROOT / "assets" / "bingx_orders_state.json"
 
 def get_accounts_credentials():
-    """Ambil credentials 3 akun BingX dari secrets.toml atau environment."""
+    """Ambil credentials 3 akun BingX dari Streamlit Cloud Secrets (st.secrets) atau secrets.toml lokal."""
+    # 1. Prioritaskan Streamlit Cloud Native Secrets
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets"):
+            raw = st.secrets.get("accounts_json")
+            if raw:
+                return json.loads(raw) if isinstance(raw, str) else raw
+            if "accounts" in st.secrets:
+                return dict(st.secrets["accounts"])
+    except Exception:
+        pass
+
+    # 2. File secrets.toml lokal
     try:
         import toml
         if SECRETS_FILE.exists():
@@ -31,7 +45,7 @@ def get_accounts_credentials():
     except Exception:
         pass
     
-    # Fallback env
+    # 3. Environment Variable
     raw = os.getenv("MARUK_ACCOUNTS_JSON")
     if raw:
         try:
@@ -70,17 +84,48 @@ def get_bingx_client(account_key: str):
     })
     return client
 
+def fetch_live_active_bingx_coins():
+    """Membaca posisi aktif dan open orders riil langsung dari bursa BingX semua akun."""
+    active_map = {}
+    accs = get_accounts_credentials()
+    for acc_k in ["akun_1", "akun_2", "akun_3"]:
+        if acc_k not in accs or "BingX" not in accs[acc_k]:
+            continue
+        try:
+            client = get_bingx_client(acc_k)
+            if not client:
+                continue
+            # Baca posisi aktif
+            pos = client.fetch_positions()
+            for p in pos:
+                contracts = float(p.get("contracts") or p.get("size") or 0)
+                if contracts > 0:
+                    sym_clean = p["symbol"].split(":")[0].replace("/", "-")
+                    base = sym_clean.split("-")[0]
+                    active_map[sym_clean] = {"account": acc_k, "side": p.get("side"), "type": "POSITION", "contracts": contracts}
+                    active_map[base] = {"account": acc_k, "side": p.get("side"), "type": "POSITION", "contracts": contracts}
+            # Baca open orders (limit antre)
+            orders = client.fetch_open_orders()
+            for o in orders:
+                sym_clean = o["symbol"].split(":")[0].replace("/", "-")
+                base = sym_clean.split("-")[0]
+                if sym_clean not in active_map:
+                    active_map[sym_clean] = {"account": acc_k, "side": o.get("side"), "type": "ORDER", "price": o.get("price")}
+                if base not in active_map:
+                    active_map[base] = {"account": acc_k, "side": o.get("side"), "type": "ORDER", "price": o.get("price")}
+        except Exception:
+            pass
+    return active_map
+
 def place_bingx_sniper_order(account_key: str, symbol_clean: str, direction: str, 
                              entry_price: float, sl_price: float, tp_price: float, 
                              tp_choice_label: str = "TP1", margin_usd: float = 0.20, leverage: int = 20):
     """
     Pasang Limit Order di BingX Futures dengan Stop Loss dan Take Profit otomatis.
-    symbol_clean: misal 'BTC-USDT' atau 'DOGE-USDT'
-    direction: 'LONG' atau 'SHORT'
     """
     client = get_bingx_client(account_key)
     if not client:
-        return {"success": False, "msg": f"Credentials BingX untuk {account_key} tidak ditemukan."}
+        return {"success": False, "msg": f"Credentials BingX untuk {account_key} tidak ditemukan pada konfigurasi server."}
 
     # Format CCXT symbol: 'BTC/USDT:USDT'
     base = symbol_clean.replace("-USDT", "").replace("USDT", "")
@@ -89,7 +134,6 @@ def place_bingx_sniper_order(account_key: str, symbol_clean: str, direction: str
     try:
         markets = client.load_markets()
         if ccxt_symbol not in markets:
-            # Cari alternatif
             matched = [s for s in markets if base in s and ":USDT" in s]
             if matched:
                 ccxt_symbol = matched[0]
@@ -98,22 +142,18 @@ def place_bingx_sniper_order(account_key: str, symbol_clean: str, direction: str
 
         market = markets[ccxt_symbol]
 
-        # Set Leverage ke 20x (Isolated)
+        # Set Leverage ke 20x
         try:
             client.set_leverage(leverage, ccxt_symbol, params={"side": "BOTH"})
         except Exception:
             pass
 
-        # Hitung quantity:
-        # Notional volume = Margin * Leverage (contoh $0.20 * 20 = $4.00 USD)
         target_notional = max(margin_usd * leverage, float(market.get("limits", {}).get("cost", {}).get("min") or 2.0))
         raw_amount = target_notional / (entry_price + 1e-10)
 
-        # Min amount
         min_amount = float(market.get("limits", {}).get("amount", {}).get("min") or 0.0)
         amount = max(raw_amount, min_amount)
 
-        # Precision round
         amount = float(client.amount_to_precision(ccxt_symbol, amount))
         entry_price = float(client.price_to_precision(ccxt_symbol, entry_price))
         sl_price = float(client.price_to_precision(ccxt_symbol, sl_price))
@@ -122,7 +162,6 @@ def place_bingx_sniper_order(account_key: str, symbol_clean: str, direction: str
         side = "buy" if direction.upper() == "LONG" else "sell"
         position_side = "LONG" if direction.upper() == "LONG" else "SHORT"
 
-        # Parameters untuk bracket TP/SL otomatis di BingX
         params = {
             "positionSide": position_side,
             "stopLoss": {
@@ -135,7 +174,6 @@ def place_bingx_sniper_order(account_key: str, symbol_clean: str, direction: str
             }
         }
 
-        # Eksekusi Limit Order
         order = client.create_order(
             symbol=ccxt_symbol,
             type="limit",
@@ -148,7 +186,6 @@ def place_bingx_sniper_order(account_key: str, symbol_clean: str, direction: str
         order_id = str(order.get("id", ""))
         now_str = datetime.now(WIB).strftime("%H:%M:%S WIB")
 
-        # Catat status sukses ke file persisten
         state = load_bingx_order_state()
         state_key = f"{account_key}_{symbol_clean}"
         state[state_key] = {
@@ -179,5 +216,4 @@ def place_bingx_sniper_order(account_key: str, symbol_clean: str, direction: str
         }
 
     except Exception as e:
-        err_msg = str(e)
-        return {"success": False, "msg": f"Gagal pasang di BingX: {err_msg}"}
+        return {"success": False, "msg": f"Gagal pasang di BingX: {str(e)}"}
