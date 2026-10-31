@@ -333,16 +333,22 @@ def sinyal_page(summary=None):
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
         do_scan = st.button("🔄 Scan 100+ Koin", type="primary", use_container_width=True, key="sinyal_scan_btn")
 
-    # ── BAR AKSI CEPAT AUTO-BEP (Break-Even Lock) ────────────────────────
-    col_act1, col_act2, col_act3 = st.columns([1.6, 1.4, 1.0])
+    # ── BAR AKSI CEPAT AUTO-BEP SESUAI ATURAN BACKTEST (+0.8R / ROE >= +25%) ───
+    col_act1, col_act2, col_act3 = st.columns([1.8, 1.3, 1.0])
     with col_act1:
-        if st.button("🛡️ Kunci BEP Semua Posisi Profit (Sekali Klik)", type="secondary", use_container_width=True, help="Otomatis geser Stop Loss ke harga Entry untuk semua posisi yang sedang floating profit di BingX"):
-            with st.spinner("Mengunci Stop Loss ke Entry (BEP) di bursa BingX..."):
-                bep_res = bingx_executor.apply_bep_to_profit_positions("akun_1", min_roe=5.0)
+        if st.button("🛡️ Kunci BEP Sesuai Aturan (+0.8R / ROE ≥ +25%)", type="secondary", use_container_width=True, help="HANYA geser SL ke Entry jika posisi sudah tembus +0.8R / ROE >= +25%. Posisi profit tipis tetap dijaga SL awalnya agar momentum tidak terbunuh oleh retest modal!"):
+            with st.spinner("Memeriksa posisi & mengunci BEP sesuai aturan baku backtest (+0.8R / ROE >= 25%)..."):
+                bep_res = bingx_executor.apply_bep_to_profit_positions("akun_1", min_roe=25.0)
                 if bep_res.get("success"):
-                    st.success(f"✅ Selesai! {bep_res.get('msg')}")
-                    for d in bep_res.get("details", []):
-                        st.caption(d)
+                    st.success(f"🎯 **{bep_res.get('msg')}**")
+                    if bep_res.get("details"):
+                        st.markdown("**Posisi Terkunci BEP Aman (+0.8R):**")
+                        for d in bep_res.get("details", []):
+                            st.caption(d)
+                    if bep_res.get("skipped"):
+                        with st.expander("ℹ️ Posisi Dijaga Momentum (SL Awal Tetap Aktif)"):
+                            for sk in bep_res.get("skipped", []):
+                                st.caption(sk)
                 else:
                     st.error(f"Gagal: {bep_res.get('msg')}")
     with col_act2:
