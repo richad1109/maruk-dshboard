@@ -337,12 +337,7 @@ def sinyal_page():
     sym_tuple = tuple(s["symbol"] for s in all_signals)
     live_prices = get_prices(sym_tuple) if sym_tuple else {}
 
-    # ── Filter ─────────────────────────────────────────────────────────
-    filtered = [
-        s for s in all_signals
-        if s["score"] >= filter_min_score
-        and (filter_dir == "Semua" or s["direction"] == filter_dir)
-    ]
+    # Filter ditangani oleh tab status di bawah
 
     # ── Status setiap sinyal ────────────────────────────────────────────
     status_counts = {"SCANNING": 0, "AKTIF": 0, "MENDEKATI": 0,
@@ -371,6 +366,50 @@ def sinyal_page():
   <div class="scan-summary-item"><strong style="color:#5a7a9a">{scan_age_min}m</strong>Usia Cache</div>
 </div>
 """, unsafe_allow_html=True)
+
+    # ── Tab Filter Status ─────────────────────────────────────────────
+    status_map = {
+        "🔍 Semua":       None,
+        "⏳ Menunggu/Scan": ["SCANNING"],
+        "✅ Posisi Aktif":  ["AKTIF", "MENDEKATI"],
+        "⏰ Telat":        ["TELAT"],
+        "🎯 TP Cuan":     ["TP1_HIT", "TP2_HIT", "TP3_HIT"],
+        "❌ Kena SL":     ["KENA_SL"],
+        "💀 Expired":     ["EXPIRED"],
+    }
+
+    # Hitung jumlah per tab
+    def count_tab(statuses):
+        if statuses is None:
+            return len([s for s in all_signals if s["score"] >= filter_min_score
+                        and (filter_dir == "Semua" or s["direction"] == filter_dir)])
+        return len([s for s in all_signals if s.get("_live_status") in statuses
+                    and s["score"] >= filter_min_score
+                    and (filter_dir == "Semua" or s["direction"] == filter_dir)])
+
+    tab_labels = [f"{k} ({count_tab(v)})" for k, v in status_map.items()]
+    selected_tab_idx = st.radio(
+        "Filter Status", tab_labels, horizontal=True, key="sinyal_status_tab",
+        label_visibility="collapsed"
+    )
+    # Ambil nama tab (tanpa angka)
+    selected_tab_key = selected_tab_idx.split(" (")[0]
+    selected_statuses = status_map.get(selected_tab_key)
+
+    # Filter berdasarkan tab
+    if selected_statuses is None:
+        filtered = [
+            s for s in all_signals
+            if s["score"] >= filter_min_score
+            and (filter_dir == "Semua" or s["direction"] == filter_dir)
+        ]
+    else:
+        filtered = [
+            s for s in all_signals
+            if s.get("_live_status") in selected_statuses
+            and s["score"] >= filter_min_score
+            and (filter_dir == "Semua" or s["direction"] == filter_dir)
+        ]
 
     if not filtered:
         st.markdown("""
