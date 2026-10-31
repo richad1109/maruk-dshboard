@@ -394,8 +394,23 @@ def sinyal_page(summary=None):
                 s["_real_pnl"] = info_bx.get("pnl", 0)
                 s["_real_acc"] = str(info_bx.get("account", "akun_1")).replace("akun_", "Akun ")
 
-        if is_active_bursa:
-            st_key = "AKTIF"
+        if is_active_bursa or s.get("is_active"):
+            try:
+                tp1_v = float(s.get("tp1", 0))
+                sl_v = float(s.get("sl", 0))
+                d = s.get("direction", "LONG")
+                if d == "SHORT" and cp <= tp1_v and tp1_v > 0:
+                    st_key = "TP1_HIT"
+                elif d == "LONG" and cp >= tp1_v and tp1_v > 0:
+                    st_key = "TP1_HIT"
+                elif d == "SHORT" and cp >= sl_v and sl_v > 0:
+                    st_key = "KENA_SL"
+                elif d == "LONG" and cp <= sl_v and sl_v > 0:
+                    st_key = "KENA_SL"
+                else:
+                    st_key = "AKTIF"
+            except Exception:
+                st_key = "AKTIF"
         else:
             st_key = sinyal_engine.get_signal_status(s, cp)
 
@@ -430,16 +445,33 @@ def sinyal_page(summary=None):
     long_count = sum(1 for s in all_signals if s.get("direction") == "LONG")
     short_count = sum(1 for s in all_signals if s.get("direction") == "SHORT")
 
+        # ── 5.1 BACA PnL REALISASI & UNREALISASI BINGX (CACHED 60s) ────────
+    if 'cached_pnl_data' not in st.session_state or (time.time() - st.session_state.get('cached_pnl_time', 0)) > 60:
+        try:
+            st.session_state['cached_pnl_data'] = bingx_executor.fetch_comprehensive_pnl("akun_1")
+        except Exception:
+            st.session_state['cached_pnl_data'] = {}
+        st.session_state['cached_pnl_time'] = time.time()
+    pnl_summary = st.session_state.get('cached_pnl_data', {})
+
+    real_pnl = pnl_summary.get('realized_total', 0.0)
+    float_pnl = pnl_summary.get('unrealized_total', 0.0)
+    real_color = "#00e676" if real_pnl >= 0 else "#f44336"
+    real_sign = "+" if real_pnl >= 0 else ""
+    float_color = "#00e676" if float_pnl >= 0 else "#f44336"
+    float_sign = "+" if float_pnl >= 0 else ""
+
     # ── 6. RINGKASAN SCAN ANALISA ───────────────────────────────────────
     st.markdown(f"""
 <div class="scan-summary">
-  <div class="scan-summary-item"><strong>{len(all_signals)}</strong>Sinyal Valid Teranalisa</div>
+  <div class="scan-summary-item"><strong>{len(all_signals)}</strong>Sinyal Teranalisa</div>
+  <div class="scan-summary-item"><strong style="color:{real_color}">{real_sign}${real_pnl:.2f}</strong>PnL Realisasi (Cair)</div>
+  <div class="scan-summary-item"><strong style="color:{float_color}">{float_sign}${float_pnl:.2f}</strong>PnL Floating (Jalan)</div>
+  <div class="scan-summary-item"><strong style="color:#4caf50">{status_counts.get('AKTIF',0)}</strong>Posisi Aktif</div>
+  <div class="scan-summary-item"><strong style="color:#00e676">{status_counts.get('TP1_HIT',0)+status_counts.get('TP2_HIT',0)+status_counts.get('TP3_HIT',0)}</strong>TP Hit (Cuan)</div>
+  <div class="scan-summary-item"><strong style="color:#f44336">{status_counts.get('KENA_SL',0)}</strong>SL Hit</div>
   <div class="scan-summary-item"><strong style="color:#00e676">{long_count}</strong>LONG</div>
   <div class="scan-summary-item"><strong style="color:#f44336">{short_count}</strong>SHORT</div>
-  <div class="scan-summary-item"><strong style="color:#4caf50">{status_counts.get('AKTIF',0)}</strong>Posisi Aktif</div>
-  <div class="scan-summary-item"><strong style="color:#f0c040">{status_counts.get('MENDEKATI',0)}</strong>Mendekati Limit</div>
-  <div class="scan-summary-item"><strong style="color:#00e676">{status_counts.get('TP1_HIT',0)+status_counts.get('TP2_HIT',0)+status_counts.get('TP3_HIT',0)}</strong>TP Hit</div>
-  <div class="scan-summary-item"><strong style="color:#f44336">{status_counts.get('KENA_SL',0)}</strong>SL Hit</div>
   <div class="scan-summary-item"><strong style="color:#5a7a9a">{scan_age_min}m</strong>Usia Cache</div>
 </div>
 """, unsafe_allow_html=True)
