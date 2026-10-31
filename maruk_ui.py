@@ -446,13 +446,13 @@ def sinyal_page(summary=None):
 
     # ── 7. TAB FILTER STATUS ───────────────────────────────────────────
     status_map = {
-        "🔍 Semua":       None,
-        "⏳ Menunggu/Scan": ["SCANNING"],
-        "✅ Posisi Aktif":  ["AKTIF", "MENDEKATI"],
-        "🎯 TP Cuan":     ["TP1_HIT", "TP2_HIT", "TP3_HIT"],
-        "❌ Kena SL":     ["KENA_SL"],
-        "⏰ Telat":        ["TELAT"],
-        "💀 Expired":     ["EXPIRED"],
+        "🔍 Semua":              None,
+        "⏳ Menunggu/Scan":        ["SCANNING"],
+        "✅ Posisi Aktif":         ["AKTIF", "MENDEKATI"],
+        "🎯 TP Cuan":            ["TP1_HIT", "TP2_HIT", "TP3_HIT"],
+        "❌ Kena SL":            ["KENA_SL"],
+        "⏰ Telat (Lari Duluan)":  ["TELAT"],
+        "💀 Expired (Waktu Habis)":["EXPIRED"],
     }
 
     def count_tab(statuses):
@@ -590,10 +590,20 @@ def sinyal_page(summary=None):
 
         if direction == "LONG":
             dist_to_entry = ((live_price - entry) / (entry + 1e-10) * 100)
-            dist_str = f"▲{dist_to_entry:.2f}% dari entry" if dist_to_entry > 0 else f"✅ Di entry"
         else:
             dist_to_entry = ((entry - live_price) / (entry + 1e-10) * 100)
-            dist_str = f"▲{dist_to_entry:.2f}% ke entry" if dist_to_entry > 0 else f"✅ Di entry"
+
+        if live_status == "TELAT":
+            if direction == "LONG":
+                dist_str = f"🚀 Sudah pump duluan (+{dist_to_entry:.1f}%), telat entry!"
+            else:
+                dist_str = f"📉 Sudah terjun duluan (-{dist_to_entry:.1f}%), telat entry!"
+        elif live_status == "EXPIRED":
+            dist_str = f"⌛ Waktu habis (s/d {valid_wib}), order tidak pernah tersentuh"
+        elif direction == "LONG":
+            dist_str = f"▲ {dist_to_entry:.2f}% di atas entry" if dist_to_entry > 0 else f"✅ Di entry limit"
+        else:
+            dist_str = f"▼ {dist_to_entry:.2f}% di bawah entry" if dist_to_entry > 0 else f"✅ Di entry limit" 
 
         reasons_html = "".join(f'<div class="sig-reason-item">• {r}</div>' for r in reasons)
 

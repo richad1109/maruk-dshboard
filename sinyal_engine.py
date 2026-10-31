@@ -655,15 +655,15 @@ def get_signal_status(sig: dict, current_price: float) -> str:
 def status_label(status: str) -> tuple[str, str]:
     """Return (label, hex_color) untuk status sinyal."""
     MAP = {
-        "SCANNING":  ("🔍 SCANNING BINGX",     "#7ec8e3"),
-        "MENDEKATI": ("⚡ MENDEKATI LIMIT",    "#f0c040"),
-        "AKTIF":     ("✅ AKTIF DI BINGX",     "#4caf50"),
-        "TP1_HIT":   ("🎯 DONE TP1 (AMBIL 70%)", "#00e676"),
-        "TP2_HIT":   ("🎯🎯 DONE TP2 (RUNNER)",  "#00bcd4"),
-        "TP3_HIT":   ("💰 DONE TP3 (JACKPOT)",  "#ffd700"),
-        "KENA_SL":   ("❌ KENA SL DI BINGX",   "#f44336"),
-        "TELAT":     ("⏰ TELAT / HARGA LARI",  "#9e9e9e"),
-        "EXPIRED":   ("💀 EXPIRED",             "#616161"),
+        "SCANNING":  ("🔍 SCANNING BINGX",        "#7ec8e3"),
+        "MENDEKATI": ("⚡ MENDEKATI LIMIT",       "#f0c040"),
+        "AKTIF":     ("✅ AKTIF DI BINGX",        "#4caf50"),
+        "TP1_HIT":   ("🎯 DONE TP1 (AMBIL 70%)",  "#00e676"),
+        "TP2_HIT":   ("🎯🎯 DONE TP2 (RUNNER)",   "#00bcd4"),
+        "TP3_HIT":   ("💰 DONE TP3 (JACKPOT)",   "#ffd700"),
+        "KENA_SL":   ("❌ KENA SL DI BINGX",      "#f44336"),
+        "TELAT":     ("⏰ TELAT (SUDAH LARI)",    "#9e9e9e"),
+        "EXPIRED":   ("💀 EXPIRED (WAKTU HABIS)", "#616161"),
     }
     return MAP.get(status, ("❓ UNKNOWN", "#ffffff"))
 
