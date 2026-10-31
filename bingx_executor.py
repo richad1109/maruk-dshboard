@@ -187,7 +187,13 @@ def normalize_coin_symbol(sym: str) -> str:
     return s
 
 def fetch_live_active_bingx_coins():
-    """Membaca posisi aktif dan open orders riil langsung dari bursa BingX semua akun dengan normalisasi presisi."""
+    """
+    Membaca posisi aktif dan open orders riil langsung dari bursa BingX semua akun.
+    ATURAN BAKU:
+    - POSISI ADALAH PRIORITAS UTAMA!
+    - Koin yang sudah punya POSISI AKTIF (type: POSITION) TIDAK BOLEH DITIMPA oleh order TP/SL!
+    - Order TP/SL diabaikan dari status order antre; hanya pure limit order yang dicatat sebagai type: ORDER.
+    """
     active_map = {}
     accs = get_accounts_credentials()
     for acc_k in ["akun_1", "akun_2", "akun_3"]:
@@ -198,7 +204,7 @@ def fetch_live_active_bingx_coins():
             if not client:
                 continue
 
-            # 1. Baca posisi aktif via endpoint swapV2 resmi
+            # 1. BACA POSISI AKTIF TERLEBIH DAHULU (PRIORITAS 1)
             raw_pos_resp = client.swapV2PrivateGetUserPositions()
             pos = raw_pos_resp.get("data", [])
             for p in pos:
@@ -207,7 +213,7 @@ def fetch_live_active_bingx_coins():
                     sym_raw = p.get("symbol", "")
                     base = sym_raw.split("-")[0]
                     norm_k = normalize_coin_symbol(sym_raw)
-                    side = str(p.get("positionSide", "SHORT")).upper()
+                    side = "LONG" if amt > 0 else "SHORT"
                     entry_p = float(p.get("avgPrice") or 0)
                     mark_p = float(p.get("markPrice") or entry_p)
                     unrealized_pnl = float(p.get("unrealizedProfit") or 0)
@@ -230,13 +236,14 @@ def fetch_live_active_bingx_coins():
                         "base": base,
                         "norm": norm_k
                     }
+                    # Simpan ke active_map
                     active_map[sym_raw] = pos_data
                     active_map[sym_raw.replace("-USDT", "")] = pos_data
                     active_map[base] = pos_data
                     if norm_k:
                         active_map[norm_k] = pos_data
 
-            # 2. Baca open orders via swapV2 resmi
+            # 2. BACA OPEN ORDERS (HANYA SIMPAN JIKA KOIN BELUM JADI POSISI!)
             try:
                 open_ord_resp = client.swapV2PrivateGetTradeOpenOrders()
                 api_orders = open_ord_resp.get("data", {}).get("orders", [])
@@ -244,6 +251,13 @@ def fetch_live_active_bingx_coins():
                     sym_raw = o.get("symbol", "")
                     base = sym_raw.split("-")[0]
                     norm_k = normalize_coin_symbol(sym_raw)
+
+                    # JIKA KOIN INI SUDAH ADA POSISINYA, ORDER INI ADALAH TP/SL -> JANGAN TIMPA POSISI!
+                    if sym_raw in active_map and active_map[sym_raw].get("type") == "POSITION":
+                        continue
+                    if norm_k and norm_k in active_map and active_map[norm_k].get("type") == "POSITION":
+                        continue
+
                     order_data = {
                         "account": acc_k,
                         "side": str(o.get("side", "")).upper(),
@@ -263,13 +277,19 @@ def fetch_live_active_bingx_coins():
             except Exception:
                 pass
 
-            # Fallback 2.1 via CCXT fetch_open_orders
+            # Fallback CCXT fetch_open_orders
             try:
                 orders = client.fetch_open_orders()
                 for o in orders:
                     sym_clean = o["symbol"].split(":")[0].replace("/", "-")
                     base = sym_clean.split("-")[0]
                     norm_k = normalize_coin_symbol(sym_clean)
+
+                    if sym_clean in active_map and active_map[sym_clean].get("type") == "POSITION":
+                        continue
+                    if norm_k and norm_k in active_map and active_map[norm_k].get("type") == "POSITION":
+                        continue
+
                     order_data = {
                         "account": acc_k,
                         "side": str(o.get("side", "")).upper(),

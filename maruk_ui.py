@@ -348,6 +348,9 @@ def sinyal_page(summary=None):
                     leverage=20
                 )
                 if batch_res.get("success"):
+                    # Bersihkan cache bursa agar koin yang baru dipasang langsung hilang dari tab Siap Pasang!
+                    st.session_state.pop('cached_live_bx', None)
+                    st.session_state.pop('cached_bx_time', None)
                     st.balloons()
                     st.success(f"🎉 **{batch_res.get('msg')}**")
                     if batch_res.get("success_list"):
@@ -480,6 +483,58 @@ def sinyal_page(summary=None):
                     f"Waktu Eksekusi: {time_wib_str} · Posisi sukses cuan cair masuk dompet bursa"
                 ]
             })
+
+    # Sisipkan SEMUA posisi live yang sedang jalan di BingX ke all_signals (agar tidak ada koin aktif yang hilang!)
+    existing_syms = {s["symbol"] for s in all_signals}
+    existing_norms = {s.get("_norm_sym") for s in all_signals if s.get("_norm_sym")}
+    
+    seen_live_pos = set()
+    for k_bx, p_bx in live_bx.items():
+        if p_bx.get("type") == "POSITION":
+            s_raw = p_bx.get("symbol", "")
+            norm_k = p_bx.get("norm", bingx_executor.normalize_coin_symbol(s_raw))
+            if norm_k in seen_live_pos:
+                continue
+            seen_live_pos.add(norm_k)
+            
+            # Jika belum ada di kartu scanner, buatkan kartu posisi aktif riil
+            if s_raw not in existing_syms and norm_k not in existing_norms:
+                entry_val = float(p_bx.get("entry", 0))
+                mark_val = float(p_bx.get("mark", entry_val))
+                side_val = str(p_bx.get("side", "LONG")).upper()
+                pnl_val = float(p_bx.get("pnl", 0))
+                roe_val = float(p_bx.get("roe", 0))
+                acc_val = str(p_bx.get("account", "akun_1")).replace("akun_", "Akun ")
+
+                all_signals.append({
+                    "symbol": s_raw,
+                    "direction": side_val,
+                    "score": 95,
+                    "entry": entry_val,
+                    "current_price": mark_val,
+                    "sl": round(entry_val * 0.985 if side_val == "LONG" else entry_val * 1.015, 6),
+                    "bep": entry_val,
+                    "tp1": round(entry_val * 1.02 if side_val == "LONG" else entry_val * 0.98, 6),
+                    "tp2": round(entry_val * 1.03 if side_val == "LONG" else entry_val * 0.97, 6),
+                    "tp3": round(entry_val * 1.05 if side_val == "LONG" else entry_val * 0.95, 6),
+                    "rr": 2.0,
+                    "ker": 0.35,
+                    "rsi_4h": 50.0,
+                    "rsi_1h": 50.0,
+                    "vol_ratio": 1.2,
+                    "is_active": True,
+                    "_is_real_pos": True,
+                    "_in_bingx_pos": True,
+                    "_real_roe": roe_val,
+                    "_real_pnl": pnl_val,
+                    "_real_acc": acc_val,
+                    "_live_status": "AKTIF",
+                    "_card_uid": f"live_pos_{s_raw}",
+                    "reasons": [
+                        f"🟢 Posisi Riil Sedang Aktif di BingX ({acc_val})",
+                        f"Floating PnL: ${pnl_val:.4f} USD · ROE: {roe_val:+.2f}%"
+                    ]
+                })
 
     # ── 5. UPDATE HARGA REAL-TIME CEPAT & STATUS ───────────────────────
     bulk_prices = sinyal_engine.fetch_all_tickers()
@@ -645,7 +700,7 @@ def sinyal_page(summary=None):
             return is_order_bx and (not is_pos_bx) and (st_val not in ("EXPIRED", "TELAT"))
 
         if tab_name == "✅ Posisi Sedang Aktif":
-            return is_pos_bx or (st_val == "AKTIF" and not is_order_bx)
+            return is_pos_bx or s.get("_is_real_pos", False)
 
         if tab_name == "⏰ Telat (Lari Duluan)":
             return st_val == "TELAT"
