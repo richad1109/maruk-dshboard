@@ -22,8 +22,45 @@ WIB=timezone(timedelta(hours=7))
 PALETTE=["#b9df8a","#91b4c8","#d8bb87"]
 PAGE={"Ringkasan":("Semua akun. Satu pandangan.","Pantau portofolio, pergerakan pasar, dan posisi dalam satu ruang."),
       "Posisi & Bursa":("Setiap posisi, lebih jelas.","Detail eksposur dan koneksi delapan wallet di tiga bursa."),
-      "Bot Sakti":("Satu sistem. Setiap langkah terpantau.","Jurnal Termux terenkripsi, peringatan proteksi, dan status Bot Final."),
-      "⚡ Apex Multi-Sniper 50x":("Apex Multi-Sniper 50x · Limit Sniper MEXC","Margin Flat $2.00 · Leverage 50x Isolated · Max 4 Posisi · Target Rp 500.000 / Minggu Teruji")}
+      "Bot Sakti":("Satu sistem. Setiap langkah terpantau.","Jurnal Termux terenkripsi, peringatan proteksi, dan status Bot Final.")}
+
+CUSTOM_BALANCE_FILE = ROOT / "assets" / "custom_display_balance.json"
+
+def load_custom_balance():
+    try:
+        if CUSTOM_BALANCE_FILE.exists():
+            return json.loads(CUSTOM_BALANCE_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        pass
+    return {"enabled": False, "mode": "add", "add_amount": 0.0, "override_equity": None, "override_free": None}
+
+def save_custom_balance(cfg):
+    try:
+        CUSTOM_BALANCE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        CUSTOM_BALANCE_FILE.write_text(json.dumps(cfg, indent=2), encoding="utf-8")
+        return True
+    except Exception:
+        return False
+
+def apply_custom_balance_override(summary):
+    cfg = load_custom_balance()
+    if not cfg.get("enabled"):
+        return summary
+    mode = cfg.get("mode", "add")
+    if mode == "add":
+        add_val = float(cfg.get("add_amount", 0.0) or 0.0)
+        if summary.get("equity") is not None:
+            summary["equity"] = round(summary["equity"] + add_val, 2)
+        if summary.get("free") is not None:
+            summary["free"] = round(summary["free"] + add_val, 2)
+    elif mode == "override":
+        ov_eq = cfg.get("override_equity")
+        ov_free = cfg.get("override_free")
+        if ov_eq is not None and ov_eq > 0:
+            summary["equity"] = float(ov_eq)
+        if ov_free is not None and ov_free > 0:
+            summary["free"] = float(ov_free)
+    return summary
 
 
 
@@ -177,7 +214,7 @@ def overview(snapshot,info,summary,base):
     left,right=st.columns([1.25,1])
     with left:
         complete="Delapan koneksi" if summary["complete"] and summary["expected"]==8 else f'{summary["known"]}/{summary["expected"]} wallet terbaca'
-        html(f'<div class="hero"><div class="hero-top"><span class="hero-label">{icon("wallet")}Total equity futures</span><span class="chip neutral">USDT</span></div><div class="hero-value">{money(summary["equity"])}<small>USDT</small></div><div class="hero-sub"><span class="dot"></span>{complete} · {"data ilustrasi" if snapshot["mode"]=="demo" else "saldo yang berhasil dibaca"}</div><div class="hero-bottom"><div><span>Saldo tersedia</span><strong>{money(summary["free"])}</strong></div><div><span>Margin posisi</span><strong>{money(summary["margin"]) if summary["positions"] else "—"}</strong></div><div><span>Dana tersisih tercatat</span><strong>{money(snapshot["reserved"])}</strong></div></div><div class="hero-watermark">RAKUS</div></div>')
+        html(f'<div class="hero"><div class="hero-top"><span class="hero-label">{icon("wallet")}Total equity futures</span><span class="chip neutral">USDT</span></div><div class="hero-value">{money(summary["equity"])}<small>USDT</small></div><div class="hero-sub"><span class="dot"></span>{complete} · {"TAMPILAN SALDO KUSTOM AKTIF" if load_custom_balance().get("enabled") else "data ilustrasi" if snapshot["mode"]=="demo" else "saldo yang berhasil dibaca"}</div><div class="hero-bottom"><div><span>Saldo tersedia</span><strong>{money(summary["free"])}</strong></div><div><span>Margin posisi</span><strong>{money(summary["margin"]) if summary["positions"] else "—"}</strong></div><div><span>Dana tersisih tercatat</span><strong>{money(snapshot["reserved"])}</strong></div></div><div class="hero-watermark">RAKUS</div></div>')
     with right:
         html('<div class="hero"><div class="eyebrow">MEXC / SIGNAL RESEARCH</div><h2>Harga. Setup. Bukti.</h2><p>Buka Sinyal Kripto untuk mencari kontrak, memeriksa TP/SL, dan melihat hasil uji kronologis.</p><p>Label akurasi berasal dari transaksi uji, bukan target yang dijanjikan.</p></div>')
     cols=st.columns(4)
@@ -389,21 +426,93 @@ def main():
     html("<style>"+(ROOT/"assets/terminal.css").read_text(encoding="utf8")+"</style>")
     settings=secrets();stamp=datetime.now(WIB).strftime("%d %b %Y · %H:%M WIB")
     html(f'<div class="masthead"><div class="brand-wrap"><div class="brand-symbol"><svg viewBox="0 0 32 32"><path d="M6 6v20m0-10L24 6M12 13l13 13M21 7h5v7"/></svg></div><div><div class="brand">KANTOR<span>rakus.</span></div><div class="brand-sub">BOT SAKTI / PERSONAL TRADING FLOOR</div></div></div><div class="top-meta"><span>{stamp}</span><span class="chip neutral"><span class="dot"></span>REAL ACCOUNT MONITOR</span></div></div>')
+    # === SISTEM LOGIN & EDITOR SALDO BERANDA (PW: Baumemek123) ===
+    if "admin_logged_in" not in st.session_state:
+        st.session_state["admin_logged_in"] = False
+
+    custom_cfg = load_custom_balance()
+
+    if not st.session_state["admin_logged_in"]:
+        with st.expander("🔐 Login Admin (Editor Saldo)", expanded=False):
+            col_l1, col_l2 = st.columns([3, 1])
+            with col_l1:
+                input_pwd = st.text_input("Password Admin", type="password", placeholder="Masukkan password...", key="admin_pwd_field")
+            with col_l2:
+                st.write("")
+                st.write("")
+                if st.button("Masuk", key="btn_do_login"):
+                    if input_pwd == "Baumemek123":
+                        st.session_state["admin_logged_in"] = True
+                        st.success("✅ Login Berhasil!")
+                        st.rerun()
+                    else:
+                        st.error("❌ Password salah!")
+    else:
+        with st.expander("⚙️ PANEL ADMIN: EDIT & TAMBAH SALDO BERANDA (Aktif)", expanded=True):
+            st.markdown("**🟢 Mode Admin Aktif (Baumemek123)** · Saldo yang diubah di sini akan otomatis tertera pada halaman Beranda (Ringkasan).")
+            top_c1, top_c2 = st.columns([3, 1])
+            with top_c1:
+                is_enabled = st.toggle("Aktifkan Saldo Kustom di Website", value=custom_cfg.get("enabled", False), key="toggle_custom_bal")
+            with top_c2:
+                if st.button("🚪 Logout Admin", key="btn_admin_logout"):
+                    st.session_state["admin_logged_in"] = False
+                    st.rerun()
+
+            mode_choice = st.radio("Metode Pengubahan Saldo:", ["Tambah Saldo (+)", "Tetapkan Saldo Langsung (Override)"],
+                                   index=0 if custom_cfg.get("mode") == "add" else 1, horizontal=True, key="bal_mode_radio")
+            selected_mode = "add" if mode_choice == "Tambah Saldo (+)" else "override"
+
+            if selected_mode == "add":
+                st.caption("Menambahkan nominal di atas saldo riil bursa (misal saldo bursa $88 + $500 = $588).")
+                add_val = st.number_input("Nominal Tambahan Saldo (USDT):", min_value=0.0, max_value=10000000.0,
+                                          value=float(custom_cfg.get("add_amount", 500.0) or 500.0), step=50.0, key="inp_add_amt")
+                ov_eq = custom_cfg.get("override_equity") or 1000.0
+                ov_free = custom_cfg.get("override_free") or 900.0
+            else:
+                st.caption("Mengunci angka pasti yang ingin ditampilkan di kartu utama Beranda.")
+                oc1, oc2 = st.columns(2)
+                with oc1:
+                    ov_eq = st.number_input("Total Equity Futures (USDT):", min_value=0.0, max_value=10000000.0,
+                                            value=float(custom_cfg.get("override_equity", 1500.0) or 1500.0), step=50.0, key="inp_ov_eq")
+                with oc2:
+                    ov_free = st.number_input("Saldo Tersedia / Free (USDT):", min_value=0.0, max_value=10000000.0,
+                                              value=float(custom_cfg.get("override_free", 1350.0) or 1350.0), step=50.0, key="inp_ov_free")
+                add_val = custom_cfg.get("add_amount") or 0.0
+
+            b_c1, b_c2 = st.columns(2)
+            with b_c1:
+                if st.button("💾 Simpan & Terapkan Saldo ke Beranda", type="primary", key="btn_save_bal"):
+                    new_data = {
+                        "enabled": is_enabled,
+                        "mode": selected_mode,
+                        "add_amount": add_val,
+                        "override_equity": ov_eq,
+                        "override_free": ov_free,
+                        "updated_at": datetime.now(WIB).strftime("%d %b %Y %H:%M:%S WIB")
+                    }
+                    save_custom_balance(new_data)
+                    st.success("✅ Saldo Beranda berhasil diperbarui dan disimpan!")
+                    st.rerun()
+            with b_c2:
+                if st.button("🔄 Reset ke Saldo Asli Bursa", key="btn_reset_bal"):
+                    reset_data = {
+                        "enabled": False,
+                        "mode": "add",
+                        "add_amount": 0.0,
+                        "override_equity": None,
+                        "override_free": None,
+                        "updated_at": datetime.now(WIB).strftime("%d %b %Y %H:%M:%S WIB")
+                    }
+                    save_custom_balance(reset_data)
+                    st.info("ℹ️ Saldo dikembalikan ke pembacaan asli bursa.")
+                    st.rerun()
+
     nav_list = list(PAGE)
     default_idx = 0
-    if st.query_params.get('view') in ('sinyal-kripto', 'titan-quantum', 'apex-multi-sniper'):
-        if '⚡ Apex Multi-Sniper 50x' in nav_list:
-            default_idx = nav_list.index('⚡ Apex Multi-Sniper 50x')
     nav = st.radio("Navigasi", nav_list, index=default_idx, horizontal=True, key="navigation")
     html('<div class="nav-line"></div>')
     title, description = PAGE[nav]
     html(f'<div class="page-intro"><div><div class="eyebrow">KANTOR RAKUS / {escape(nav.upper())}</div><h1>{title}</h1><p>{description}</p></div><div class="page-count">03 ACCOUNTS<br><span style="color:#bac9d7;display:block;margin-top:6px">08 WALLETS / 03 EXCHANGES</span></div></div>')
-    if nav == '⚡ Apex Multi-Sniper 50x':
-        if st.query_params.get('view') not in ('apex-multi-sniper', 'titan-quantum'):
-            st.query_params['view'] = 'apex-multi-sniper'
-        import mexc_signal_ui
-        mexc_signal_ui.render()
-        return
     if 'view' in st.query_params:
         del st.query_params['view']
     controls=st.columns([1.3,1,1.2,.7])
@@ -421,7 +530,7 @@ def main():
             snapshot=portfolio(config,fingerprint);info=market(base)
         if st.session_state.get('sakti_upload') and not snapshot.get('runtime'):
             snapshot={**snapshot,**data.state_metadata(st.session_state['sakti_upload'])}
-        summary=data.totals(snapshot,st.session_state['account'])
+        summary=data.totals(snapshot,st.session_state['account']); summary=apply_custom_balance_override(summary)
         for row in summary['rows']:
             for position in row.get('positions',[]):
                 protection=position.get('protection_check',{})
