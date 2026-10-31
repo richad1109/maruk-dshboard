@@ -445,6 +445,15 @@ def sinyal_page():
         gen_wib = datetime.fromtimestamp(gen_ts, WIB_TZ).strftime("%H:%M WIB")
         vol_ratio = sig.get("vol_ratio", 0)
 
+        # Cek apakah koin ini sudah terpasang/aktif di bursa BingX
+        bx_state = bingx_executor.load_bingx_order_state()
+        active_bx_badge = ""
+        for acc_k, acc_lbl in [("akun_1", "Akun 1"), ("akun_2", "Akun 2"), ("akun_3", "Akun 3")]:
+            rec = bx_state.get(f"{acc_k}_{sym}")
+            if rec and rec.get("status") == "SUKSES_BINGX":
+                active_bx_badge = f'<span style="background:#00e67622;color:#00e676;border:1px solid #00e676;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🟢 AKTIF BINGX ({acc_lbl})</span>'
+                break
+
         # Kalkulasi floating PnL (hanya relevan saat AKTIF/TP/SL)
         if direction == "LONG":
             float_pct = ((live_price - sig["entry"]) / (sig["entry"] + 1e-10)) * LEVERAGE_DISPLAY * 100
@@ -495,7 +504,7 @@ def sinyal_page():
 <div class="sig-card {card_class}">
   <div class="sig-top">
     <div>
-      <span class="sig-sym">{coin}</span>{float_html}
+      <span class="sig-sym">{coin}</span>{active_bx_badge}{float_html}
       <span class="{dir_class}">{direction}</span>
       <span class="sig-status" style="background:{status_color}22;color:{status_color};border:1px solid {status_color}55">{status_lbl}</span>
     </div>
