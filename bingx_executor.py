@@ -1,3 +1,5 @@
+_LAST_LIVE_ACTIVE_MAP = {}
+_LAST_FETCH_TIME = 0
 def fetch_comprehensive_pnl(account_key: str = "akun_1") -> dict:
     """Membaca Unrealized PnL, Realized PnL, Win Rate, dan Fees riil langsung dari bursa BingX."""
     client = get_bingx_client(account_key)
@@ -189,11 +191,16 @@ def normalize_coin_symbol(sym: str) -> str:
 def fetch_live_active_bingx_coins():
     """
     Membaca posisi aktif dan open orders riil langsung dari bursa BingX semua akun.
-    ATURAN BAKU:
-    - POSISI ADALAH PRIORITAS UTAMA!
-    - Koin yang sudah punya POSISI AKTIF (type: POSITION) TIDAK BOLEH DITIMPA oleh order TP/SL!
-    - Order TP/SL diabaikan dari status order antre; hanya pure limit order yang dicatat sebagai type: ORDER.
+    Tangguh terhadap rate limit bursa (Code 100410).
+    Jika bursa sedang cooldown, otomatis menggunakan cache valid terakhir agar posisi tidak hilang dari layar!
     """
+    global _LAST_LIVE_ACTIVE_MAP, _LAST_FETCH_TIME
+    now_ts = time.time()
+    
+    # Throttle panggilan API ke bursa minimal 5 detik agar tidak terkena ban frequency limit
+    if (now_ts - _LAST_FETCH_TIME) < 5 and _LAST_LIVE_ACTIVE_MAP:
+        return _LAST_LIVE_ACTIVE_MAP
+
     active_map = {}
     accs = get_accounts_credentials()
     for acc_k in ["akun_1", "akun_2", "akun_3"]:
@@ -204,44 +211,46 @@ def fetch_live_active_bingx_coins():
             if not client:
                 continue
 
-            # 1. BACA POSISI AKTIF TERLEBIH DAHULU (PRIORITAS 1)
-            raw_pos_resp = client.swapV2PrivateGetUserPositions()
-            pos = raw_pos_resp.get("data", [])
-            for p in pos:
-                amt = float(p.get("positionAmt") or 0)
-                if amt != 0:
-                    sym_raw = p.get("symbol", "")
-                    base = sym_raw.split("-")[0]
-                    norm_k = normalize_coin_symbol(sym_raw)
-                    side = "LONG" if amt > 0 else "SHORT"
-                    entry_p = float(p.get("avgPrice") or 0)
-                    mark_p = float(p.get("markPrice") or entry_p)
-                    unrealized_pnl = float(p.get("unrealizedProfit") or 0)
-                    leverage_val = float(p.get("leverage") or 20)
-                    
-                    margin_val = (abs(amt) * entry_p) / (leverage_val + 1e-10)
-                    roe_val = (unrealized_pnl / margin_val * 100.0) if margin_val > 0 else 0.0
+            # 1. BACA POSISI AKTIF (ISOLATED TRY/EXCEPT)
+            try:
+                raw_pos_resp = client.swapV2PrivateGetUserPositions()
+                pos = raw_pos_resp.get("data", [])
+                for p in pos:
+                    amt = float(p.get("positionAmt") or 0)
+                    if amt != 0:
+                        sym_raw = p.get("symbol", "")
+                        base = sym_raw.split("-")[0]
+                        norm_k = normalize_coin_symbol(sym_raw)
+                        side = "LONG" if amt > 0 else "SHORT"
+                        entry_p = float(p.get("avgPrice") or 0)
+                        mark_p = float(p.get("markPrice") or entry_p)
+                        unrealized_pnl = float(p.get("unrealizedProfit") or 0)
+                        leverage_val = float(p.get("leverage") or 20)
+                        
+                        margin_val = (abs(amt) * entry_p) / (leverage_val + 1e-10)
+                        roe_val = (unrealized_pnl / margin_val * 100.0) if margin_val > 0 else 0.0
 
-                    pos_data = {
-                        "account": acc_k,
-                        "side": side,
-                        "type": "POSITION",
-                        "contracts": abs(amt),
-                        "entry": entry_p,
-                        "mark": mark_p,
-                        "pnl": unrealized_pnl,
-                        "roe": roe_val,
-                        "leverage": leverage_val,
-                        "symbol": sym_raw,
-                        "base": base,
-                        "norm": norm_k
-                    }
-                    # Simpan ke active_map
-                    active_map[sym_raw] = pos_data
-                    active_map[sym_raw.replace("-USDT", "")] = pos_data
-                    active_map[base] = pos_data
-                    if norm_k:
-                        active_map[norm_k] = pos_data
+                        pos_data = {
+                            "account": acc_k,
+                            "side": side,
+                            "type": "POSITION",
+                            "contracts": abs(amt),
+                            "entry": entry_p,
+                            "mark": mark_p,
+                            "pnl": unrealized_pnl,
+                            "roe": roe_val,
+                            "leverage": leverage_val,
+                            "symbol": sym_raw,
+                            "base": base,
+                            "norm": norm_k
+                        }
+                        active_map[sym_raw] = pos_data
+                        active_map[sym_raw.replace("-USDT", "")] = pos_data
+                        active_map[base] = pos_data
+                        if norm_k:
+                            active_map[norm_k] = pos_data
+            except Exception as e_pos:
+                pass
 
             # 2. BACA OPEN ORDERS (HANYA SIMPAN JIKA KOIN BELUM JADI POSISI!)
             try:
@@ -252,7 +261,7 @@ def fetch_live_active_bingx_coins():
                     base = sym_raw.split("-")[0]
                     norm_k = normalize_coin_symbol(sym_raw)
 
-                    # JIKA KOIN INI SUDAH ADA POSISINYA, ORDER INI ADALAH TP/SL -> JANGAN TIMPA POSISI!
+                    # Jika koin sudah posisi aktif, order ini adalah TP/SL -> JANGAN TIMPA POSISI!
                     if sym_raw in active_map and active_map[sym_raw].get("type") == "POSITION":
                         continue
                     if norm_k and norm_k in active_map and active_map[norm_k].get("type") == "POSITION":
@@ -274,44 +283,21 @@ def fetch_live_active_bingx_coins():
                     active_map[base] = order_data
                     if norm_k:
                         active_map[norm_k] = order_data
-            except Exception:
-                pass
-
-            # Fallback CCXT fetch_open_orders
-            try:
-                orders = client.fetch_open_orders()
-                for o in orders:
-                    sym_clean = o["symbol"].split(":")[0].replace("/", "-")
-                    base = sym_clean.split("-")[0]
-                    norm_k = normalize_coin_symbol(sym_clean)
-
-                    if sym_clean in active_map and active_map[sym_clean].get("type") == "POSITION":
-                        continue
-                    if norm_k and norm_k in active_map and active_map[norm_k].get("type") == "POSITION":
-                        continue
-
-                    order_data = {
-                        "account": acc_k,
-                        "side": str(o.get("side", "")).upper(),
-                        "type": "ORDER",
-                        "price": float(o.get("price") or 0),
-                        "amount": float(o.get("amount") or 0),
-                        "order_id": str(o.get("id", "")),
-                        "symbol": sym_clean,
-                        "base": base,
-                        "norm": norm_k
-                    }
-                    if sym_clean not in active_map:
-                        active_map[sym_clean] = order_data
-                    if base not in active_map:
-                        active_map[base] = order_data
-                    if norm_k and norm_k not in active_map:
-                        active_map[norm_k] = order_data
-            except Exception:
+            except Exception as e_ord:
                 pass
 
         except Exception:
             pass
+
+    # JIKA ACTIVE_MAP BERHASIL TERBACA, UPDATE CACHE GLOBAL
+    if active_map:
+        _LAST_LIVE_ACTIVE_MAP = dict(active_map)
+        _LAST_FETCH_TIME = now_ts
+        return active_map
+    elif _LAST_LIVE_ACTIVE_MAP:
+        # Gunakan fallback cache terakhir jika bursa sedang rate-limited!
+        return _LAST_LIVE_ACTIVE_MAP
+
     return active_map
 
 def cancel_web_orders_only(account_key: str = "all") -> dict:

@@ -575,6 +575,15 @@ def sinyal_page(summary=None):
                 is_order_bursa = True
                 s["_is_open_order"] = True
 
+        # Cek state instan dari bx_state jika baru saja dipasang dari web
+        if not is_pos_bursa:
+            for acc_k in ["akun_1", "akun_2", "akun_3"]:
+                rec = bx_state.get(f"{acc_k}_{sym}") or bx_state.get(f"{acc_k}_{norm_sym}")
+                if rec and rec.get("status") == "SUKSES_BINGX":
+                    is_order_bursa = True
+                    s["_is_open_order"] = True
+                    break
+
         s["_in_bingx_pos"] = is_pos_bursa
         s["_in_bingx_order"] = is_order_bursa
         s["_is_in_bingx"] = is_pos_bursa or is_order_bursa
@@ -666,14 +675,14 @@ def sinyal_page(summary=None):
     # ── 7. TAB FILTER STATUS RIGID (TANPA NUMPUK · TP/SL MUTLAK DIPISAHKAN) ─
     def match_signal_tab(s, tab_name: str) -> bool:
         st_val = s.get("_live_status", "SCANNING")
-        is_tp = bool(s.get("_is_real_tp") or st_val in ("TP1_HIT", "TP2_HIT", "TP3_HIT"))
-        is_sl = bool(st_val == "KENA_SL")
-        is_in_bx = bool(s.get("_is_in_bingx") or s.get("_is_real_pos"))
-        is_order_bx = bool(s.get("_in_bingx_order"))
+        is_tp = bool(s.get("_is_real_tp"))
+        is_sl = bool(s.get("_is_real_sl"))
         is_pos_bx = bool(s.get("_in_bingx_pos") or s.get("_is_real_pos"))
+        is_order_bx = bool(s.get("_in_bingx_order") or s.get("_is_open_order"))
+        is_in_bx = is_pos_bx or is_order_bx
 
-        # Filter Skor & Arah dasar
-        if not (s.get("_is_real_pos") or s.get("_is_real_tp") or s["score"] >= filter_min_score):
+        # Filter dasar skor & arah
+        if not (is_pos_bx or is_tp or s["score"] >= filter_min_score):
             return False
         if filter_dir != "Semua" and s.get("direction") != filter_dir:
             return False
@@ -681,32 +690,34 @@ def sinyal_page(summary=None):
         if tab_name == "🔍 Semua":
             return True
 
-        # ATURAN BAKU: Jika sudah TP atau SL, HANYA boleh ada di tab TP atau SL!
-        # DILARANG KERAS muncul di tab Belum Limit, Antre Limit, atau Posisi Aktif!
+        # SIKLUS HIDUP RESMI:
+        # 1. TP Cuan: Hanya yang sudah Take Profit resmi bursa
         if tab_name == "🎯 TP Cuan":
             return is_tp
 
+        # 2. Kena SL: Hanya yang sudah Stop Loss resmi bursa
         if tab_name == "❌ Kena SL":
             return is_sl
 
-        # Tab Operasional Aktif (Mutlak bebas TP & bebas SL)
-        if is_tp or is_sl:
-            return False
-
-        if tab_name == "⚡ Siap Pasang Limit (Belum di BingX)":
-            return (not is_in_bx) and (st_val in ("SCANNING", "MENDEKATI"))
-
-        if tab_name == "⏳ Sedang Antre Limit":
-            return is_order_bx and (not is_pos_bx) and (st_val not in ("EXPIRED", "TELAT"))
-
+        # 3. Posisi Sedang Aktif: Yang sudah antre kalau sudah kejemput -> PINDAH KE AKTIF!
         if tab_name == "✅ Posisi Sedang Aktif":
-            return is_pos_bx or s.get("_is_real_pos", False)
+            return is_pos_bx and not is_tp and not is_sl
 
+        # 4. Sedang Antre Limit: Yang sudah dilimit -> PINDAH KE SEDANG ANTRE (Belum kejemput)!
+        if tab_name == "⏳ Sedang Antre Limit":
+            return is_order_bx and not is_pos_bx and not is_tp and not is_sl and (st_val not in ("EXPIRED", "TELAT"))
+
+        # 5. Siap Pasang Limit: HANYA yang BELUM DILIMIT dan BELUM OPEN POSISI sama sekali di BingX!
+        if tab_name == "⚡ Siap Pasang Limit (Belum di BingX)":
+            return (not is_in_bx) and (not is_pos_bx) and (not is_order_bx) and (not is_tp) and (not is_sl) and (st_val in ("SCANNING", "MENDEKATI"))
+
+        # 6. Telat (Lari Duluan sebelum disentuh limit):
         if tab_name == "⏰ Telat (Lari Duluan)":
-            return st_val == "TELAT"
+            return (st_val == "TELAT") and (not is_in_bx) and (not is_tp)
 
+        # 7. Expired (Waktu habis):
         if tab_name == "💀 Expired":
-            return st_val == "EXPIRED"
+            return (st_val == "EXPIRED") and (not is_in_bx) and (not is_tp)
 
         return False
 
