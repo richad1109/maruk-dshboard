@@ -179,7 +179,7 @@ def query_ledger(account, venue, config, specs=None, client_factory=None):
     if any(not values.get(key) for key in required):
         return row
     options = {key:values[key] for key in required}
-    options.update(timeout=7000, enableRateLimit=True, options={"defaultType":"swap", "maxRetriesOnFailure":0})
+    options.update(timeout=8000, enableRateLimit=True, adjustForTimeDifference=True, options={"defaultType":"swap", "maxRetriesOnFailure":0, "adjustForTimeDifference":True})
     try:
         client = client_factory(venue, options) if client_factory else getattr(ccxt, venue.lower())(options)
         if venue == "BingX":

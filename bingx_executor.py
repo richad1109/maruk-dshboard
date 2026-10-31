@@ -21,11 +21,11 @@ SECRETS_FILE = ROOT / ".streamlit" / "secrets.toml"
 STATE_FILE = ROOT / "assets" / "bingx_orders_state.json"
 
 def get_accounts_credentials():
-    """Ambil credentials 3 akun BingX dari Streamlit Cloud Secrets (st.secrets) atau secrets.toml lokal."""
-    # 1. Prioritaskan Streamlit Cloud Native Secrets
+    """Ambil credentials 3 akun BingX dari Streamlit Cloud Secrets (st.secrets), file lokal, atau env."""
+    # 1. Streamlit Cloud Native Secrets
     try:
         import streamlit as st
-        if hasattr(st, "secrets"):
+        if hasattr(st, "secrets") and len(st.secrets) > 0:
             raw = st.secrets.get("accounts_json")
             if raw:
                 return json.loads(raw) if isinstance(raw, str) else raw
@@ -34,14 +34,23 @@ def get_accounts_credentials():
     except Exception:
         pass
 
-    # 2. File secrets.toml lokal
+    # 2. Cari di berbagai lokasi secrets.toml
     try:
         import toml
-        if SECRETS_FILE.exists():
-            sec = toml.load(SECRETS_FILE)
-            raw = sec.get("accounts_json")
-            if raw:
-                return json.loads(raw) if isinstance(raw, str) else raw
+        search_paths = [
+            ROOT / ".streamlit" / "secrets.toml",
+            ROOT.parent / "maruk-dshboard-repo" / ".streamlit" / "secrets.toml",
+            Path(r"C:/Users/adee/Documents/antigravity/maruk-dshboard-repo/.streamlit/secrets.toml"),
+            Path.home() / ".streamlit" / "secrets.toml"
+        ]
+        for sp in search_paths:
+            if sp.exists():
+                sec = toml.load(sp)
+                raw = sec.get("accounts_json")
+                if raw:
+                    return json.loads(raw) if isinstance(raw, str) else raw
+                if "accounts" in sec:
+                    return dict(sec["accounts"])
     except Exception:
         pass
     
@@ -49,7 +58,7 @@ def get_accounts_credentials():
     raw = os.getenv("MARUK_ACCOUNTS_JSON")
     if raw:
         try:
-            return json.loads(raw)
+            return json.loads(raw) if isinstance(raw, str) else raw
         except Exception:
             pass
     return {}
@@ -78,7 +87,8 @@ def get_bingx_client(account_key: str):
     client = ccxt.bingx({
         "apiKey": cfg["apiKey"],
         "secret": cfg["secret"],
-        "options": {"defaultType": "swap"},
+        "adjustForTimeDifference": True,
+        "options": {"defaultType": "swap", "adjustForTimeDifference": True},
         "timeout": 12000,
         "enableRateLimit": True
     })
@@ -95,15 +105,18 @@ def fetch_live_active_bingx_coins():
             client = get_bingx_client(acc_k)
             if not client:
                 continue
-            # Baca posisi aktif
-            pos = client.fetch_positions()
+            # Baca posisi aktif via endpoint swapV2 resmi (agar posisi manual seperti ENS & KAS 100% terbaca)
+            raw_pos_resp = client.swapV2PrivateGetUserPositions()
+            pos = raw_pos_resp.get("data", [])
             for p in pos:
-                contracts = float(p.get("contracts") or p.get("size") or 0)
-                if contracts > 0:
-                    sym_clean = p["symbol"].split(":")[0].replace("/", "-")
-                    base = sym_clean.split("-")[0]
-                    active_map[sym_clean] = {"account": acc_k, "side": p.get("side"), "type": "POSITION", "contracts": contracts}
-                    active_map[base] = {"account": acc_k, "side": p.get("side"), "type": "POSITION", "contracts": contracts}
+                amt = float(p.get("positionAmt") or 0)
+                if amt != 0:
+                    sym_raw = p.get("symbol", "")
+                    base = sym_raw.split("-")[0].replace("1000", "")
+                    side = str(p.get("positionSide", "SHORT")).upper()
+                    active_map[sym_raw] = {"account": acc_k, "side": side, "type": "POSITION", "contracts": abs(amt)}
+                    active_map[sym_raw.replace("-USDT", "")] = {"account": acc_k, "side": side, "type": "POSITION", "contracts": abs(amt)}
+                    active_map[base] = {"account": acc_k, "side": side, "type": "POSITION", "contracts": abs(amt)}
             # Baca open orders (limit antre)
             orders = client.fetch_open_orders()
             for o in orders:
