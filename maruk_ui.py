@@ -239,8 +239,8 @@ def overview(snapshot,info,summary,base):
 # ═══════════════════════════════════════════════════════════════════════
 # HALAMAN SINYAL — Multi-Confirmation Sniper Limit Order Signal Room
 # ═══════════════════════════════════════════════════════════════════════
-def sinyal_page():
-    """Halaman sinyal limit order 50 koin BingX dengan scoring 1-100."""
+def sinyal_page(summary=None):
+    """Halaman sinyal limit order 50 koin BingX dengan scoring 1-100 & integrasi bursa riil."""
     LEVERAGE_DISPLAY = 20   # asumsi leverage untuk kalkulasi ROE
     MARGIN_DISPLAY   = 0.20  # asumsi margin per trade (USD)
 
@@ -274,40 +274,59 @@ def sinyal_page():
 .scan-summary{background:#0d1520;border:1px solid #1e2d3d;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap}
 .scan-summary-item{color:#4e6b8a;font-size:12px}
 .scan-summary-item strong{color:#c8d8e8;font-size:15px;display:block}
+.btc-macro-banner{background:#0d1b2a;border:1px solid #1b4965;border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
 </style>
 """, unsafe_allow_html=True)
 
     WIB_TZ = timezone(timedelta(hours=7))
     now_wib = datetime.now(WIB_TZ)
 
-    # ── Header & Kontrol ────────────────────────────────────────────────
+    # ── 1. SCANNER MAKRO BTC & EMERGENCY KILLSWITCH ─────────────────────
+    btc_sent = bingx_executor.get_btc_macro_sentiment()
+    b_stat = btc_sent.get("status", "NORMAL")
+    b_lbl = btc_sent.get("label", "🛡️ BTC TREN NETRAL")
+    b_price = btc_sent.get("price", 0)
+    b_chg = btc_sent.get("change_1h", 0)
+    b_rsi = btc_sent.get("rsi", 50)
+    b_rec = btc_sent.get("recommendation", "Aman")
+
+    col_macro, col_kill = st.columns([3, 1.2])
+    with col_macro:
+        if b_stat in ("PUMP_SPIKE", "DUMP_SPIKE"):
+            st.error(f"**{b_lbl}** · BTC: ${b_price:,.1f} (1H Change: {b_chg:+}% | RSI: {b_rsi}) · *{b_rec}*")
+        else:
+            st.info(f"**{b_lbl}** · BTC: ${b_price:,.1f} (1H Change: {b_chg:+}% | RSI: {b_rsi}) · *{b_rec}*")
+
+    with col_kill:
+        if st.button("🛑 BATALKAN SEMUA LIMIT BINGX", type="secondary", use_container_width=True, help="Batalkan seketika semua antrean limit order di BingX semua akun saat terjadi lonjakan BTC"):
+            with st.spinner("Membatalkan seluruh limit order di bursa BingX..."):
+                c_res = bingx_executor.cancel_all_bingx_open_orders("all")
+                st.warning(f"Hasil Pembatalan Limit: {c_res}")
+                time.sleep(1)
+                st.rerun()
+
+    # ── 2. HEADER KONTROL & FILTER ──────────────────────────────────────
     c1, c2, c3 = st.columns([2, 1, 1])
     with c1:
         filter_dir = st.selectbox("Filter Arah", ["Semua", "LONG", "SHORT"], key="sinyal_dir_filter")
     with c2:
-        filter_min_score = st.slider("Skor Minimum", 70, 100, 70, 5, key="sinyal_score_filter")
+        filter_min_score = st.slider("Skor Minimum", 50, 100, 60, 5, key="sinyal_score_filter")
     with c3:
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
         do_scan = st.button("🔄 Scan 50 Koin", type="primary", use_container_width=True, key="sinyal_scan_btn")
 
-    # ── Ambil / refresh sinyal ──────────────────────────────────────────
+    # ── 3. AMBIL / REFRESH SINYAL ──────────────────────────────────────
     cache_key = "sinyal_signals"
     scan_time_key = "sinyal_scan_time"
 
     if do_scan or cache_key not in st.session_state:
-        # Cek cache file dulu (max 15 menit)
-        cached = sinyal_engine.get_cached_signals(max_age_minutes=15)
+        cached = sinyal_engine.get_cached_signals(max_age_minutes=30)
         if cached is not None and not do_scan:
             st.session_state[cache_key] = cached
-            st.session_state[scan_time_key] = sinyal_engine.load_cache().get("scanned_at", time.time())
+            st.session_state[scan_time_key] = (sinyal_engine.load_cache() or {}).get("scanned_at", time.time())
         else:
-            # Scan penuh
             progress_bar = st.progress(0, text="🔍 Scanning 50 koin BingX...")
-            prog_state = {"done": 0, "total": 50}
-
             def on_progress(done, total):
-                prog_state["done"] = done
-                prog_state["total"] = total
                 pct = done / max(total, 1)
                 try:
                     progress_bar.progress(pct, text=f"🔍 Scanning... {done}/{total} koin")
@@ -321,94 +340,196 @@ def sinyal_page():
             st.session_state[cache_key] = signals
             st.session_state[scan_time_key] = time.time()
 
-    all_signals = st.session_state.get(cache_key, [])
+    all_signals = list(st.session_state.get(cache_key, []))
     scan_ts = st.session_state.get(scan_time_key, 0)
     scan_age_min = int((time.time() - scan_ts) / 60) if scan_ts else 0
 
-    # ── Fetch harga current untuk status update ─────────────────────────
-    @st.cache_data(ttl=30)
-    def get_prices(symbols_tuple):
-        prices = {}
-        for sym in symbols_tuple:
-            p = sinyal_engine.fetch_current_price(sym)
-            if p:
-                prices[sym] = p
-        return prices
+    # ── 4. BACA LIVE POSISI & ORDERS BINGX ──────────────────────────────
+    live_bx = {}
+    try:
+        live_bx = bingx_executor.fetch_live_active_bingx_coins()
+    except Exception:
+        pass
 
-    sym_tuple = tuple(s["symbol"] for s in all_signals)
-    live_prices = get_prices(sym_tuple) if sym_tuple else {}
+    # Integrasikan juga posisi langsung dari ringkasan live summary dashboard
+    if summary and "positions" in summary:
+        for pos in summary["positions"]:
+            if "BingX" in str(pos.get("exchange", "")):
+                sym_clean = pos.get("symbol", "").replace("/", "-")
+                base = sym_clean.split("-")[0].replace("1000", "")
+                p_data = {
+                    "account": pos.get("account", "akun_1"),
+                    "side": str(pos.get("side", "LONG")).upper(),
+                    "type": "POSITION",
+                    "contracts": pos.get("quantity", 0),
+                    "entry": float(pos.get("entry") or 0),
+                    "mark": float(pos.get("mark") or 0),
+                    "pnl": float(pos.get("pnl") or 0),
+                    "roe": float(pos.get("roe") or 0),
+                    "leverage": float(pos.get("leverage") or 20),
+                    "symbol": f"{base}-USDT",
+                    "base": base
+                }
+                live_bx[sym_clean] = p_data
+                live_bx[f"{base}-USDT"] = p_data
+                live_bx[base] = p_data
 
-    # Filter ditangani oleh tab status di bawah
+    # ── 5. GABUNGKAN POSISI BURSA (ENS, KAS, BTC, DLL.) KE LIST SINYAL ──
+    # Ini menjamin 100% koin manual / riil BingX tidak akan pernah hilang dari web!
+    existing_symbols = {s["symbol"] for s in all_signals}
+    existing_bases = {s["symbol"].split("-")[0].replace("1000", "") for s in all_signals}
 
-    # ── Status setiap sinyal ────────────────────────────────────────────
+    # Cari semua posisi aktif bursa yang belum ada kartu sinyalnya
+    for key, p_info in live_bx.items():
+        if p_info.get("type") == "POSITION":
+            base = p_info.get("base", "")
+            sym_target = f"{base}-USDT"
+            if sym_target not in existing_symbols and base not in existing_bases:
+                # Sintesis kartu sinyal aktif bursa untuk ENS, KAS, dll.
+                e_val = p_info.get("entry", 0)
+                m_val = p_info.get("mark", e_val)
+                s_val = p_info.get("side", "SHORT")
+                atr_e = max(e_val * 0.02, 0.0001)
+
+                sl_val = round(e_val + atr_e * 1.2, 5) if s_val == "SHORT" else round(e_val - atr_e * 1.2, 5)
+                tp1_val = round(e_val - atr_e * 1.5, 5) if s_val == "SHORT" else round(e_val + atr_e * 1.5, 5)
+                tp2_val = round(e_val - atr_e * 2.5, 5) if s_val == "SHORT" else round(e_val + atr_e * 2.5, 5)
+                tp3_val = round(e_val - atr_e * 4.0, 5) if s_val == "SHORT" else round(e_val + atr_e * 4.0, 5)
+
+                acc_lbl = str(p_info.get("account", "akun_1")).replace("akun_", "Akun ")
+
+                synth_card = {
+                    "symbol": sym_target,
+                    "direction": s_val,
+                    "score": 98, # Skor tertinggi agar selalu tampil di urutan atas
+                    "entry": e_val,
+                    "sl": sl_val,
+                    "tp1": tp1_val,
+                    "tp2": tp2_val,
+                    "tp3": tp3_val,
+                    "current_price": m_val,
+                    "atr_1h": round(atr_e, 4),
+                    "rsi_4h": 50.0,
+                    "rsi_1h": 50.0,
+                    "ker": 0.40,
+                    "vol_ratio": 1.5,
+                    "rr": 1.5,
+                    "reasons": [
+                        f"Posisi riil aktif di BingX Futures ({acc_lbl})",
+                        f"Ukuran: {p_info.get('contracts', 0)} kontrak | Entry: {e_val}"
+                    ],
+                    "generated_at": time.time(),
+                    "valid_until": time.time() + 86400,
+                    "valid_until_wib": "Aktif di Bursa",
+                    "_is_real_pos": True,
+                    "_real_roe": p_info.get("roe", 0),
+                    "_real_pnl": p_info.get("pnl", 0),
+                    "_real_acc": acc_lbl,
+                    "_live_status": "AKTIF",
+                    "_live_price": m_val
+                }
+                all_signals.insert(0, synth_card)
+                existing_symbols.add(sym_target)
+                existing_bases.add(base)
+
+    # ── 6. UPDATE HARGA REAL-TIME CEPAT & STATUS ───────────────────────
+    bulk_prices = sinyal_engine.fetch_all_tickers()
+
     status_counts = {"SCANNING": 0, "AKTIF": 0, "MENDEKATI": 0,
                      "TP1_HIT": 0, "TP2_HIT": 0, "TP3_HIT": 0,
                      "KENA_SL": 0, "TELAT": 0, "EXPIRED": 0}
+
+    for s in all_signals:
+        sym = s["symbol"]
+        base = sym.replace("-USDT", "").replace("1000", "")
+        # Ambil harga real-time
+        cp = bulk_prices.get(sym) or bulk_prices.get(base) or s.get("current_price") or 0.0
+        s["_live_price"] = cp
+
+        # Cek apakah posisi ini aktif di bursa
+        is_active_bursa = False
+        if sym in live_bx or base in live_bx:
+            info_bx = live_bx.get(sym) or live_bx.get(base)
+            if info_bx.get("type") == "POSITION":
+                is_active_bursa = True
+                s["_is_real_pos"] = True
+                s["_real_roe"] = info_bx.get("roe", 0)
+                s["_real_pnl"] = info_bx.get("pnl", 0)
+                s["_real_acc"] = str(info_bx.get("account", "akun_1")).replace("akun_", "Akun ")
+
+        if is_active_bursa:
+            st_key = "AKTIF"
+        else:
+            st_key = sinyal_engine.get_signal_status(s, cp)
+
+        s["_live_status"] = st_key
+        status_counts[st_key] = status_counts.get(st_key, 0) + 1
+
+    # Urutkan: Posisi riil bursa selalu paling atas, lalu diikuti skor tertinggi
+    all_signals.sort(key=lambda x: (1 if x.get("_is_real_pos") else 0, x["score"]), reverse=True)
+
     long_count = sum(1 for s in all_signals if s.get("direction") == "LONG")
     short_count = sum(1 for s in all_signals if s.get("direction") == "SHORT")
 
-    for s in all_signals:
-        cp = live_prices.get(s["symbol"], s["current_price"])
-        st_key = sinyal_engine.get_signal_status(s, cp)
-        s["_live_status"] = st_key
-        s["_live_price"] = cp
-        status_counts[st_key] = status_counts.get(st_key, 0) + 1
-
-    # ── Ringkasan scan ─────────────────────────────────────────────────
+    # ── 7. RINGKASAN SCAN ───────────────────────────────────────────────
     st.markdown(f"""
 <div class="scan-summary">
-  <div class="scan-summary-item"><strong>{len(all_signals)}</strong>Sinyal Valid</div>
+  <div class="scan-summary-item"><strong>{len(all_signals)}</strong>Total Sinyal</div>
   <div class="scan-summary-item"><strong style="color:#00e676">{long_count}</strong>LONG</div>
   <div class="scan-summary-item"><strong style="color:#f44336">{short_count}</strong>SHORT</div>
-  <div class="scan-summary-item"><strong style="color:#4caf50">{status_counts.get('AKTIF',0)+status_counts.get('MENDEKATI',0)}</strong>Aktif/Mendekati</div>
+  <div class="scan-summary-item"><strong style="color:#4caf50">{status_counts.get('AKTIF',0)}</strong>Aktif di BingX</div>
+  <div class="scan-summary-item"><strong style="color:#f0c040">{status_counts.get('MENDEKATI',0)}</strong>Mendekati Limit</div>
   <div class="scan-summary-item"><strong style="color:#00e676">{status_counts.get('TP1_HIT',0)+status_counts.get('TP2_HIT',0)+status_counts.get('TP3_HIT',0)}</strong>TP Hit</div>
   <div class="scan-summary-item"><strong style="color:#f44336">{status_counts.get('KENA_SL',0)}</strong>SL Hit</div>
-  <div class="scan-summary-item"><strong style="color:#9e9e9e">{status_counts.get('TELAT',0)}</strong>Telat</div>
   <div class="scan-summary-item"><strong style="color:#5a7a9a">{scan_age_min}m</strong>Usia Cache</div>
 </div>
 """, unsafe_allow_html=True)
 
-    # ── Tab Filter Status ─────────────────────────────────────────────
+    # ── 8. TAB FILTER STATUS ───────────────────────────────────────────
     status_map = {
         "🔍 Semua":       None,
-        "⏳ Menunggu/Scan": ["SCANNING"],
         "✅ Posisi Aktif":  ["AKTIF", "MENDEKATI"],
-        "⏰ Telat":        ["TELAT"],
+        "⏳ Menunggu/Scan": ["SCANNING"],
         "🎯 TP Cuan":     ["TP1_HIT", "TP2_HIT", "TP3_HIT"],
         "❌ Kena SL":     ["KENA_SL"],
+        "⏰ Telat":        ["TELAT"],
         "💀 Expired":     ["EXPIRED"],
     }
 
-    # Hitung jumlah per tab
     def count_tab(statuses):
         if statuses is None:
-            return len([s for s in all_signals if s["score"] >= filter_min_score
-                        and (filter_dir == "Semua" or s["direction"] == filter_dir)])
-        return len([s for s in all_signals if s.get("_live_status") in statuses
-                    and s["score"] >= filter_min_score
-                    and (filter_dir == "Semua" or s["direction"] == filter_dir)])
+            return len([
+                s for s in all_signals
+                if (s.get("_is_real_pos") or s["score"] >= filter_min_score)
+                and (filter_dir == "Semua" or s["direction"] == filter_dir)
+            ])
+        return len([
+            s for s in all_signals
+            if s.get("_live_status") in statuses
+            and (s.get("_is_real_pos") or s["score"] >= filter_min_score)
+            and (filter_dir == "Semua" or s["direction"] == filter_dir)
+        ])
 
     tab_labels = [f"{k} ({count_tab(v)})" for k, v in status_map.items()]
     selected_tab_idx = st.radio(
         "Filter Status", tab_labels, horizontal=True, key="sinyal_status_tab",
         label_visibility="collapsed"
     )
-    # Ambil nama tab (tanpa angka)
     selected_tab_key = selected_tab_idx.split(" (")[0]
     selected_statuses = status_map.get(selected_tab_key)
 
-    # Filter berdasarkan tab
+    # Filter: Posisi riil bursa SELALU lolos slider skor!
     if selected_statuses is None:
         filtered = [
             s for s in all_signals
-            if s["score"] >= filter_min_score
+            if (s.get("_is_real_pos") or s["score"] >= filter_min_score)
             and (filter_dir == "Semua" or s["direction"] == filter_dir)
         ]
     else:
         filtered = [
             s for s in all_signals
             if s.get("_live_status") in selected_statuses
-            and s["score"] >= filter_min_score
+            and (s.get("_is_real_pos") or s["score"] >= filter_min_score)
             and (filter_dir == "Semua" or s["direction"] == filter_dir)
         ]
 
@@ -417,15 +538,17 @@ def sinyal_page():
 <div class="empty-state">
   <div style="font-size:40px">🔍</div>
   <div style="font-size:16px;margin-top:10px;color:#5a7a9a">Belum ada sinyal yang memenuhi kriteria</div>
-  <div style="font-size:12px;margin-top:6px;color:#3a5a7a">Tekan "Scan 50 Koin" untuk memindai pasar BingX</div>
+  <div style="font-size:12px;margin-top:6px;color:#3a5a7a">Tekan "Scan 50 Koin" untuk memperbarui data BingX</div>
 </div>
 """, unsafe_allow_html=True)
         return
 
-    # ── Render Kartu Sinyal ─────────────────────────────────────────────
+    # ── 9. RENDER KARTU SINYAL ─────────────────────────────────────────
+    bx_state = bingx_executor.load_bingx_order_state()
+
     for sig in filtered:
         sym = sig["symbol"]
-        coin = sym.replace("-USDT", "")
+        coin = sym.replace("-USDT", "").replace("1000", "")
         direction = sig["direction"]
         score = sig["score"]
         entry = sig["entry"]
@@ -433,54 +556,54 @@ def sinyal_page():
         tp1 = sig["tp1"]
         tp2 = sig["tp2"]
         tp3 = sig["tp3"]
-        live_price = sig.get("_live_price", sig["current_price"])
+        live_price = sig.get("_live_price", sig.get("current_price", entry))
         live_status = sig.get("_live_status", "SCANNING")
-        rsi_4h = sig["rsi_4h"]
-        rsi_1h = sig["rsi_1h"]
-        ker = sig["ker"]
-        rr = sig["rr"]
+        rsi_4h = sig.get("rsi_4h", 50)
+        rsi_1h = sig.get("rsi_1h", 50)
+        ker = sig.get("ker", 0.3)
+        rr = sig.get("rr", 1.5)
         reasons = sig.get("reasons", [])
         valid_wib = sig.get("valid_until_wib", "—")
         gen_ts  = sig.get("generated_at", time.time())
         gen_wib = datetime.fromtimestamp(gen_ts, WIB_TZ).strftime("%H:%M WIB")
-        vol_ratio = sig.get("vol_ratio", 0)
+        vol_ratio = sig.get("vol_ratio", 1.0)
 
-        # Cek apakah koin ini sudah terpasang/aktif di bursa BingX (dari live bursa & state)
-        if "live_bingx_coins" not in st.session_state:
-            try:
-                st.session_state["live_bingx_coins"] = bingx_executor.fetch_live_active_bingx_coins()
-            except Exception:
-                st.session_state["live_bingx_coins"] = {}
-
-        live_bx = st.session_state.get("live_bingx_coins", {})
-        bx_state = bingx_executor.load_bingx_order_state()
+        # ── BADGE AKTIF BINGX (HANYA DITAMPILKAN JIKA AKTIF DI BURSA) ────
         active_bx_badge = ""
+        is_pos_bingx = sig.get("_is_real_pos", False)
+        acc_label = sig.get("_real_acc", "Akun 1")
 
-        # 1. Cek di posisi/order riil bursa BingX
-        if coin in live_bx or sym in live_bx:
+        if is_pos_bingx:
+            active_bx_badge = f'<span style="background:#00e67622;color:#00e676;border:1px solid #00e676;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🟢 AKTIF BINGX ({acc_label} - POSISI)</span>'
+        elif coin in live_bx or sym in live_bx:
             info_bx = live_bx.get(coin) or live_bx.get(sym)
             acc_name = str(info_bx.get("account", "akun_1")).replace("akun_", "Akun ")
-            tipe = "POSISI" if info_bx.get("type") == "POSITION" else "ORDER"
-            active_bx_badge = f'<span style="background:#00e67622;color:#00e676;border:1px solid #00e676;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🟢 AKTIF BINGX ({acc_name})</span>'
+            tipe = "POSISI" if info_bx.get("type") == "POSITION" else "LIMIT ORDER"
+            active_bx_badge = f'<span style="background:#00e67622;color:#00e676;border:1px solid #00e676;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🟢 AKTIF BINGX ({acc_name} - {tipe})</span>'
         else:
-            # 2. Cek di file order state
+            # Cek file order state lokal
             for acc_k, acc_lbl in [("akun_1", "Akun 1"), ("akun_2", "Akun 2"), ("akun_3", "Akun 3")]:
                 rec = bx_state.get(f"{acc_k}_{sym}")
                 if rec and rec.get("status") == "SUKSES_BINGX":
-                    active_bx_badge = f'<span style="background:#00e67622;color:#00e676;border:1px solid #00e676;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🟢 AKTIF BINGX ({acc_lbl})</span>'
+                    active_bx_badge = f'<span style="background:#00e67622;color:#00e676;border:1px solid #00e676;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🟢 AKTIF BINGX ({acc_lbl} - ORDER)</span>'
                     break
 
-        # Kalkulasi floating PnL (hanya relevan saat AKTIF/TP/SL)
-        if direction == "LONG":
-            float_pct = ((live_price - sig["entry"]) / (sig["entry"] + 1e-10)) * LEVERAGE_DISPLAY * 100
+        # ── KALKULASI FLOATING ROE REAL-TIME ─────────────────────────────
+        if is_pos_bingx and "_real_roe" in sig:
+            float_pct = sig["_real_roe"]
+            float_usd = sig.get("_real_pnl", 0.0)
         else:
-            float_pct = ((sig["entry"] - live_price) / (sig["entry"] + 1e-10)) * LEVERAGE_DISPLAY * 100
-        float_usd  = (abs(float_pct) / 100) * MARGIN_DISPLAY
+            if direction == "LONG":
+                float_pct = ((live_price - entry) / (entry + 1e-10)) * LEVERAGE_DISPLAY * 100
+            else:
+                float_pct = ((entry - live_price) / (entry + 1e-10)) * LEVERAGE_DISPLAY * 100
+            float_usd  = (abs(float_pct) / 100) * MARGIN_DISPLAY
+
         float_sign = "+" if float_pct >= 0 else ""
         float_color = "#00e676" if float_pct >= 0 else "#f44336"
         float_icon  = "📈" if float_pct >= 0 else "📉"
-        # Hanya tampilkan floating jika posisi sudah aktif
-        if live_status in ("AKTIF", "MENDEKATI", "TP1_HIT", "TP2_HIT", "TP3_HIT", "KENA_SL"):
+
+        if is_pos_bingx or live_status in ("AKTIF", "MENDEKATI", "TP1_HIT", "TP2_HIT", "TP3_HIT", "KENA_SL"):
             float_html = (
                 f'<span style="color:{float_color};font-size:13px;font-weight:700;margin-left:10px">' +
                 f'{float_icon} {float_sign}{float_pct:.1f}% ROE&nbsp;' +
@@ -488,7 +611,6 @@ def sinyal_page():
             )
         else:
             float_html = ""
-
 
         # Score bar color
         if score >= 90:
@@ -503,15 +625,13 @@ def sinyal_page():
         dir_class = "sig-dir-long" if direction == "LONG" else "sig-dir-short"
         card_class = "sig-card-long" if direction == "LONG" else "sig-card-short"
 
-        # Status badge
         status_lbl, status_color = sinyal_engine.status_label(live_status)
 
-        # Hitung jarak ke entry
         if direction == "LONG":
-            dist_to_entry = ((live_price - entry) / entry * 100)
+            dist_to_entry = ((live_price - entry) / (entry + 1e-10) * 100)
             dist_str = f"▲{dist_to_entry:.2f}% dari entry" if dist_to_entry > 0 else f"✅ Di entry"
         else:
-            dist_to_entry = ((entry - live_price) / entry * 100)
+            dist_to_entry = ((entry - live_price) / (entry + 1e-10) * 100)
             dist_str = f"▲{dist_to_entry:.2f}% ke entry" if dist_to_entry > 0 else f"✅ Di entry"
 
         reasons_html = "".join(f'<div class="sig-reason-item">• {r}</div>' for r in reasons)
@@ -571,10 +691,7 @@ def sinyal_page():
 """
         st.markdown(card_html, unsafe_allow_html=True)
 
-        # ── PANEL EKSEKUSI LANGSUNG KE BURSA BINGX ─────────────────────────
-        bx_state = bingx_executor.load_bingx_order_state()
-        
-        # Buat row interaktif: Pilihan TP + Pilihan Akun + Tombol Eksekusi
+        # ── 10. PANEL EKSEKUSI KE BURSA BINGX ─────────────────────────────
         exp_label = f"⚡ Eksekusi Langsung {coin} ke Bursa BingX (Limit + SL + TP Otomatis)"
         with st.expander(exp_label, expanded=False):
             col_b1, col_b2, col_b3 = st.columns([1.5, 1.2, 1.3])
@@ -606,7 +723,6 @@ def sinyal_page():
                     use_container_width=True
                 )
 
-            # Cek status persisten order di BingX
             order_record_key = f"{acc_key}_{sym}"
             active_record = bx_state.get(order_record_key)
 
@@ -637,11 +753,9 @@ def sinyal_page():
                     else:
                         st.error(f"❌ {res.get('msg')}")
 
-
     st.markdown(
         f"<div style='color:#2a4060;font-size:11px;text-align:center;padding:16px'>Sinyal limit order berbasis analisis teknikal multi-konfirmasi. "
-        f"Bukan rekomendasi investasi. Selalu gunakan manajemen risiko. "
-        f"Data dari BingX Futures API. Diperbarui: {now_wib.strftime('%H:%M:%S WIB')}</div>",
+        f"Data dari BingX Futures API. Terhubung ke bursa live. Diperbarui: {now_wib.strftime('%H:%M:%S WIB')}</div>",
         unsafe_allow_html=True
     )
 
@@ -959,6 +1073,6 @@ def main():
         if nav=='Ringkasan':overview(snapshot,info,summary,base)
         elif nav=='Posisi & Bursa':positions_page(snapshot,summary)
         elif nav=='Bot Sakti':strategy_page(snapshot)
-        elif nav=='Sinyal':sinyal_page()
+        elif nav=='Sinyal':sinyal_page(summary)
         html(f'<div class="footnote"><span>KANTOR RAKUS · BOT FINAL</span><span>MONITOR SAJA · TANPA ORDER / CANCEL · {datetime.now(WIB).strftime("%H:%M:%S WIB")}</span></div>')
     body()

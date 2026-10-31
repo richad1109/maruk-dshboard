@@ -131,8 +131,38 @@ def fetch_top_50_symbols() -> list[str]:
     return symbols if len(symbols) >= 10 else FALLBACK_50_COINS
 
 
+_ALL_TICKERS_CACHE = {}
+_ALL_TICKERS_TIME = 0
+
+def fetch_all_tickers() -> dict[str, float]:
+    """Fetch semua harga koin BingX sekaligus dalam 1 request super cepat."""
+    global _ALL_TICKERS_CACHE, _ALL_TICKERS_TIME
+    now = time.time()
+    if _ALL_TICKERS_CACHE and (now - _ALL_TICKERS_TIME) < 15:
+        return _ALL_TICKERS_CACHE
+    data = _get(f"{BINGX}/openApi/swap/v2/quote/ticker")
+    if data and "data" in data:
+        t_map = {}
+        for item in data.get("data", []):
+            sym = item.get("symbol", "")
+            try:
+                p = float(item.get("lastPrice") or item.get("closePrice") or 0)
+                if p > 0:
+                    t_map[sym] = p
+                    t_map[sym.replace("-USDT", "")] = p
+            except (ValueError, TypeError):
+                pass
+        if t_map:
+            _ALL_TICKERS_CACHE = t_map
+            _ALL_TICKERS_TIME = now
+            return t_map
+    return _ALL_TICKERS_CACHE
+
 def fetch_current_price(symbol: str) -> Optional[float]:
-    """Harga mark price real-time dari BingX."""
+    """Harga mark price real-time dari BingX (super cepat via bulk tickers)."""
+    t_map = fetch_all_tickers()
+    if symbol in t_map:
+        return t_map[symbol]
     data = _get(f"{BINGX}/openApi/swap/v2/quote/ticker", {"symbol": symbol})
     if data is None:
         return None
@@ -715,16 +745,14 @@ def save_cache(signals: list[dict]) -> None:
         pass
 
 
-def get_cached_signals(max_age_minutes: int = 15) -> Optional[list[dict]]:
-    """Return sinyal dari cache jika belum expired, else None."""
+def get_cached_signals(max_age_minutes: int = 30) -> Optional[list[dict]]:
+    """Return sinyal dari cache jika belum expired, else return data sebagai fallback (anti layar kosong)."""
     data = load_cache()
     if data is None:
         return None
-    scanned_at = data.get("scanned_at", 0)
-    age_min = (time.time() - scanned_at) / 60
-    if age_min > max_age_minutes:
-        return None
-    return data.get("signals", [])
+    # Selalu sediakan sinyal dari cache agar koin tidak hilang di web
+    sigs = data.get("signals", [])
+    return sigs if sigs else None
 
 
 def refresh_scan(progress_callback=None) -> list[dict]:

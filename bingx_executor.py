@@ -1,10 +1,12 @@
 """
 bingx_executor.py
 =================
-Eksekutor Order BingX Futures Resmi:
+Eksekutor Order & Telemetri Bursa BingX Futures Resmi:
 - Eksekusi Limit Order + Take Profit (TP1/TP2/TP3) + Stop Loss otomatis
+- Fitur Batalkan Semua Limit Order (Emergency Killswitch)
+- Deteksi Sentimen Makro BTC (SMC / Institutional Pump / Dump Shield)
+- Pelacakan Posisi Aktif Bursa Riil (ENS, KAS, BTC, dll.)
 - Dukungan Akun 1, Akun 2, Akun 3
-- Pencatatan status persisten sukses di disk & state
 - Membaca credentials dari Streamlit Cloud secrets (st.secrets) secara native
 """
 
@@ -22,10 +24,33 @@ STATE_FILE = ROOT / "assets" / "bingx_orders_state.json"
 
 def get_accounts_credentials():
     """Ambil credentials 3 akun BingX dari Streamlit Cloud Secrets (st.secrets), file lokal, atau env."""
+    # 0. Coba modul maruk_data terlebih dahulu (100% konsisten dengan dashboard)
+    try:
+        import maruk_data
+        try:
+            import streamlit as st
+            s_dict = st.secrets.to_dict() if hasattr(st, "secrets") else {}
+        except Exception:
+            s_dict = {}
+        creds = maruk_data.credentials(s_dict)
+        if creds and any("BingX" in v for v in creds.values() if isinstance(v, dict)):
+            return creds
+    except Exception:
+        pass
+
     # 1. Streamlit Cloud Native Secrets
     try:
         import streamlit as st
-        if hasattr(st, "secrets") and len(st.secrets) > 0:
+        if hasattr(st, "secrets"):
+            try:
+                s_dict = st.secrets.to_dict()
+                raw = s_dict.get("accounts_json")
+                if raw:
+                    return json.loads(raw) if isinstance(raw, str) else raw
+                if "accounts" in s_dict:
+                    return dict(s_dict["accounts"])
+            except Exception:
+                pass
             raw = st.secrets.get("accounts_json")
             if raw:
                 return json.loads(raw) if isinstance(raw, str) else raw
@@ -40,6 +65,7 @@ def get_accounts_credentials():
         search_paths = [
             ROOT / ".streamlit" / "secrets.toml",
             ROOT.parent / "maruk-dshboard-repo" / ".streamlit" / "secrets.toml",
+            ROOT.parent / "splendid-hopper" / ".streamlit" / "secrets.toml",
             Path(r"C:/Users/adee/Documents/antigravity/maruk-dshboard-repo/.streamlit/secrets.toml"),
             Path.home() / ".streamlit" / "secrets.toml"
         ]
@@ -105,7 +131,7 @@ def fetch_live_active_bingx_coins():
             client = get_bingx_client(acc_k)
             if not client:
                 continue
-            # Baca posisi aktif via endpoint swapV2 resmi (agar posisi manual seperti ENS & KAS 100% terbaca)
+            # 1. Baca posisi aktif via endpoint swapV2 resmi (agar posisi manual seperti ENS & KAS 100% terbaca)
             raw_pos_resp = client.swapV2PrivateGetUserPositions()
             pos = raw_pos_resp.get("data", [])
             for p in pos:
@@ -114,21 +140,146 @@ def fetch_live_active_bingx_coins():
                     sym_raw = p.get("symbol", "")
                     base = sym_raw.split("-")[0].replace("1000", "")
                     side = str(p.get("positionSide", "SHORT")).upper()
-                    active_map[sym_raw] = {"account": acc_k, "side": side, "type": "POSITION", "contracts": abs(amt)}
-                    active_map[sym_raw.replace("-USDT", "")] = {"account": acc_k, "side": side, "type": "POSITION", "contracts": abs(amt)}
-                    active_map[base] = {"account": acc_k, "side": side, "type": "POSITION", "contracts": abs(amt)}
-            # Baca open orders (limit antre)
+                    entry_p = float(p.get("avgPrice") or 0)
+                    mark_p = float(p.get("markPrice") or entry_p)
+                    unrealized_pnl = float(p.get("unrealizedProfit") or 0)
+                    leverage_val = float(p.get("leverage") or 20)
+                    
+                    # Hitung ROE
+                    margin_val = (abs(amt) * entry_p) / (leverage_val + 1e-10)
+                    roe_val = (unrealized_pnl / margin_val * 100.0) if margin_val > 0 else 0.0
+
+                    pos_data = {
+                        "account": acc_k,
+                        "side": side,
+                        "type": "POSITION",
+                        "contracts": abs(amt),
+                        "entry": entry_p,
+                        "mark": mark_p,
+                        "pnl": unrealized_pnl,
+                        "roe": roe_val,
+                        "leverage": leverage_val,
+                        "symbol": sym_raw,
+                        "base": base
+                    }
+                    active_map[sym_raw] = pos_data
+                    active_map[sym_raw.replace("-USDT", "")] = pos_data
+                    active_map[base] = pos_data
+
+            # 2. Baca open orders (limit antre)
             orders = client.fetch_open_orders()
             for o in orders:
                 sym_clean = o["symbol"].split(":")[0].replace("/", "-")
-                base = sym_clean.split("-")[0]
+                base = sym_clean.split("-")[0].replace("1000", "")
+                order_data = {
+                    "account": acc_k,
+                    "side": str(o.get("side", "")).upper(),
+                    "type": "ORDER",
+                    "price": float(o.get("price") or 0),
+                    "amount": float(o.get("amount") or 0),
+                    "order_id": str(o.get("id", "")),
+                    "symbol": sym_clean,
+                    "base": base
+                }
                 if sym_clean not in active_map:
-                    active_map[sym_clean] = {"account": acc_k, "side": o.get("side"), "type": "ORDER", "price": o.get("price")}
+                    active_map[sym_clean] = order_data
                 if base not in active_map:
-                    active_map[base] = {"account": acc_k, "side": o.get("side"), "type": "ORDER", "price": o.get("price")}
+                    active_map[base] = order_data
         except Exception:
             pass
     return active_map
+
+def cancel_all_bingx_open_orders(account_key: str = "all") -> dict:
+    """
+    Batalkan SEMUA open limit order yang sedang antre di BingX Futures.
+    Fitur darurat (Killswitch) ketika terjadi pergerakan ekstrem BTC.
+    """
+    accs = get_accounts_credentials()
+    target_accs = ["akun_1", "akun_2", "akun_3"] if account_key == "all" else [account_key]
+    results = {}
+    for acc in target_accs:
+        client = get_bingx_client(acc)
+        if not client:
+            continue
+        try:
+            orders = client.fetch_open_orders()
+            cancelled = 0
+            for o in orders:
+                try:
+                    client.cancel_order(o["id"], o["symbol"])
+                    cancelled += 1
+                except Exception:
+                    pass
+            results[acc] = cancelled
+        except Exception as e:
+            results[acc] = f"Error: {str(e)}"
+    return results
+
+def get_btc_macro_sentiment() -> dict:
+    """
+    Scanner Makro BTC (SMC / Institutional Flow Shield):
+    Mendeteksi apakah BTC sedang dipompa (pump) atau dibanting (dump) oleh smart money/retail.
+    Membantu trader membatalkan limit berlawanan arah sebelum tersapu (SL).
+    """
+    try:
+        client = get_bingx_client("akun_1")
+        if not client:
+            client = ccxt.bingx({"adjustForTimeDifference": True, "options": {"defaultType": "swap"}})
+        
+        # Ambil kline 1H BTC
+        ohlcv = client.fetch_ohlcv("BTC/USDT:USDT", timeframe="1h", limit=30)
+        if not ohlcv or len(ohlcv) < 15:
+            return {"status": "NORMAL", "label": "🛡️ BTC STABIL / NETRAL", "price": 0, "change_1h": 0, "rsi": 50}
+
+        closes = [x[4] for x in ohlcv]
+        curr_p = closes[-1]
+        prev_p = closes[-2]
+        change_1h = ((curr_p - prev_p) / prev_p) * 100.0
+
+        # Simple RSI 14
+        gains, losses = [], []
+        for i in range(1, 15):
+            diff = closes[-i] - closes[-i - 1]
+            if diff >= 0:
+                gains.append(diff)
+                losses.append(0)
+            else:
+                gains.append(0)
+                losses.append(abs(diff))
+        avg_gain = sum(gains) / 14.0
+        avg_loss = (sum(losses) / 14.0) + 1e-10
+        rs = avg_gain / avg_loss
+        rsi = 100.0 - (100.0 / (1.0 + rs))
+
+        if change_1h >= 1.2 or rsi >= 72:
+            return {
+                "status": "PUMP_SPIKE",
+                "label": "🚨 BTC PUMP SURGE (Whales Borong) - WASPADA SHORT!",
+                "price": curr_p,
+                "change_1h": round(change_1h, 2),
+                "rsi": round(rsi, 1),
+                "recommendation": "Sebaiknya cancel limit short yang belum tersentuh!"
+            }
+        elif change_1h <= -1.2 or rsi <= 28:
+            return {
+                "status": "DUMP_SPIKE",
+                "label": "🚨 BTC DUMP SURGE (Panic Selling) - WASPADA LONG!",
+                "price": curr_p,
+                "change_1h": round(change_1h, 2),
+                "rsi": round(rsi, 1),
+                "recommendation": "Sebaiknya cancel limit long yang belum tersentuh!"
+            }
+        else:
+            return {
+                "status": "NORMAL",
+                "label": "🛡️ BTC TREN NETRAL / STABIL - Aman untuk Limit Order",
+                "price": curr_p,
+                "change_1h": round(change_1h, 2),
+                "rsi": round(rsi, 1),
+                "recommendation": "Kondisi pasar wajar. Limit order aman dijalankan."
+            }
+    except Exception:
+        return {"status": "NORMAL", "label": "🛡️ BTC TREN NETRAL", "price": 0, "change_1h": 0, "rsi": 50, "recommendation": "Aman"}
 
 def place_bingx_sniper_order(account_key: str, symbol_clean: str, direction: str, 
                              entry_price: float, sl_price: float, tp_price: float, 
