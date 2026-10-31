@@ -241,7 +241,7 @@ def overview(snapshot,info,summary,base):
 def sinyal_page():
     """Halaman sinyal limit order 50 koin BingX dengan scoring 1-100."""
     LEVERAGE_DISPLAY = 20   # asumsi leverage untuk kalkulasi ROE
-    MARGIN_DISPLAY   = 2.0  # asumsi margin per trade (USD)
+    MARGIN_DISPLAY   = 0.20  # asumsi margin per trade (USD)
 
     # ── CSS Kartu Sinyal ────────────────────────────────────────────────
     st.markdown("""
@@ -506,24 +506,28 @@ def sinyal_page():
   <div class="sig-score-bar-wrap"><div class="sig-score-bar" style="width:{score}%;background:{bar_color}"></div></div>
   <div class="sig-grid">
     <div class="sig-cell">
-      <div class="sig-cell-label">💎 Entry Limit</div>
+      <div class="sig-cell-label">💎 Entry Limit BingX</div>
       <div class="sig-cell-val">{entry}</div>
       <div style="color:#3a5a7a;font-size:10px">{dist_str}</div>
+      <div style="color:#00e676;font-size:10px;margin-top:4px;font-weight:600">💵 Margin Min: $0.20</div>
     </div>
     <div class="sig-cell">
-      <div class="sig-cell-label">❌ Stop Loss</div>
+      <div class="sig-cell-label">❌ Stop Loss (Proteksi)</div>
       <div class="sig-cell-val red">{sl}</div>
-      <div style="color:#3a5a7a;font-size:10px">RR {rr}:1</div>
+      <div style="color:#3a5a7a;font-size:10px">Risk: 1.2 ATR</div>
+      <div style="color:#f44336;font-size:10px;margin-top:4px">Max Rugi: -$0.20</div>
     </div>
     <div class="sig-cell">
-      <div class="sig-cell-label">🎯 TP1 / TP2</div>
+      <div class="sig-cell-label">🎯 TP1 (Tutup 70%)</div>
       <div class="sig-cell-val green">{tp1}</div>
-      <div class="sig-cell-val" style="color:#00bcd4;font-size:11px">{tp2}</div>
+      <div style="color:#00e676;font-size:10px;margin-top:2px">Kunci Cuan: +$0.21</div>
+      <div class="sig-cell-val" style="color:#00bcd4;font-size:11px;margin-top:4px">🎯 TP2 (30%): {tp2}</div>
     </div>
     <div class="sig-cell">
-      <div class="sig-cell-label">💰 TP3 (4R)</div>
+      <div class="sig-cell-label">💰 TP3 Runner (4R)</div>
       <div class="sig-cell-val gold">{tp3}</div>
-      <div style="color:#3a5a7a;font-size:10px">Harga saat ini: {live_price}</div>
+      <div style="color:#ffd700;font-size:10px;margin-top:2px">Jackpot: +$0.45</div>
+      <div style="color:#3a5a7a;font-size:10px;margin-top:4px">Live: {live_price}</div>
     </div>
   </div>
   <div class="sig-reasons">
