@@ -713,3 +713,84 @@ def fetch_recently_closed_pnl_trades(account_key: str = "akun_1", limit: int = 5
         return closed_trades
     except Exception:
         return []
+
+def batch_place_all_valid_limits(signals: list, account_key: str = "akun_1", min_score: int = 70, max_orders: int = 15, margin_usd: float = 0.20, leverage: int = 20) -> dict:
+    """
+    Pasang SEMUA sinyal limit order sekaligus dalam 1-Klik!
+    User tidak perlu lagi menekan tombol pasang satu per satu.
+    Hanya memasang koin yang belum open posisi dan belum ada open limit order di bursa BingX.
+    """
+    client = get_bingx_client(account_key)
+    if not client:
+        return {"success": False, "msg": f"Client BingX {account_key} tidak ditemukan."}
+
+    # 1. Ambil data posisi aktif & open order bursa saat ini
+    try:
+        live_map = fetch_live_active_bingx_coins()
+    except Exception:
+        live_map = {}
+    
+    success_list = []
+    skipped_list = []
+    failed_list = []
+
+    # Filter kandidat sinyal
+    candidates = []
+    for s in signals:
+        sym = s.get("symbol", "")
+        base = sym.replace("-USDT", "").replace("1000", "")
+        score = s.get("score", 0)
+        status = s.get("_live_status", s.get("status", "SCANNING"))
+
+        # Skip jika koin sudah tercatat aktif di bursa
+        if sym in live_map or base in live_map or s.get("_is_real_pos"):
+            skipped_list.append(f"{base} (Sudah aktif)")
+            continue
+
+        # Skip jika statusnya TELAT, EXPIRED, atau TP_HIT
+        if status in ("TELAT", "EXPIRED", "TP1_HIT", "TP2_HIT", "TP3_HIT", "KENA_SL"):
+            continue
+
+        if score >= min_score:
+            candidates.append(s)
+
+    # Batasi maksimal orders sekaligus untuk mencegah kehabisan margin
+    for s in candidates[:max_orders]:
+        sym = s.get("symbol")
+        base = sym.replace("-USDT", "").replace("1000", "")
+        direction = s.get("direction", "LONG")
+        entry = float(s.get("entry", 0))
+        sl = float(s.get("sl", 0))
+        tp = float(s.get("tp1", 0))
+
+        if entry <= 0 or sl <= 0 or tp <= 0:
+            continue
+
+        res = place_bingx_sniper_order(
+            account_key=account_key,
+            symbol_clean=sym,
+            direction=direction,
+            entry_price=entry,
+            sl_price=sl,
+            tp_price=tp,
+            tp_choice_label="TP1",
+            margin_usd=margin_usd,
+            leverage=leverage
+        )
+
+        if res.get("success"):
+            success_list.append(f"{base} ({direction} @ {entry})")
+        else:
+            failed_list.append(f"{base}: {res.get('msg')}")
+        
+        time.sleep(0.2)
+
+    msg = f"Berhasil pasang {len(success_list)} limit order sekaligus! Dilewati: {len(skipped_list)} koin."
+    return {
+        "success": True,
+        "count": len(success_list),
+        "success_list": success_list,
+        "skipped_list": skipped_list,
+        "failed_list": failed_list,
+        "msg": msg
+    }

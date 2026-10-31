@@ -333,8 +333,31 @@ def sinyal_page(summary=None):
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
         do_scan = st.button("🔄 Scan 100+ Koin", type="primary", use_container_width=True, key="sinyal_scan_btn")
 
-    # ── BAR AKSI CEPAT AUTO-BEP SESUAI ATURAN BACKTEST (+0.8R / ROE >= +25%) ───
-    col_act1, col_act2, col_act3 = st.columns([1.8, 1.3, 1.0])
+    # ── BAR AKSI CEPAT: PASANG SEMUA LIMIT 1-KLIK & AUTO-BEP ATURAN BAKU ───
+    col_act0, col_act1, col_act2, col_act3 = st.columns([1.8, 1.5, 1.2, 0.9])
+    with col_act0:
+        if st.button("🚀 Pasang Semua Limit Sekaligus (1-Klik)", type="primary", use_container_width=True, help="Otomatis pasang Limit Order + TP/SL untuk SEMUA koin valid yang belum buka posisi di BingX"):
+            with st.spinner("Mengirim antrean limit order semua koin valid ke bursa BingX..."):
+                current_sigs = list(st.session_state.get("sinyal_signals", []))
+                batch_res = bingx_executor.batch_place_all_valid_limits(
+                    signals=current_sigs,
+                    account_key="akun_1",
+                    min_score=filter_min_score,
+                    max_orders=12,
+                    margin_usd=0.20,
+                    leverage=20
+                )
+                if batch_res.get("success"):
+                    st.balloons()
+                    st.success(f"🎉 **{batch_res.get('msg')}**")
+                    if batch_res.get("success_list"):
+                        st.markdown("**Koin Berhasil Dipasang Limit:**")
+                        for sc in batch_res.get("success_list", []):
+                            st.caption(f"✅ {sc}")
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error(f"Gagal: {batch_res.get('msg')}")
     with col_act1:
         if st.button("🛡️ Kunci BEP Sesuai Aturan (+0.8R / ROE ≥ +25%)", type="secondary", use_container_width=True, help="HANYA geser SL ke Entry jika posisi sudah tembus +0.8R / ROE >= +25%. Posisi profit tipis tetap dijaga SL awalnya agar momentum tidak terbunuh oleh retest modal!"):
             with st.spinner("Memeriksa posisi & mengunci BEP sesuai aturan baku backtest (+0.8R / ROE >= 25%)..."):
@@ -352,7 +375,7 @@ def sinyal_page(summary=None):
                 else:
                     st.error(f"Gagal: {bep_res.get('msg')}")
     with col_act2:
-        if st.button("❌ Batalkan Order Limit Web Saja", use_container_width=True, help="Batalkan antrean limit yang dipasang via web (order manual BingX tetap aman)"):
+        if st.button("❌ Batalkan Limit Web Saja", use_container_width=True, help="Batalkan antrean limit yang dipasang via web (order manual BingX tetap aman)"):
             cancel_res = bingx_executor.cancel_web_orders_only("akun_1")
             st.info(str(cancel_res))
     with col_act3:
