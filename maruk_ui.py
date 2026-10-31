@@ -322,7 +322,7 @@ def sinyal_page(summary=None):
         filter_min_score = st.slider("Skor Minimum", 50, 100, 60, 5, key="sinyal_score_filter")
     with c3:
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        do_scan = st.button("🔄 Scan 50 Koin", type="primary", use_container_width=True, key="sinyal_scan_btn")
+        do_scan = st.button("🔄 Scan 100+ Koin", type="primary", use_container_width=True, key="sinyal_scan_btn")
 
     # ── 3. AMBIL / REFRESH SINYAL ──────────────────────────────────────
     cache_key = "sinyal_signals"
@@ -334,7 +334,7 @@ def sinyal_page(summary=None):
             st.session_state[cache_key] = cached
             st.session_state[scan_time_key] = (sinyal_engine.load_cache() or {}).get("scanned_at", time.time())
         else:
-            progress_bar = st.progress(0, text="🔍 Scanning 50 koin BingX...")
+            progress_bar = st.progress(0, text="🔍 Scanning 100+ koin BingX...")
             def on_progress(done, total):
                 pct = done / max(total, 1)
                 try:
@@ -547,7 +547,7 @@ def sinyal_page(summary=None):
 <div class="empty-state">
   <div style="font-size:40px">🔍</div>
   <div style="font-size:16px;margin-top:10px;color:#5a7a9a">Belum ada sinyal yang memenuhi kriteria</div>
-  <div style="font-size:12px;margin-top:6px;color:#3a5a7a">Tekan "Scan 50 Koin" untuk memperbarui data BingX</div>
+  <div style="font-size:12px;margin-top:6px;color:#3a5a7a">Tekan "Scan 100+ Koin" untuk memperbarui data BingX</div>
 </div>
 """, unsafe_allow_html=True)
         return
@@ -562,6 +562,7 @@ def sinyal_page(summary=None):
         score = sig["score"]
         entry = sig["entry"]
         sl = sig["sl"]
+        bep_val = sig.get("bep", "—")
         tp1 = sig["tp1"]
         tp2 = sig["tp2"]
         tp3 = sig["tp3"]
@@ -679,10 +680,10 @@ def sinyal_page(summary=None):
       <div class="sig-cell-val" style="color:#00bcd4;font-size:11px;margin-top:4px">🎯 TP2 (30%): {tp2}</div>
     </div>
     <div class="sig-cell">
-      <div class="sig-cell-label">💰 TP3 Runner (4R)</div>
-      <div class="sig-cell-val gold">{tp3}</div>
-      <div style="color:#ffd700;font-size:10px;margin-top:2px">Jackpot: +$0.45</div>
-      <div style="color:#3a5a7a;font-size:10px;margin-top:4px">Live: {live_price}</div>
+      <div class="sig-cell-label">🛡️ Level BEP (+0.8R)</div>
+      <div class="sig-cell-val" style="color:#00e5ff">{bep_val}</div>
+      <div style="color:#00e5ff;font-size:10px;margin-top:2px">Kunci SL ke Entry ($0 Rugi)</div>
+      <div style="color:#ffd700;font-size:11px;margin-top:4px">💰 TP3: {tp3}</div>
     </div>
   </div>
   <div class="sig-reasons">

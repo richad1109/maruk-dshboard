@@ -104,7 +104,7 @@ def fetch_klines(symbol: str, interval: str = "1h", limit: int = 200) -> Optiona
     return result
 
 
-def fetch_top_50_symbols() -> list[str]:
+def fetch_top_symbols(limit: int = 100) -> list[str]:
     """Ambil 50 simbol Kripto Futures murni (tanpa komoditas emas/minyak) teratas berdasarkan volume 24 jam."""
     data = _get(f"{BINGX}/openApi/swap/v2/quote/ticker", {})
     if data is None:
@@ -122,13 +122,16 @@ def fetch_top_50_symbols() -> list[str]:
         sym = str(t.get("symbol", ""))
         if not sym.endswith("-USDT"):
             continue
-        if any(sym.startswith(prefix) for prefix in NON_CRYPTO_PREFIXES):
+        if sym.startswith("NC") or any(sym.startswith(prefix) for prefix in NON_CRYPTO_PREFIXES):
             continue
         crypto_tickers.append(t)
 
     crypto_tickers.sort(key=lambda x: float(x.get("quoteVolume") or 0), reverse=True)
-    symbols = [t["symbol"] for t in crypto_tickers[:50]]
+    symbols = [t["symbol"] for t in crypto_tickers[:limit]]
     return symbols if len(symbols) >= 10 else FALLBACK_50_COINS
+
+def fetch_top_50_symbols() -> list[str]:
+    return fetch_top_symbols(100)
 
 
 _ALL_TICKERS_CACHE = {}
@@ -505,6 +508,7 @@ def score_and_generate(rows_4h: list[dict], rows_1h: list[dict]) -> Optional[dic
         entry = max(entry, price * 0.93)                # jangan terlalu jauh (maks 7% di bawah)
 
         sl = entry - atr_1h * 1.2                       # 1.2 ATR di bawah entry
+        bep = entry + atr_1h * 0.8                      # BEP trigger level (+0.8R)
         tp1 = entry + atr_1h * 1.5                      # 1.5R
         tp2 = entry + atr_1h * 2.5                      # 2.5R
         tp3 = entry + atr_1h * 4.0                      # 4R
@@ -518,6 +522,7 @@ def score_and_generate(rows_4h: list[dict], rows_1h: list[dict]) -> Optional[dic
         entry = min(entry, price * 1.07)                # jangan terlalu jauh
 
         sl = entry + atr_1h * 1.2
+        bep = entry - atr_1h * 0.8                      # BEP trigger level (+0.8R)
         tp1 = entry - atr_1h * 1.5
         tp2 = entry - atr_1h * 2.5
         tp3 = entry - atr_1h * 4.0
@@ -535,6 +540,7 @@ def score_and_generate(rows_4h: list[dict], rows_1h: list[dict]) -> Optional[dic
         "score": final_score,
         "entry": _fmt(entry),
         "sl": _fmt(sl),
+        "bep": _fmt(bep),
         "tp1": _fmt(tp1),
         "tp2": _fmt(tp2),
         "tp3": _fmt(tp3),
@@ -668,7 +674,7 @@ def scan_50_coins(progress_callback=None) -> list[dict]:
     Hanya return sinyal dengan score >= MIN_SCORE, diurutkan tertinggi.
     progress_callback(done, total) dipanggil tiap koin selesai.
     """
-    symbols = fetch_top_50_symbols()
+    symbols = fetch_top_symbols(100)
     total = len(symbols)
     signals = []
     done_count = 0
@@ -738,23 +744,27 @@ def get_cached_signals(max_age_minutes: int = 30) -> Optional[list[dict]]:
 
 
 def refresh_scan(progress_callback=None) -> list[dict]:
-    """Scan 50 koin dan kunci level (Persistent Locked Setup). Level entry tidak berubah-ubah sebelum expired."""
+    """
+    PERSISTENT SIGNAL VAULT:
+    Scan 100 koin likuid teratas BingX.
+    Sinyal valid yang sudah pernah muncul TIDAK BOLEH HILANG dari web sampai menyentuh TP/SL atau expired!
+    """
     cached = load_cache() or {}
     old_signals = {s["symbol"]: s for s in cached.get("signals", [])}
 
     fresh_signals = scan_50_coins(progress_callback=progress_callback)
     now_ts = time.time()
+    fresh_syms = {s["symbol"] for s in fresh_signals}
 
     merged = []
     for sig in fresh_signals:
         sym = sig["symbol"]
         if sym in old_signals:
             old = old_signals[sym]
-            # Jika sinyal lama masih dalam masa berlaku TTL dan belum expired:
             if now_ts < old.get("valid_until", 0):
-                # KUNCI MATI level harga entry, TP, SL, waktu validitas agar tidak bergeser!
                 sig["entry"] = old["entry"]
                 sig["sl"] = old["sl"]
+                sig["bep"] = old.get("bep", sig.get("bep"))
                 sig["tp1"] = old["tp1"]
                 sig["tp2"] = old["tp2"]
                 sig["tp3"] = old["tp3"]
@@ -762,8 +772,18 @@ def refresh_scan(progress_callback=None) -> list[dict]:
                 sig["generated_at"] = old.get("generated_at", sig.get("generated_at", now_ts))
                 sig["valid_until"] = old.get("valid_until", sig.get("valid_until", now_ts + 28800))
                 sig["valid_until_wib"] = old.get("valid_until_wib", sig.get("valid_until_wib"))
+            if old.get("is_active"):
+                sig["is_active"] = True
+            if old.get("_is_real_pos"):
+                sig["_is_real_pos"] = True
         merged.append(sig)
 
-    merged.sort(key=lambda x: x["score"], reverse=True)
+    # PERSISTENT VAULT: Pertahankan sinyal lama yang masih dalam masa aktif/valid (JANGAN DIHAPUS)
+    for sym, old in old_signals.items():
+        if sym not in fresh_syms:
+            if now_ts < old.get("valid_until", 0) or old.get("is_active") or old.get("_is_real_pos"):
+                merged.append(old)
+
+    merged.sort(key=lambda x: (1 if (x.get("is_active") or x.get("_is_real_pos")) else 0, x["score"]), reverse=True)
     save_cache(merged)
     return merged
