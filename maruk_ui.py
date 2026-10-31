@@ -490,11 +490,13 @@ def sinyal_page(summary=None):
 
     for s in all_signals:
         sym = s["symbol"]
-        base = sym.replace("-USDT", "").replace("1000", "")
+        norm_sym = bingx_executor.normalize_coin_symbol(sym)
+        base = sym.replace("-USDT", "")
+        s["_norm_sym"] = norm_sym
 
         # Cek apakah koin ini baru Take Profit di bursa
-        if sym in tp_closed_map or base in tp_closed_map:
-            ct_info = tp_closed_map.get(sym) or tp_closed_map.get(base)
+        if sym in tp_closed_map or base in tp_closed_map or (norm_sym and norm_sym in tp_closed_map):
+            ct_info = tp_closed_map.get(sym) or tp_closed_map.get(base) or tp_closed_map.get(norm_sym)
             s["_is_real_tp"] = True
             s["_real_income"] = ct_info.get("income", 0.0)
             s["_close_info"] = ct_info.get("info", "Take Profit")
@@ -503,19 +505,28 @@ def sinyal_page(summary=None):
         cp = bulk_prices.get(sym) or bulk_prices.get(base) or s.get("current_price") or 0.0
         s["_live_price"] = cp
 
-        is_active_bursa = False
-        if sym in live_bx or base in live_bx:
-            info_bx = live_bx.get(sym) or live_bx.get(base)
+        info_bx = live_bx.get(sym) or live_bx.get(base) or (live_bx.get(norm_sym) if norm_sym else None)
+        is_pos_bursa = False
+        is_order_bursa = False
+
+        if info_bx:
             if info_bx.get("type") == "POSITION":
-                is_active_bursa = True
+                is_pos_bursa = True
                 s["_is_real_pos"] = True
                 s["_real_roe"] = info_bx.get("roe", 0)
                 s["_real_pnl"] = info_bx.get("pnl", 0)
                 s["_real_acc"] = str(info_bx.get("account", "akun_1")).replace("akun_", "Akun ")
+            elif info_bx.get("type") == "ORDER":
+                is_order_bursa = True
+                s["_is_open_order"] = True
+
+        s["_in_bingx_pos"] = is_pos_bursa
+        s["_in_bingx_order"] = is_order_bursa
+        s["_is_in_bingx"] = is_pos_bursa or is_order_bursa
 
         if s.get("_is_real_tp"):
             st_key = "TP1_HIT"
-        elif is_active_bursa or s.get("is_active"):
+        elif is_pos_bursa:
             try:
                 tp1_v = float(s.get("tp1", 0))
                 sl_v = float(s.get("sl", 0))
@@ -597,52 +608,71 @@ def sinyal_page(summary=None):
 </div>
 """, unsafe_allow_html=True)
 
-    # ── 7. TAB FILTER STATUS ───────────────────────────────────────────
-    status_map = {
-        "🔍 Semua":              None,
-        "⏳ Menunggu/Scan":        ["SCANNING"],
-        "✅ Posisi Aktif":         ["AKTIF", "MENDEKATI"],
-        "🎯 TP Cuan":            ["TP1_HIT", "TP2_HIT", "TP3_HIT"],
-        "❌ Kena SL":            ["KENA_SL"],
-        "⏰ Telat (Lari Duluan)":  ["TELAT"],
-        "💀 Expired (Waktu Habis)":["EXPIRED"],
-    }
+    # ── 7. TAB FILTER STATUS RIGID (TANPA NUMPUK · TP/SL MUTLAK DIPISAHKAN) ─
+    def match_signal_tab(s, tab_name: str) -> bool:
+        st_val = s.get("_live_status", "SCANNING")
+        is_tp = bool(s.get("_is_real_tp") or st_val in ("TP1_HIT", "TP2_HIT", "TP3_HIT"))
+        is_sl = bool(st_val == "KENA_SL")
+        is_in_bx = bool(s.get("_is_in_bingx") or s.get("_is_real_pos"))
+        is_order_bx = bool(s.get("_in_bingx_order"))
+        is_pos_bx = bool(s.get("_in_bingx_pos") or s.get("_is_real_pos"))
 
-    def count_tab(statuses):
-        if statuses is None:
-            return len([
-                s for s in all_signals
-                if (s.get("_is_real_pos") or s["score"] >= filter_min_score)
-                and (filter_dir == "Semua" or s["direction"] == filter_dir)
-            ])
-        return len([
-            s for s in all_signals
-            if s.get("_live_status") in statuses
-            and (s.get("_is_real_pos") or s["score"] >= filter_min_score)
-            and (filter_dir == "Semua" or s["direction"] == filter_dir)
-        ])
+        # Filter Skor & Arah dasar
+        if not (s.get("_is_real_pos") or s.get("_is_real_tp") or s["score"] >= filter_min_score):
+            return False
+        if filter_dir != "Semua" and s.get("direction") != filter_dir:
+            return False
 
-    tab_labels = [f"{k} ({count_tab(v)})" for k, v in status_map.items()]
+        if tab_name == "🔍 Semua":
+            return True
+
+        # ATURAN BAKU: Jika sudah TP atau SL, HANYA boleh ada di tab TP atau SL!
+        # DILARANG KERAS muncul di tab Belum Limit, Antre Limit, atau Posisi Aktif!
+        if tab_name == "🎯 TP Cuan":
+            return is_tp
+
+        if tab_name == "❌ Kena SL":
+            return is_sl
+
+        # Tab Operasional Aktif (Mutlak bebas TP & bebas SL)
+        if is_tp or is_sl:
+            return False
+
+        if tab_name == "⚡ Siap Pasang Limit (Belum di BingX)":
+            return (not is_in_bx) and (st_val in ("SCANNING", "MENDEKATI"))
+
+        if tab_name == "⏳ Sedang Antre Limit":
+            return is_order_bx and (not is_pos_bx) and (st_val not in ("EXPIRED", "TELAT"))
+
+        if tab_name == "✅ Posisi Sedang Aktif":
+            return is_pos_bx or (st_val == "AKTIF" and not is_order_bx)
+
+        if tab_name == "⏰ Telat (Lari Duluan)":
+            return st_val == "TELAT"
+
+        if tab_name == "💀 Expired":
+            return st_val == "EXPIRED"
+
+        return False
+
+    tab_categories = [
+        "🔍 Semua",
+        "⚡ Siap Pasang Limit (Belum di BingX)",
+        "⏳ Sedang Antre Limit",
+        "✅ Posisi Sedang Aktif",
+        "🎯 TP Cuan",
+        "❌ Kena SL",
+        "⏰ Telat (Lari Duluan)",
+        "💀 Expired"
+    ]
+
+    tab_labels = [f"{k} ({sum(1 for s in all_signals if match_signal_tab(s, k))})" for k in tab_categories]
     selected_tab_idx = st.radio(
         "Filter Status", tab_labels, horizontal=True, key="sinyal_status_tab",
         label_visibility="collapsed"
     )
     selected_tab_key = selected_tab_idx.split(" (")[0]
-    selected_statuses = status_map.get(selected_tab_key)
-
-    if selected_statuses is None:
-        filtered = [
-            s for s in all_signals
-            if (s.get("_is_real_pos") or s["score"] >= filter_min_score)
-            and (filter_dir == "Semua" or s["direction"] == filter_dir)
-        ]
-    else:
-        filtered = [
-            s for s in all_signals
-            if s.get("_live_status") in selected_statuses
-            and (s.get("_is_real_pos") or s["score"] >= filter_min_score)
-            and (filter_dir == "Semua" or s["direction"] == filter_dir)
-        ]
+    filtered = [s for s in all_signals if match_signal_tab(s, selected_tab_key)]
 
     if not filtered:
         st.markdown("""
@@ -681,9 +711,9 @@ def sinyal_page(summary=None):
         gen_wib = datetime.fromtimestamp(gen_ts, WIB_TZ).strftime("%H:%M WIB")
         vol_ratio = sig.get("vol_ratio", 1.0)
 
-        # Badge koin aktif di BingX (HANYA jika posisi memang sedang jalan di BingX)
+        # Badge koin aktif di BingX (Presisi & Informatif)
         active_bx_badge = ""
-        is_pos_bingx = sig.get("_is_real_pos", False)
+        is_pos_bingx = sig.get("_is_real_pos", False) or sig.get("_in_bingx_pos", False)
         acc_label = sig.get("_real_acc", "Akun 1")
 
         if sig.get("_is_real_tp"):
@@ -691,18 +721,17 @@ def sinyal_page(summary=None):
             active_bx_badge = f'<span style="background:#ffd70022;color:#ffd700;border:1px solid #ffd700;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🏆 TP CUAN BINGX (+${inc_val:.4f} USD)</span>'
             float_html = f'<span style="color:#00e676;font-size:13px;font-weight:700;margin-left:10px">🎯 REALIZED CUAN (+${inc_val:.4f})</span>'
         elif is_pos_bingx:
-            active_bx_badge = f'<span style="background:#00e67622;color:#00e676;border:1px solid #00e676;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🟢 AKTIF BINGX ({acc_label})</span>'
-        elif coin in live_bx or sym in live_bx:
-            info_bx = live_bx.get(coin) or live_bx.get(sym)
-            acc_name = str(info_bx.get("account", "akun_1")).replace("akun_", "Akun ")
-            tipe = "POSISI" if info_bx.get("type") == "POSITION" else "LIMIT ORDER"
-            active_bx_badge = f'<span style="background:#00e67622;color:#00e676;border:1px solid #00e676;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🟢 AKTIF BINGX ({acc_name})</span>'
+            active_bx_badge = f'<span style="background:#00e67622;color:#00e676;border:1px solid #00e676;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🟢 LIVE POSISI BINGX ({acc_label})</span>'
+        elif sig.get("_in_bingx_order"):
+            active_bx_badge = f'<span style="background:#00bcd422;color:#00bcd4;border:1px solid #00bcd4;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">⏳ ANTRE LIMIT BINGX</span>'
         else:
             for acc_k, acc_lbl in [("akun_1", "Akun 1"), ("akun_2", "Akun 2"), ("akun_3", "Akun 3")]:
                 rec = bx_state.get(f"{acc_k}_{sym}")
                 if rec and rec.get("status") == "SUKSES_BINGX":
-                    active_bx_badge = f'<span style="background:#00e67622;color:#00e676;border:1px solid #00e676;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🟢 AKTIF BINGX ({acc_lbl})</span>'
+                    active_bx_badge = f'<span style="background:#00bcd422;color:#00bcd4;border:1px solid #00bcd4;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">⏳ ANTRE LIMIT BINGX ({acc_lbl})</span>'
                     break
+            if not active_bx_badge:
+                active_bx_badge = f'<span style="background:#ffd70011;color:#ffd700;border:1px solid #ffd70044;font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;margin-left:8px">⚡ SIAP LIMIT (BELUM DI BURSA)</span>' 
 
         # Floating ROE (hanya muncul saat posisi aktif)
         if is_pos_bingx and "_real_roe" in sig:

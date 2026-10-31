@@ -173,8 +173,21 @@ def get_bingx_client(account_key: str):
     })
     return client
 
+def normalize_coin_symbol(sym: str) -> str:
+    """Normalisasi simbol koin ke format standar bersih (tanpa suffix/prefix koin micin)"""
+    if not sym:
+        return ""
+    s = str(sym).upper().split(":")[0].replace("/", "-").replace("-USDT", "").replace("USDT", "").strip()
+    for prefix in ("10000000", "1000000", "100000", "10000", "1000"):
+        if s.startswith(prefix):
+            s = s[len(prefix):]
+            break
+    if s.startswith("0") and len(s) > 1 and s[1:].isalpha():
+        s = s[1:]
+    return s
+
 def fetch_live_active_bingx_coins():
-    """Membaca posisi aktif dan open orders riil langsung dari bursa BingX semua akun."""
+    """Membaca posisi aktif dan open orders riil langsung dari bursa BingX semua akun dengan normalisasi presisi."""
     active_map = {}
     accs = get_accounts_credentials()
     for acc_k in ["akun_1", "akun_2", "akun_3"]:
@@ -184,21 +197,22 @@ def fetch_live_active_bingx_coins():
             client = get_bingx_client(acc_k)
             if not client:
                 continue
-            # 1. Baca posisi aktif via endpoint swapV2 resmi (agar posisi manual seperti ENS & KAS 100% terbaca)
+
+            # 1. Baca posisi aktif via endpoint swapV2 resmi
             raw_pos_resp = client.swapV2PrivateGetUserPositions()
             pos = raw_pos_resp.get("data", [])
             for p in pos:
                 amt = float(p.get("positionAmt") or 0)
                 if amt != 0:
                     sym_raw = p.get("symbol", "")
-                    base = sym_raw.split("-")[0].replace("1000", "")
+                    base = sym_raw.split("-")[0]
+                    norm_k = normalize_coin_symbol(sym_raw)
                     side = str(p.get("positionSide", "SHORT")).upper()
                     entry_p = float(p.get("avgPrice") or 0)
                     mark_p = float(p.get("markPrice") or entry_p)
                     unrealized_pnl = float(p.get("unrealizedProfit") or 0)
                     leverage_val = float(p.get("leverage") or 20)
                     
-                    # Hitung ROE
                     margin_val = (abs(amt) * entry_p) / (leverage_val + 1e-10)
                     roe_val = (unrealized_pnl / margin_val * 100.0) if margin_val > 0 else 0.0
 
@@ -213,31 +227,69 @@ def fetch_live_active_bingx_coins():
                         "roe": roe_val,
                         "leverage": leverage_val,
                         "symbol": sym_raw,
-                        "base": base
+                        "base": base,
+                        "norm": norm_k
                     }
                     active_map[sym_raw] = pos_data
                     active_map[sym_raw.replace("-USDT", "")] = pos_data
                     active_map[base] = pos_data
+                    if norm_k:
+                        active_map[norm_k] = pos_data
 
-            # 2. Baca open orders (limit antre)
-            orders = client.fetch_open_orders()
-            for o in orders:
-                sym_clean = o["symbol"].split(":")[0].replace("/", "-")
-                base = sym_clean.split("-")[0].replace("1000", "")
-                order_data = {
-                    "account": acc_k,
-                    "side": str(o.get("side", "")).upper(),
-                    "type": "ORDER",
-                    "price": float(o.get("price") or 0),
-                    "amount": float(o.get("amount") or 0),
-                    "order_id": str(o.get("id", "")),
-                    "symbol": sym_clean,
-                    "base": base
-                }
-                if sym_clean not in active_map:
-                    active_map[sym_clean] = order_data
-                if base not in active_map:
+            # 2. Baca open orders via swapV2 resmi
+            try:
+                open_ord_resp = client.swapV2PrivateGetTradeOpenOrders()
+                api_orders = open_ord_resp.get("data", {}).get("orders", [])
+                for o in api_orders:
+                    sym_raw = o.get("symbol", "")
+                    base = sym_raw.split("-")[0]
+                    norm_k = normalize_coin_symbol(sym_raw)
+                    order_data = {
+                        "account": acc_k,
+                        "side": str(o.get("side", "")).upper(),
+                        "type": "ORDER",
+                        "price": float(o.get("price") or 0),
+                        "amount": float(o.get("origQty") or 0),
+                        "order_id": str(o.get("orderId", "")),
+                        "symbol": sym_raw,
+                        "base": base,
+                        "norm": norm_k
+                    }
+                    active_map[sym_raw] = order_data
+                    active_map[sym_raw.replace("-USDT", "")] = order_data
                     active_map[base] = order_data
+                    if norm_k:
+                        active_map[norm_k] = order_data
+            except Exception:
+                pass
+
+            # Fallback 2.1 via CCXT fetch_open_orders
+            try:
+                orders = client.fetch_open_orders()
+                for o in orders:
+                    sym_clean = o["symbol"].split(":")[0].replace("/", "-")
+                    base = sym_clean.split("-")[0]
+                    norm_k = normalize_coin_symbol(sym_clean)
+                    order_data = {
+                        "account": acc_k,
+                        "side": str(o.get("side", "")).upper(),
+                        "type": "ORDER",
+                        "price": float(o.get("price") or 0),
+                        "amount": float(o.get("amount") or 0),
+                        "order_id": str(o.get("id", "")),
+                        "symbol": sym_clean,
+                        "base": base,
+                        "norm": norm_k
+                    }
+                    if sym_clean not in active_map:
+                        active_map[sym_clean] = order_data
+                    if base not in active_map:
+                        active_map[base] = order_data
+                    if norm_k and norm_k not in active_map:
+                        active_map[norm_k] = order_data
+            except Exception:
+                pass
+
         except Exception:
             pass
     return active_map
@@ -714,50 +766,79 @@ def fetch_recently_closed_pnl_trades(account_key: str = "akun_1", limit: int = 5
     except Exception:
         return []
 
-def batch_place_all_valid_limits(signals: list, account_key: str = "akun_1", min_score: int = 70, max_orders: int = 15, margin_usd: float = 0.20, leverage: int = 20) -> dict:
+def batch_place_all_valid_limits(signals: list, account_key: str = "akun_1", min_score: int = 60, max_orders: int = 15, margin_usd: float = 0.20, leverage: int = 20) -> dict:
     """
     Pasang SEMUA sinyal limit order sekaligus dalam 1-Klik!
-    User tidak perlu lagi menekan tombol pasang satu per satu.
-    Hanya memasang koin yang belum open posisi dan belum ada open limit order di bursa BingX.
+    MUTLAK KECUALIKAN:
+    1. Koin yang sudah ada POSISI AKTIF di BingX (sedang trade).
+    2. Koin yang sudah ada ORDER LIMIT ANTRE di BingX (menunggu jemput).
+    3. Koin yang statusnya TP, SL, TELAT, atau EXPIRED.
+    Dilarang keras double order!
     """
     client = get_bingx_client(account_key)
     if not client:
         return {"success": False, "msg": f"Client BingX {account_key} tidak ditemukan."}
 
-    # 1. Ambil data posisi aktif & open order bursa saat ini
+    # 1. Ambil data posisi aktif & open order bursa BingX saat ini
     try:
         live_map = fetch_live_active_bingx_coins()
     except Exception:
         live_map = {}
-    
+
+    # Kumpulkan semua koin yang sedang dipakai (occupied) di BingX
+    occupied_symbols = set()
+    for k, v in live_map.items():
+        occupied_symbols.add(k.upper())
+        norm_k = normalize_coin_symbol(k)
+        if norm_k:
+            occupied_symbols.add(norm_k.upper())
+
+    # Kumpulkan koin yang baru dipasang di Web state
+    state = load_bingx_order_state()
+    now_ts = time.time()
+    for k, v in state.items():
+        if v.get("status") == "SUKSES_BINGX" and (now_ts - v.get("timestamp", 0)) < 3600:
+            sym_s = v.get("symbol", "")
+            occupied_symbols.add(sym_s.upper())
+            norm_s = normalize_coin_symbol(sym_s)
+            if norm_s:
+                occupied_symbols.add(norm_s.upper())
+
     success_list = []
     skipped_list = []
     failed_list = []
+    seen_in_batch = set()
 
     # Filter kandidat sinyal
     candidates = []
     for s in signals:
         sym = s.get("symbol", "")
-        base = sym.replace("-USDT", "").replace("1000", "")
+        norm = normalize_coin_symbol(sym)
+        base = sym.replace("-USDT", "")
         score = s.get("score", 0)
         status = s.get("_live_status", s.get("status", "SCANNING"))
 
-        # Skip jika koin sudah tercatat aktif di bursa
-        if sym in live_map or base in live_map or s.get("_is_real_pos"):
-            skipped_list.append(f"{base} (Sudah aktif)")
+        # Skip jika koin sudah tercatat aktif atau antre di bursa
+        if (norm and norm in occupied_symbols) or (sym.upper() in occupied_symbols) or (base.upper() in occupied_symbols) or s.get("_is_real_pos"):
+            skipped_list.append(f"{sym} (Sudah ada di BingX: Posisi/Order)")
             continue
 
-        # Skip jika statusnya TELAT, EXPIRED, atau TP_HIT
-        if status in ("TELAT", "EXPIRED", "TP1_HIT", "TP2_HIT", "TP3_HIT", "KENA_SL"):
+        # Skip jika sudah ada koin yang sama di antrean batch ini
+        if norm in seen_in_batch:
+            continue
+
+        # Skip jika statusnya TELAT, EXPIRED, TP_HIT, atau KENA_SL
+        if status in ("TELAT", "EXPIRED", "TP1_HIT", "TP2_HIT", "TP3_HIT", "KENA_SL") or s.get("_is_real_tp"):
+            skipped_list.append(f"{sym} (Status {status})")
             continue
 
         if score >= min_score:
+            seen_in_batch.add(norm)
             candidates.append(s)
 
-    # Batasi maksimal orders sekaligus untuk mencegah kehabisan margin
+    # Batasi maksimal orders sekaligus untuk keamanan margin
     for s in candidates[:max_orders]:
         sym = s.get("symbol")
-        base = sym.replace("-USDT", "").replace("1000", "")
         direction = s.get("direction", "LONG")
         entry = float(s.get("entry", 0))
         sl = float(s.get("sl", 0))
@@ -779,13 +860,15 @@ def batch_place_all_valid_limits(signals: list, account_key: str = "akun_1", min
         )
 
         if res.get("success"):
-            success_list.append(f"{base} ({direction} @ {entry})")
+            success_list.append(f"{sym} ({direction} @ {entry})")
+            occupied_symbols.add(sym.upper())
+            occupied_symbols.add(normalize_coin_symbol(sym))
         else:
-            failed_list.append(f"{base}: {res.get('msg')}")
+            failed_list.append(f"{sym}: {res.get('msg')}")
         
-        time.sleep(0.2)
+        time.sleep(0.25)
 
-    msg = f"Berhasil pasang {len(success_list)} limit order sekaligus! Dilewati: {len(skipped_list)} koin."
+    msg = f"Berhasil pasang {len(success_list)} limit order baru! Dilewati: {len(skipped_list)} koin (sudah aktif/antre/TP)."
     return {
         "success": True,
         "count": len(success_list),
