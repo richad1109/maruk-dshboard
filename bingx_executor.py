@@ -676,3 +676,30 @@ def apply_bep_to_profit_positions(account_key: str = "akun_1", min_roe: float = 
         }
     except Exception as e:
         return {"success": False, "msg": f"Error apply BEP: {str(e)}"}
+
+def fetch_recently_closed_pnl_trades(account_key: str = "akun_1", limit: int = 50) -> list:
+    """Membaca trade yang baru saja ditutup (Take Profit / Stop Loss) resmi dari bursa BingX."""
+    client = get_bingx_client(account_key)
+    if not client:
+        return []
+    try:
+        income_data = client.swapV2PrivateGetUserIncome({'limit': limit}).get('data', [])
+        closed_trades = []
+        for inc in income_data:
+            if inc.get('incomeType') == 'REALIZED_PNL':
+                val = float(inc.get('income') or 0)
+                sym = inc.get('symbol', '')
+                info = inc.get('info', '')
+                ts = inc.get('time', 0)
+                closed_trades.append({
+                    'symbol': sym,
+                    'base': sym.split('-')[0].replace('1000', ''),
+                    'income': val,
+                    'is_tp': val > 0,
+                    'info': info,
+                    'time': ts,
+                    'direction': 'SHORT' if 'Short' in info else 'LONG'
+                })
+        return closed_trades
+    except Exception:
+        return []
