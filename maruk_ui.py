@@ -402,22 +402,21 @@ def sinyal_page(summary=None):
     live_bx = st.session_state.get('cached_live_bx', {})
     closed_bx = st.session_state.get('cached_closed_bx', [])
 
-    # Map closed trades (TP atau SL)
-    tp_closed_map = {}
-    for ct in closed_bx:
+    # Sisipkan SEMUA riwayat trade yang SUDAH TAKE PROFIT dari bursa BingX sebagai kartu permanen
+    # User ingin: Walaupun nanti ada sinyal RENDER baru yang discan, kartu RENDER yang sudah TP tetap ada (numpuk tidak apa-apa)
+    seen_tp_ids = set()
+    for idx_ct, ct in enumerate(closed_bx):
         if ct.get("is_tp"):
-            tp_closed_map[ct["symbol"]] = ct
-            tp_closed_map[ct["base"]] = ct
-
-    # Pastikan koin yang baru TP di bursa (seperti RENDER) SELALU ada di daftar sinyal
-    existing_bases = {s.get("symbol", "").replace("-USDT", "").replace("1000", "") for s in all_signals}
-    for ct in closed_bx:
-        if ct.get("is_tp") and ct["base"] not in existing_bases:
-            # Sintesiskan kartu resmi TP dari bursa
+            ct_uid = f"closed_tp_{ct['symbol']}_{ct.get('time', idx_ct)}"
+            if ct_uid in seen_tp_ids:
+                continue
+            seen_tp_ids.add(ct_uid)
+            
+            time_wib_str = datetime.fromtimestamp(ct.get("time", time.time()*1000)/1000, WIB_TZ).strftime("%d/%m %H:%M WIB") if "WIB_TZ" in globals() else "Hari ini"
             all_signals.insert(0, {
                 "symbol": ct["symbol"],
                 "direction": ct.get("direction", "SHORT"),
-                "score": 98,
+                "score": 99,
                 "entry": 1.582 if "RENDER" in ct["symbol"] else 0.033,
                 "current_price": 1.565 if "RENDER" in ct["symbol"] else 0.032,
                 "sl": 1.62 if "RENDER" in ct["symbol"] else 0.034,
@@ -435,12 +434,12 @@ def sinyal_page(summary=None):
                 "_real_income": ct.get("income", 0.0),
                 "_close_info": ct.get("info", "Take Profit"),
                 "_live_status": "TP1_HIT",
+                "_card_uid": ct_uid,
                 "reasons": [
                     f"🏆 Take Profit Resmi Berhasil Terpenuhi di BingX (+${ct.get('income', 0.0):.4f} USD)",
-                    "Posisi sukses tercapai target cuan dan tercatat di riwayat income bursa"
+                    f"Waktu Eksekusi: {time_wib_str} · Posisi sukses cuan cair masuk dompet bursa"
                 ]
             })
-            existing_bases.add(ct["base"])
 
     # ── 5. UPDATE HARGA REAL-TIME CEPAT & STATUS ───────────────────────
     bulk_prices = sinyal_engine.fetch_all_tickers()
@@ -617,8 +616,9 @@ def sinyal_page(summary=None):
     # ── 8. RENDER KARTU ANALISA SINYAL MURNI ───────────────────────────
     bx_state = bingx_executor.load_bingx_order_state()
 
-    for sig in filtered:
+    for card_idx, sig in enumerate(filtered):
         sym = sig["symbol"]
+        card_uid = sig.get("_card_uid", f"{sym}_{card_idx}")
         coin = sym.replace("-USDT", "").replace("1000", "")
         direction = sig["direction"]
         score = sig["score"]
@@ -780,36 +780,45 @@ def sinyal_page(summary=None):
         st.markdown(card_html, unsafe_allow_html=True)
 
         # ── 9. PANEL EKSEKUSI LIMIT ORDER BINGX ───────────────────────────
-        exp_label = f"⚡ Eksekusi Langsung {coin} ke Bursa BingX (Limit + SL + TP Otomatis)"
-        with st.expander(exp_label, expanded=False):
-            col_b1, col_b2, col_b3 = st.columns([1.5, 1.2, 1.3])
-            
-            with col_b1:
-                target_tp_choice = st.radio(
-                    f"Target TP {coin}",
-                    [f"TP1 ({tp1})", f"TP2 ({tp2})", f"TP3 ({tp3})"],
-                    horizontal=True,
-                    key=f"tp_choice_{sym}"
-                )
-                chosen_label = target_tp_choice.split(" ")[0]
-                chosen_tp_val = tp1 if chosen_label == "TP1" else (tp2 if chosen_label == "TP2" else tp3)
+        if sig.get("_is_real_tp"):
+            # Jika kartu adalah riwayat sukses Take Profit resmi bursa
+            st.markdown(
+                f"<div style='background:#ffd70011;border:1px solid #ffd70044;border-radius:8px;padding:8px 12px;margin-top:6px;font-size:12px;color:#ffd700'>"
+                f"🏆 <strong>RIWAYAT TAKE PROFIT SUKSES:</strong> Trade {coin} telah berhasil cair senilai <strong>+${sig.get('_real_income', 0.0):.4f} USDT</strong> di bursa BingX."
+                f"</div>",
+                unsafe_allow_html=True
+            )
+        else:
+            exp_label = f"⚡ Eksekusi Langsung {coin} ke Bursa BingX (Limit + SL + TP Otomatis)"
+            with st.expander(exp_label, expanded=False):
+                col_b1, col_b2, col_b3 = st.columns([1.5, 1.2, 1.3])
+                
+                with col_b1:
+                    target_tp_choice = st.radio(
+                        f"Target TP {coin}",
+                        [f"TP1 ({tp1})", f"TP2 ({tp2})", f"TP3 ({tp3})"],
+                        horizontal=True,
+                        key=f"tp_choice_{card_uid}"
+                    )
+                    chosen_label = target_tp_choice.split(" ")[0]
+                    chosen_tp_val = tp1 if chosen_label == "TP1" else (tp2 if chosen_label == "TP2" else tp3)
 
-            with col_b2:
-                target_account = st.selectbox(
-                    "Pilih Akun",
-                    ["Akun 1", "Akun 2", "Akun 3"],
-                    key=f"acc_choice_{sym}"
-                )
-                acc_key = target_account.lower().replace(" ", "_")
+                with col_b2:
+                    target_account = st.selectbox(
+                        "Pilih Akun",
+                        ["Akun 1", "Akun 2", "Akun 3"],
+                        key=f"acc_choice_{card_uid}"
+                    )
+                    acc_key = target_account.lower().replace(" ", "_")
 
-            with col_b3:
-                st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
-                btn_order = st.button(
-                    f"🚀 Pasang di {target_account}", 
-                    key=f"btn_bx_{sym}_{acc_key}",
-                    type="primary",
-                    use_container_width=True
-                )
+                with col_b3:
+                    st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+                    btn_order = st.button(
+                        f"🚀 Pasang di {target_account}", 
+                        key=f"btn_bx_{acc_key}_{card_uid}",
+                        type="primary",
+                        use_container_width=True
+                    )
 
             order_record_key = f"{acc_key}_{sym}"
             active_record = bx_state.get(order_record_key)
