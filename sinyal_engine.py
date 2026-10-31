@@ -565,92 +565,101 @@ def score_and_generate(rows_4h: list[dict], rows_1h: list[dict]) -> Optional[dic
 
 def get_signal_status(sig: dict, current_price: float) -> str:
     """
-    Status real-time sinyal dengan PERSISTENT ACTIVE LATCH:
-    Sekali sinyal AKTIF (tersentuh/posisi bursa terbuka), sinyal TIDAK BOLEH hilang
-    atau kembali ke SCANNING/TELAT. Sinyal tetap AKTIF sampai menyentuh TP1/2/3 atau SL!
+    Status real-time sinyal dengan logika trading presisi:
+    1. Jika posisi SUDAH AKTIF di bursa (was_active=True):
+       - Cek apakah kena SL -> KENA_SL
+       - Cek apakah tembus TP1/2/3 -> TP1_HIT / TP2_HIT / TP3_HIT
+       - Di antara SL dan TP -> AKTIF
+    2. Jika posisi BELUM AKTIF (menunggu limit order dijemput):
+       - Jika harga sudah menembus TP1 tanpa pernah jemput entry -> TELAT (TERBANG DULUAN KE TP)
+       - Jika waktu habis -> EXPIRED
+       - Jika baru menyentuh entry -> AKTIF (latch aktif)
+       - Jika jarak ke entry <= 0.5% -> MENDEKATI
+       - Selain itu -> SCANNING (Valid, siap pasang limit)
     """
     now_ts = time.time()
     valid_until = sig.get("valid_until", now_ts)
 
-    d = sig["direction"]
-    entry = float(sig["entry"])
-    sl = float(sig["sl"])
-    tp1 = float(sig["tp1"])
-    tp2 = float(sig["tp2"])
-    tp3 = float(sig["tp3"])
+    d = sig.get("direction", "LONG")
+    entry = float(sig.get("entry", 0))
+    sl = float(sig.get("sl", 0))
+    tp1 = float(sig.get("tp1", 0))
+    tp2 = float(sig.get("tp2", 0))
+    tp3 = float(sig.get("tp3", 0))
 
     was_active = sig.get("is_active", False) or sig.get("_is_real_pos", False)
 
     if d == "LONG":
-        # 1. Cek SL & TP
-        if current_price <= sl:
-            sig["is_active"] = False
-            return "KENA_SL"
-        if current_price >= tp3:
-            sig["is_active"] = False
-            return "TP3_HIT"
-        if current_price >= tp2:
-            return "TP2_HIT"
-        if current_price >= tp1:
-            return "TP1_HIT"
-
-        # 2. Jika sudah pernah aktif / sedang aktif di bursa: KUNCI MATI TETAP AKTIF!
+        # JIKA POSISI SUDAH AKTIF / TERBUKA DI BURSA:
         if was_active:
+            if current_price <= sl and sl > 0:
+                sig["is_active"] = False
+                return "KENA_SL"
+            if current_price >= tp3 and tp3 > 0:
+                sig["is_active"] = False
+                return "TP3_HIT"
+            if current_price >= tp2 and tp2 > 0:
+                return "TP2_HIT"
+            if current_price >= tp1 and tp1 > 0:
+                return "TP1_HIT"
             sig["is_active"] = True
             return "AKTIF"
 
-        # 3. Baru pertama kali menyentuh/melewati limit beli:
-        if current_price <= entry:
+        # JIKA POSISI BELUM PERNAH AKTIF (Menunggu jemputan limit beli di bawah):
+        # 1. Cek apakah harga sudah jemput/lewat entry limit beli
+        if current_price <= entry and entry > 0:
             sig["is_active"] = True
             return "AKTIF"
 
-        # 4. Jika belum aktif, cek expired & jarak
+        # 2. Cek apakah harga sudah lari terbang duluan menyentuh TP1 tanpa jemput entry
+        if current_price >= tp1 and tp1 > 0:
+            return "TELAT"
+
+        # 3. Cek expired
         if now_ts > valid_until:
             return "EXPIRED"
 
-        dist_pct = ((current_price - entry) / (entry + 1e-10)) * 100.0
-        if dist_pct > 2.5:
-            return "TELAT"
-        if dist_pct <= 0.4:
+        # 4. Jarak ke entry
+        dist_pct = abs((current_price - entry) / (entry + 1e-10)) * 100.0
+        if dist_pct <= 0.5:
             return "MENDEKATI"
         return "SCANNING"
 
     else:  # SHORT
-        # 1. Cek SL & TP
-        if current_price >= sl:
-            sig["is_active"] = False
-            return "KENA_SL"
-        if current_price <= tp3:
-            sig["is_active"] = False
-            return "TP3_HIT"
-        if current_price <= tp2:
-            return "TP2_HIT"
-        if current_price <= tp1:
-            return "TP1_HIT"
-
-        # 2. Jika sudah pernah aktif / sedang aktif di bursa: KUNCI MATI TETAP AKTIF!
+        # JIKA POSISI SUDAH AKTIF / TERBUKA DI BURSA:
         if was_active:
+            if current_price >= sl and sl > 0:
+                sig["is_active"] = False
+                return "KENA_SL"
+            if current_price <= tp3 and tp3 > 0:
+                sig["is_active"] = False
+                return "TP3_HIT"
+            if current_price <= tp2 and tp2 > 0:
+                return "TP2_HIT"
+            if current_price <= tp1 and tp1 > 0:
+                return "TP1_HIT"
             sig["is_active"] = True
             return "AKTIF"
 
-        # 3. Baru pertama kali menyentuh/melewati limit jual:
-        if current_price >= entry:
+        # JIKA POSISI BELUM PERNAH AKTIF (Menunggu jemputan limit jual di atas):
+        # 1. Cek apakah harga sudah jemput/lewat entry limit jual
+        if current_price >= entry and entry > 0:
             sig["is_active"] = True
             return "AKTIF"
 
-        # 4. Jika belum aktif, cek expired & jarak
+        # 2. Cek apakah harga sudah terjun bebas duluan menyentuh TP1 tanpa jemput entry
+        if current_price <= tp1 and tp1 > 0:
+            return "TELAT"
+
+        # 3. Cek expired
         if now_ts > valid_until:
             return "EXPIRED"
 
-        dist_pct = ((entry - current_price) / (entry + 1e-10)) * 100.0
-        if dist_pct > 2.5:
-            return "TELAT"
-        if dist_pct <= 0.4:
+        # 4. Jarak ke entry
+        dist_pct = abs((entry - current_price) / (entry + 1e-10)) * 100.0
+        if dist_pct <= 0.5:
             return "MENDEKATI"
-        return "SCANNING" 
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
+        return "SCANNING"
 
 def status_label(status: str) -> tuple[str, str]:
     """Return (label, hex_color) untuk status sinyal."""

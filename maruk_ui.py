@@ -753,9 +753,9 @@ def sinyal_page(summary=None):
 
         if live_status == "TELAT":
             if direction == "LONG":
-                dist_str = f"🚀 Sudah pump duluan (+{dist_to_entry:.1f}%), telat entry!"
+                dist_str = f"🚀 Sudah tembus TP1 duluan (+{dist_to_entry:.1f}%), setup batal!"
             else:
-                dist_str = f"📉 Sudah terjun duluan (-{dist_to_entry:.1f}%), telat entry!"
+                dist_str = f"📉 Sudah terjun ke TP1 duluan (-{dist_to_entry:.1f}%), setup batal!"
         elif live_status == "EXPIRED":
             dist_str = f"⌛ Waktu habis (s/d {valid_wib}), order tidak pernah tersentuh"
         elif direction == "LONG":
@@ -826,6 +826,20 @@ def sinyal_page(summary=None):
             st.markdown(
                 f"<div style='background:#ffd70011;border:1px solid #ffd70044;border-radius:8px;padding:8px 12px;margin-top:6px;font-size:12px;color:#ffd700'>"
                 f"🏆 <strong>RIWAYAT TAKE PROFIT SUKSES:</strong> Trade {coin} telah berhasil cair senilai <strong>+${sig.get('_real_income', 0.0):.4f} USDT</strong> di bursa BingX."
+                f"</div>",
+                unsafe_allow_html=True
+            )
+        elif live_status == "TELAT":
+            st.markdown(
+                f"<div style='background:#f4433611;border:1px solid #f4433644;border-radius:8px;padding:8px 12px;margin-top:6px;font-size:12px;color:#ff5252'>"
+                f"⚠️ <strong>TERBANG DULUAN:</strong> Harga {coin} sudah tembus target TP ({tp1}) sebelum jemput limit order kita. Eksekusi dibatalkan otomatis agar kamu tidak FOMO membeli di pucuk!"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+        elif live_status == "EXPIRED":
+            st.markdown(
+                f"<div style='background:#75757511;border:1px solid #75757544;border-radius:8px;padding:8px 12px;margin-top:6px;font-size:12px;color:#9e9e9e'>"
+                f"⌛ <strong>EXPIRED:</strong> Masa berlaku setup {coin} sudah habis. Tunggu sinyal setup candle berikutnya."
                 f"</div>",
                 unsafe_allow_html=True
             )
