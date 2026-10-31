@@ -399,6 +399,8 @@ def sinyal_page():
         rr = sig["rr"]
         reasons = sig.get("reasons", [])
         valid_wib = sig.get("valid_until_wib", "—")
+        gen_ts  = sig.get("generated_at", time.time())
+        gen_wib = datetime.fromtimestamp(gen_ts, WIB_TZ).strftime("%H:%M WIB")
         vol_ratio = sig.get("vol_ratio", 0)
 
         # Score bar color
@@ -472,7 +474,7 @@ def sinyal_page():
     <div class="sig-meta-item">RSI 1H: <strong style="color:#7ec8e3">{rsi_1h}</strong></div>
     <div class="sig-meta-item">KER: <strong style="color:#7ec8e3">{ker}</strong></div>
     <div class="sig-meta-item">Vol: <strong style="color:#7ec8e3">{vol_ratio}x</strong></div>
-    <div class="sig-valid">⏱ Valid s/d: {valid_wib}</div>
+    <div class="sig-valid">🕐 Aktif dari: {gen_wib} &nbsp;|&nbsp; ⏱ Valid s/d: {valid_wib}</div>
   </div>
 </div>
 """
