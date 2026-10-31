@@ -1,0 +1,46 @@
+{
+  "status": "RUNNING",
+  "version": "v3.0_8WALLETS",
+  "wallets": {
+    "akun_1_mexc": {
+      "initial_balance": 16.04,
+      "current_balance": 16.04,
+      "active_position": null
+    },
+    "akun_1_bitget": {
+      "initial_balance": 15.69,
+      "current_balance": 15.69,
+      "active_position": null
+    },
+    "akun_1_bingx": {
+      "initial_balance": 12.85,
+      "current_balance": 12.85,
+      "active_position": null
+    },
+    "akun_2_mexc": {
+      "initial_balance": 10.43,
+      "current_balance": 10.43,
+      "active_position": null
+    },
+    "akun_2_bitget": {
+      "initial_balance": 9.62,
+      "current_balance": 9.62,
+      "active_position": null
+    },
+    "akun_2_bingx": {
+      "initial_balance": 8.74,
+      "current_balance": 8.74,
+      "active_position": null
+    },
+    "akun_3_bitget": {
+      "initial_balance": 8.99,
+      "current_balance": 8.99,
+      "active_position": null
+    },
+    "akun_3_bingx": {
+      "initial_balance": 8.12,
+      "current_balance": 8.12,
+      "active_position": null
+    }
+  }
+}
