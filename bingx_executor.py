@@ -561,6 +561,11 @@ def apply_bep_to_profit_positions(account_key: str = "akun_1", min_roe: float = 
         resp = client.swapV2PrivateGetUserPositions()
         positions = resp.get("data", [])
 
+        # Baca order yang dipasang LEWAT WEB Dashboard (assets/bingx_orders_state.json)
+        state = load_bingx_order_state()
+        web_symbols = {v.get("symbol") for v in state.values() if v.get("status") == "SUKSES_BINGX" and v.get("account") == account_key}
+        web_bases = {s.replace("-USDT", "").replace("1000", "") for s in web_symbols if s}
+
         for p in positions:
             amt = float(p.get("positionAmt") or 0)
             if amt == 0:
@@ -568,6 +573,11 @@ def apply_bep_to_profit_positions(account_key: str = "akun_1", min_roe: float = 
             
             sym = p.get("symbol", "")
             base = sym.split("-")[0].replace("1000", "")
+
+            # PROTEKSI KETAT: HANYA proses posisi yang berasal dari Web Dashboard!
+            # Posisi milik Bot VPS 1 (multi_wallet_quant_engine) atau manual di HP 100% DIKECUALIKAN!
+            if sym not in web_symbols and base not in web_bases:
+                continue
             entry_p = float(p.get("avgPrice") or 0)
             mark_p = float(p.get("markPrice") or entry_p)
             unrealized = float(p.get("unrealizedProfit") or 0)
