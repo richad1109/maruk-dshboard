@@ -314,6 +314,60 @@ def sinyal_page(summary=None):
                     time.sleep(1)
                     st.rerun()
 
+    # ── 1.1 TELEMETRI PnL BURSA BINGX (REAL-TIME KESELURUHAN) ───────────
+    try:
+        pnl_data = bingx_executor.fetch_comprehensive_pnl("akun_1")
+    except Exception:
+        pnl_data = {}
+
+    net_pnl = pnl_data.get("net_total", 0.0)
+    float_pnl = pnl_data.get("unrealized_total", 0.0)
+    real_pnl = pnl_data.get("realized_total", 0.0)
+    active_count = pnl_data.get("active_positions_count", 0)
+    real_wins = pnl_data.get("realized_wins", 0)
+    real_losses = pnl_data.get("realized_losses", 0)
+    real_wr = pnl_data.get("win_rate", 0.0)
+    fees_val = abs(pnl_data.get("fees_total", 0.0)) + abs(pnl_data.get("funding_total", 0.0))
+
+    net_color = "#00e676" if net_pnl >= 0 else "#f44336"
+    net_sign = "+" if net_pnl >= 0 else ""
+    float_color = "#00e676" if float_pnl >= 0 else "#f44336"
+    float_sign = "+" if float_pnl >= 0 else ""
+    real_color = "#00e676" if real_pnl >= 0 else "#f44336"
+    real_sign = "+" if real_pnl >= 0 else ""
+
+    st.markdown(f"""
+<div style="background:#0b131e;border:1px solid #1a2a3a;border-radius:12px;padding:14px 18px;margin-bottom:16px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <span style="font-size:13px;font-weight:700;color:#c8d8e8;letter-spacing:.5px">📊 TELEMETRI PnL KESELURUHAN BURSA (REAL-TIME BINGX)</span>
+    <span style="font-size:11px;color:#4e6b8a">Akun 1 · Update Langsung dari Exchange</span>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
+    <div style="background:#0d1824;padding:10px 12px;border-radius:8px;border-left:3px solid {net_color}">
+      <div style="font-size:10px;color:#5a7a9a;text-transform:uppercase;font-weight:600">Net PnL Keseluruhan</div>
+      <div style="font-size:17px;font-weight:800;color:{net_color};margin-top:2px">{net_sign}${net_pnl:.2f}</div>
+      <div style="font-size:10px;color:#4e6b8a;margin-top:2px">Terealisasi + Floating</div>
+    </div>
+    <div style="background:#0d1824;padding:10px 12px;border-radius:8px;border-left:3px solid {float_color}">
+      <div style="font-size:10px;color:#5a7a9a;text-transform:uppercase;font-weight:600">PnL Belum Terealisasi (Floating)</div>
+      <div style="font-size:17px;font-weight:800;color:{float_color};margin-top:2px">{float_sign}${float_pnl:.2f}</div>
+      <div style="font-size:10px;color:#4e6b8a;margin-top:2px">{active_count} Posisi Sedang Jalan</div>
+    </div>
+    <div style="background:#0d1824;padding:10px 12px;border-radius:8px;border-left:3px solid {real_color}">
+      <div style="font-size:10px;color:#5a7a9a;text-transform:uppercase;font-weight:600">PnL Terealisasi (Cair)</div>
+      <div style="font-size:17px;font-weight:800;color:{real_color};margin-top:2px">{real_sign}${real_pnl:.2f}</div>
+      <div style="font-size:10px;color:#4e6b8a;margin-top:2px">{real_wins} Win / {real_losses} Loss ({real_wr}%)</div>
+    </div>
+    <div style="background:#0d1824;padding:10px 12px;border-radius:8px;border-left:3px solid #ff9800">
+      <div style="font-size:10px;color:#5a7a9a;text-transform:uppercase;font-weight:600">Biaya Bursa (Fee & Funding)</div>
+      <div style="font-size:16px;font-weight:700;color:#ff9800;margin-top:2px">${fees_val:.2f}</div>
+      <div style="font-size:10px;color:#4e6b8a;margin-top:2px">Trading Fee + Funding</div>
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+
     # ── 2. HEADER KONTROL & FILTER ──────────────────────────────────────
     c1, c2, c3 = st.columns([2, 1, 1])
     with c1:

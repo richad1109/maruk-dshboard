@@ -1,3 +1,56 @@
+def fetch_comprehensive_pnl(account_key: str = "akun_1") -> dict:
+    """Membaca Unrealized PnL, Realized PnL, Win Rate, dan Fees riil langsung dari bursa BingX."""
+    client = get_bingx_client(account_key)
+    if not client:
+        return {}
+    try:
+        unrealized_total = 0.0
+        active_positions_count = 0
+        pos_data = client.swapV2PrivateGetUserPositions().get('data', [])
+        for p in pos_data:
+            amt = float(p.get('positionAmt') or 0)
+            if amt != 0:
+                active_positions_count += 1
+                unrealized_total += float(p.get('unrealizedProfit') or 0)
+                
+        realized_total = 0.0
+        realized_wins = 0
+        realized_losses = 0
+        fees_total = 0.0
+        funding_total = 0.0
+        
+        income_data = client.swapV2PrivateGetUserIncome({'limit': 100}).get('data', [])
+        for inc in income_data:
+            itype = inc.get('incomeType')
+            val = float(inc.get('income') or 0)
+            if itype == 'REALIZED_PNL':
+                realized_total += val
+                if val > 0: realized_wins += 1
+                elif val < 0: realized_losses += 1
+            elif itype == 'TRADING_FEE':
+                fees_total += val
+            elif itype == 'FUNDING_FEE':
+                funding_total += val
+                
+        total_closed = realized_wins + realized_losses
+        win_rate = (realized_wins / total_closed * 100.0) if total_closed > 0 else 0.0
+        net_total = realized_total + unrealized_total
+        
+        return {
+            'unrealized_total': round(unrealized_total, 4),
+            'active_positions_count': active_positions_count,
+            'realized_total': round(realized_total, 4),
+            'realized_wins': realized_wins,
+            'realized_losses': realized_losses,
+            'win_rate': round(win_rate, 1),
+            'fees_total': round(fees_total, 4),
+            'funding_total': round(funding_total, 4),
+            'net_total': round(net_total, 4)
+        }
+    except Exception as e:
+        return {'error': str(e), 'unrealized_total': 0.0, 'realized_total': 0.0, 'net_total': 0.0}
+
+
 """
 bingx_executor.py
 =================
@@ -398,7 +451,7 @@ def place_bingx_sniper_order(account_key: str, symbol_clean: str, direction: str
 
         # Set Leverage ke 20x
         try:
-            client.set_leverage(leverage, ccxt_symbol, params={"side": "BOTH"})
+            client.set_leverage(leverage, ccxt_symbol, params={"side": "ALL"})
         except Exception:
             pass
 

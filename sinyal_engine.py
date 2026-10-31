@@ -60,7 +60,8 @@ FALLBACK_50_COINS = [
 # A. DATA FETCHING
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _get(url: str, params: dict, retries: int = 2) -> Optional[dict]:
+def _get(url: str, params: dict = None, retries: int = 2) -> Optional[dict]:
+    params = params or {}
     for i in range(retries):
         try:
             r = requests.get(url, params=params, timeout=TIMEOUT, verify=False)
