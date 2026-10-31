@@ -17,6 +17,7 @@ import maruk_data as data
 import sakti_monitor
 import btc_research
 import sinyal_engine
+import bingx_executor
 
 ROOT=Path(__file__).resolve().parent
 WIB=timezone(timedelta(hours=7))
@@ -544,6 +545,73 @@ def sinyal_page():
 </div>
 """
         st.markdown(card_html, unsafe_allow_html=True)
+
+        # ── PANEL EKSEKUSI LANGSUNG KE BURSA BINGX ─────────────────────────
+        bx_state = bingx_executor.load_bingx_order_state()
+        
+        # Buat row interaktif: Pilihan TP + Pilihan Akun + Tombol Eksekusi
+        exp_label = f"⚡ Eksekusi Langsung {coin} ke Bursa BingX (Limit + SL + TP Otomatis)"
+        with st.expander(exp_label, expanded=False):
+            col_b1, col_b2, col_b3 = st.columns([1.5, 1.2, 1.3])
+            
+            with col_b1:
+                target_tp_choice = st.radio(
+                    f"Target TP {coin}",
+                    [f"TP1 ({tp1})", f"TP2 ({tp2})", f"TP3 ({tp3})"],
+                    horizontal=True,
+                    key=f"tp_choice_{sym}"
+                )
+                chosen_label = target_tp_choice.split(" ")[0]
+                chosen_tp_val = tp1 if chosen_label == "TP1" else (tp2 if chosen_label == "TP2" else tp3)
+
+            with col_b2:
+                target_account = st.selectbox(
+                    "Pilih Akun",
+                    ["Akun 1", "Akun 2", "Akun 3"],
+                    key=f"acc_choice_{sym}"
+                )
+                acc_key = target_account.lower().replace(" ", "_")
+
+            with col_b3:
+                st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+                btn_order = st.button(
+                    f"🚀 Pasang di {target_account}", 
+                    key=f"btn_bx_{sym}_{acc_key}",
+                    type="primary",
+                    use_container_width=True
+                )
+
+            # Cek status persisten order di BingX
+            order_record_key = f"{acc_key}_{sym}"
+            active_record = bx_state.get(order_record_key)
+
+            if active_record and active_record.get("status") == "SUKSES_BINGX":
+                st.success(
+                    f"✅ **SUKSES BINGX!** Terpasang di {target_account} (#{active_record.get('order_id', '')[-6:]}) "
+                    f"pada Entry {active_record.get('entry')} | SL: {active_record.get('sl')} | "
+                    f"{active_record.get('tp_choice')}: {active_record.get('tp')} · [{active_record.get('time_str')}]"
+                )
+
+            if btn_order:
+                with st.spinner(f"Mengirim Limit Order {coin} ke BingX ({target_account})..."):
+                    res = bingx_executor.place_bingx_sniper_order(
+                        account_key=acc_key,
+                        symbol_clean=sym,
+                        direction=direction,
+                        entry_price=float(entry),
+                        sl_price=float(sl),
+                        tp_price=float(chosen_tp_val),
+                        tp_choice_label=chosen_label,
+                        margin_usd=0.20,
+                        leverage=20
+                    )
+                    if res.get("success"):
+                        st.balloons()
+                        st.success(f"🎉 **{res.get('msg')}**")
+                        st.rerun()
+                    else:
+                        st.error(f"❌ {res.get('msg')}")
+
 
     st.markdown(
         f"<div style='color:#2a4060;font-size:11px;text-align:center;padding:16px'>Sinyal limit order berbasis analisis teknikal multi-konfirmasi. "
