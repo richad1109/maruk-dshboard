@@ -214,7 +214,7 @@ def overview(snapshot,info,summary,base):
     left,right=st.columns([1.25,1])
     with left:
         complete="Delapan koneksi" if summary["complete"] and summary["expected"]==8 else f'{summary["known"]}/{summary["expected"]} wallet terbaca'
-        html(f'<div class="hero"><div class="hero-top"><span class="hero-label">{icon("wallet")}Total equity futures</span><span class="chip neutral">USDT</span></div><div class="hero-value">{money(summary["equity"])}<small>USDT</small></div><div class="hero-sub"><span class="dot"></span>{complete} · {"TAMPILAN SALDO KUSTOM AKTIF" if load_custom_balance().get("enabled") else "data ilustrasi" if snapshot["mode"]=="demo" else "saldo yang berhasil dibaca"}</div><div class="hero-bottom"><div><span>Saldo tersedia</span><strong>{money(summary["free"])}</strong></div><div><span>Margin posisi</span><strong>{money(summary["margin"]) if summary["positions"] else "—"}</strong></div><div><span>Dana tersisih tercatat</span><strong>{money(snapshot["reserved"])}</strong></div></div><div class="hero-watermark">RAKUS</div></div>')
+        html(f'<div class="hero"><div class="hero-top"><span class="hero-label">{icon("wallet")}Total equity futures</span><span class="chip neutral">USDT</span></div><div class="hero-value">{money(summary["equity"])}<small>USDT</small></div><div class="hero-sub"><span class="dot"></span>{complete} · {"data ilustrasi" if snapshot["mode"]=="demo" else "saldo yang berhasil dibaca"}</div><div class="hero-bottom"><div><span>Saldo tersedia</span><strong>{money(summary["free"])}</strong></div><div><span>Margin posisi</span><strong>{money(summary["margin"]) if summary["positions"] else "—"}</strong></div><div><span>Dana tersisih tercatat</span><strong>{money(snapshot["reserved"])}</strong></div></div><div class="hero-watermark">RAKUS</div></div>')
     with right:
         html('<div class="hero"><div class="eyebrow">MEXC / SIGNAL RESEARCH</div><h2>Harga. Setup. Bukti.</h2><p>Buka Sinyal Kripto untuk mencari kontrak, memeriksa TP/SL, dan melihat hasil uji kronologis.</p><p>Label akurasi berasal dari transaksi uji, bukan target yang dijanjikan.</p></div>')
     cols=st.columns(4)
@@ -426,14 +426,14 @@ def main():
     html("<style>"+(ROOT/"assets/terminal.css").read_text(encoding="utf8")+"</style>")
     settings=secrets();stamp=datetime.now(WIB).strftime("%d %b %Y · %H:%M WIB")
     html(f'<div class="masthead"><div class="brand-wrap"><div class="brand-symbol"><svg viewBox="0 0 32 32"><path d="M6 6v20m0-10L24 6M12 13l13 13M21 7h5v7"/></svg></div><div><div class="brand">KANTOR<span>rakus.</span></div><div class="brand-sub">BOT SAKTI / PERSONAL TRADING FLOOR</div></div></div><div class="top-meta"><span>{stamp}</span><span class="chip neutral"><span class="dot"></span>REAL ACCOUNT MONITOR</span></div></div>')
-    # === SISTEM LOGIN & EDITOR SALDO BERANDA (PW: Baumemek123) ===
+    # === SISTEM LOGIN ADMIN (PW: Baumemek123) ===
     if "admin_logged_in" not in st.session_state:
         st.session_state["admin_logged_in"] = False
 
     custom_cfg = load_custom_balance()
 
     if not st.session_state["admin_logged_in"]:
-        with st.expander("🔐 Login Admin (Editor Saldo)", expanded=False):
+        with st.expander("🔐 Login Admin", expanded=False):
             col_l1, col_l2 = st.columns([3, 1])
             with col_l1:
                 input_pwd = st.text_input("Password Admin", type="password", placeholder="Masukkan password...", key="admin_pwd_field")
