@@ -689,7 +689,10 @@ def sinyal_page(summary=None):
         dir_class = "sig-dir-long" if direction == "LONG" else "sig-dir-short"
         card_class = "sig-card-long" if direction == "LONG" else "sig-card-short"
 
-        status_lbl, status_color = sinyal_engine.status_label(live_status)
+        if hasattr(sinyal_engine, "status_label"):
+            status_lbl, status_color = sinyal_engine.status_label(live_status)
+        else:
+            status_lbl, status_color = (live_status, "#7ec8e3")
 
         if direction == "LONG":
             dist_to_entry = ((live_price - entry) / (entry + 1e-10) * 100)
