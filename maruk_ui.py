@@ -474,7 +474,9 @@ def sinyal_page(summary=None):
                 s["_real_pnl"] = info_bx.get("pnl", 0)
                 s["_real_acc"] = str(info_bx.get("account", "akun_1")).replace("akun_", "Akun ")
 
-        if is_active_bursa or s.get("is_active"):
+        if s.get("_is_real_tp"):
+            st_key = "TP1_HIT"
+        elif is_active_bursa or s.get("is_active"):
             try:
                 tp1_v = float(s.get("tp1", 0))
                 sl_v = float(s.get("sl", 0))
