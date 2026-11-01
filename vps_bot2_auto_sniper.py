@@ -40,10 +40,10 @@ CONFIG = {
     "margin_usd": 0.20,          # $0.20 USDT flat per order
     "leverage": 40,              # 40x Isolated
     "min_score": 75,             # Hanya sinyal valid skor tinggi (>= 75)
-    "max_concurrent_limits": 6,  # Maksimal 6 limit order antre serentak
+    "max_concurrent_limits": 15, # Maksimal 15 limit order antre serentak
     "scan_interval_sec": 120,    # Scan sinyal baru setiap 2 menit (120 detik)
-    "bep_check_interval_sec": 15,# Cek & kunci BEP setiap 15 detik
-    "min_bep_roe": 25.0,         # Kunci BEP saat floating profit >= +25.0% ROE (+0.8R)
+    "bep_check_interval_sec": 45,# Cek & kunci BEP setiap 45 detik (aman dari rate limit BingX)
+    "min_bep_roe": 15.0,         # Kunci BEP saat floating profit >= +15.0% ROE (konsisten dg backtest)
     "ntfy_topics": ["maruk_sinal", "maruk_sinyal", "maruk_sinyal_adee"],
 }
 

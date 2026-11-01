@@ -508,11 +508,17 @@ def score_and_generate(rows_4h: list[dict], rows_1h: list[dict]) -> Optional[dic
         entry = min(entry, price * 0.998)               # pastikan di bawah harga current
         entry = max(entry, price * 0.93)                # jangan terlalu jauh (maks 7% di bawah)
 
-        sl = entry - atr_1h * 1.2                       # 1.2 ATR di bawah entry
-        bep = entry + atr_1h * 0.8                      # BEP trigger level (+0.8R)
-        tp1 = entry + atr_1h * 1.5                      # 1.5R
-        tp2 = entry + atr_1h * 2.5                      # 2.5R
-        tp3 = entry + atr_1h * 4.0                      # 4R
+        # GACOR SCALPING SETUP (40x Leverage / $0.20 Margin):
+        # TP1: +35.0% ROE (+0.875% spot)
+        # TP2: +60.0% ROE (+1.500% spot)
+        # TP3: +100.0% ROE (+2.500% spot)
+        # SL:  -36.0% ROE (-0.900% spot)
+        # BEP Trigger: +15.0% ROE (+0.375% spot)
+        sl = entry * (1.0 - 0.00900)
+        bep = entry * (1.0 + 0.00375)
+        tp1 = entry * (1.0 + 0.00875)
+        tp2 = entry * (1.0 + 0.01500)
+        tp3 = entry * (1.0 + 0.02500)
 
     else:  # SHORT
         # Limit SELL: pasang di atas harga saat ini (tunggu bounce)
@@ -522,11 +528,12 @@ def score_and_generate(rows_4h: list[dict], rows_1h: list[dict]) -> Optional[dic
         entry = max(entry, price * 1.002)               # pastikan di atas harga
         entry = min(entry, price * 1.07)                # jangan terlalu jauh
 
-        sl = entry + atr_1h * 1.2
-        bep = entry - atr_1h * 0.8                      # BEP trigger level (+0.8R)
-        tp1 = entry - atr_1h * 1.5
-        tp2 = entry - atr_1h * 2.5
-        tp3 = entry - atr_1h * 4.0
+        # GACOR SCALPING SETUP (40x Leverage / $0.20 Margin):
+        sl = entry * (1.0 + 0.00900)
+        bep = entry * (1.0 - 0.00375)
+        tp1 = entry * (1.0 - 0.00875)
+        tp2 = entry * (1.0 - 0.01500)
+        tp3 = entry * (1.0 - 0.02500)
 
     # Risk-Reward ratio
     risk = abs(entry - sl)

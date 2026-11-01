@@ -394,20 +394,32 @@ def close_web_positions_only(account_key: str = "all") -> dict:
                     sym_raw = p.get("symbol", "")
                     base = sym_raw.split("-")[0]
                     if sym_raw in allowed_web_syms or f"{base}-USDT" in allowed_web_syms or base in allowed_web_syms:
-                        side = "sell" if float(amt) > 0 else "buy"
-                        pos_side = str(p.get("positionSide", "BOTH")).upper()
+                        pos_side = str(p.get("positionSide", "SHORT")).upper()
+                        # Hedge mode: close SHORT = BUY, close LONG = SELL
+                        side = "buy" if pos_side == "SHORT" else "sell"
                         ccxt_sym = f"{base}/USDT:USDT"
                         try:
-                            client.create_order(
-                                symbol=ccxt_sym,
-                                type="market",
-                                side=side,
-                                amount=abs(amt),
-                                params={"positionSide": pos_side}
-                            )
+                            # Cara 1: via swapV2 native
+                            client.swapV2PrivatePostTradeOrder({
+                                "symbol": sym_raw,
+                                "type": "MARKET",
+                                "side": side.upper(),
+                                "positionSide": pos_side,
+                                "quantity": abs(amt)
+                            })
                             closed += 1
                         except Exception:
-                            pass
+                            try:
+                                client.create_order(
+                                    symbol=ccxt_sym,
+                                    type="market",
+                                    side=side,
+                                    amount=abs(amt),
+                                    params={"positionSide": pos_side}
+                                )
+                                closed += 1
+                            except Exception:
+                                pass
                     else:
                         skipped_manual += 1
             results[acc] = f"Ditutup Web: {closed} | Manual Aman: {skipped_manual}"
