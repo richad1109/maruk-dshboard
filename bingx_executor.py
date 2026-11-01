@@ -78,8 +78,24 @@ SECRETS_FILE = ROOT / ".streamlit" / "secrets.toml"
 STATE_FILE = ROOT / "assets" / "bingx_orders_state.json"
 
 def get_accounts_credentials():
-    """Ambil credentials 3 akun BingX dari Streamlit Cloud Secrets (st.secrets), file lokal, atau env."""
-    # 0. Coba modul maruk_data terlebih dahulu (100% konsisten dengan dashboard)
+    """Ambil credentials 3 akun BingX dari akun_privat.json (VPS), Streamlit Secrets, atau env."""
+    # 0. PRIORITAS UTAMA: akun_privat.json (VPS bot dir) - langsung tanpa import apapun
+    _JSON_PATHS = [
+        Path('/home/ubuntu/bot/akun_privat.json'),
+        ROOT / 'akun_privat.json',
+        ROOT / 'accounts_config.json',
+        Path.home() / 'bot' / 'akun_privat.json',
+    ]
+    for _pp in _JSON_PATHS:
+        if _pp.exists():
+            try:
+                _d = json.loads(_pp.read_text(encoding='utf-8-sig'))
+                if isinstance(_d, dict) and any('BingX' in _v for _v in _d.values() if isinstance(_v, dict)):
+                    return _d
+            except Exception:
+                pass
+
+    # 1. Coba modul maruk_data (hanya aktif di Streamlit Cloud)
     try:
         import maruk_data
         try:
@@ -93,7 +109,7 @@ def get_accounts_credentials():
     except Exception:
         pass
 
-    # 1. Streamlit Cloud Native Secrets
+    # 2. Streamlit Cloud Native Secrets
     try:
         import streamlit as st
         if hasattr(st, "secrets"):
@@ -114,7 +130,16 @@ def get_accounts_credentials():
     except Exception:
         pass
 
-    # 2. Cari di berbagai lokasi secrets.toml
+    # 2. Cari di berbagai lokasi akun_privat.json dan secrets.toml
+    for pp in [ROOT / 'akun_privat.json', ROOT / 'accounts_config.json', Path('/home/ubuntu/bot/akun_privat.json')]:
+        if pp.exists():
+            try:
+                import json
+                d = json.loads(pp.read_text(encoding='utf-8-sig'))
+                if isinstance(d, dict) and any('BingX' in v for v in d.values() if isinstance(v, dict)):
+                    return d
+            except Exception: pass
+    # 2b. Cari di secrets.toml
     try:
         import toml
         search_paths = [
@@ -482,15 +507,18 @@ def get_btc_macro_sentiment() -> dict:
     except Exception:
         return {"status": "NORMAL", "label": "🛡️ BTC TREN NETRAL", "price": 0, "change_1h": 0, "rsi": 50, "recommendation": "Aman"}
 
-def place_bingx_sniper_order(account_key: str, symbol_clean: str, direction: str, 
-                             entry_price: float, sl_price: float, tp_price: float, 
-                             tp_choice_label: str = "TP1", margin_usd: float = 0.20, leverage: int = 20):
+def place_bingx_sniper_order(account_key: str, symbol_clean: str, direction: str,
+                             entry_price: float, sl_price: float, tp_price: float,
+                             tp_choice_label: str = "TP1", margin_usd: float = 0.20, leverage: int = 40):
     """
     Pasang Limit Order di BingX Futures dengan Stop Loss dan Take Profit otomatis.
+    SL & TP dipasang via:
+    1. Inline params (cara paling rapi, didukung BingX v2 API)
+    2. Fallback: STOP_MARKET + TAKE_PROFIT_MARKET terpisah setelah order masuk
     """
     client = get_bingx_client(account_key)
     if not client:
-        return {"success": False, "msg": f"Credentials BingX untuk {account_key} tidak ditemukan pada konfigurasi server."}
+        return {"success": False, "msg": f"Credentials BingX untuk {account_key} tidak ditemukan. Cek akun_privat.json di VPS."}
 
     # Format CCXT symbol: 'BTC/USDT:USDT'
     base = symbol_clean.replace("-USDT", "").replace("USDT", "")
@@ -507,77 +535,152 @@ def place_bingx_sniper_order(account_key: str, symbol_clean: str, direction: str
 
         market = markets[ccxt_symbol]
 
-        # Set Leverage ke 20x
-        try:
-            client.set_leverage(leverage, ccxt_symbol, params={"side": "ALL"})
-        except Exception:
-            pass
+        # Set Leverage per posisi side
+        for _side_str in ("LONG", "SHORT"):
+            try:
+                client.set_leverage(leverage, ccxt_symbol, params={"side": _side_str})
+            except Exception:
+                pass
 
         target_notional = max(margin_usd * leverage, float(market.get("limits", {}).get("cost", {}).get("min") or 2.0))
         raw_amount = target_notional / (entry_price + 1e-10)
-
         min_amount = float(market.get("limits", {}).get("amount", {}).get("min") or 0.0)
         amount = max(raw_amount, min_amount)
 
-        amount = float(client.amount_to_precision(ccxt_symbol, amount))
+        amount      = float(client.amount_to_precision(ccxt_symbol, amount))
         entry_price = float(client.price_to_precision(ccxt_symbol, entry_price))
-        sl_price = float(client.price_to_precision(ccxt_symbol, sl_price))
-        tp_price = float(client.price_to_precision(ccxt_symbol, tp_price))
+        sl_price    = float(client.price_to_precision(ccxt_symbol, sl_price))
+        tp_price    = float(client.price_to_precision(ccxt_symbol, tp_price))
 
-        side = "buy" if direction.upper() == "LONG" else "sell"
+        order_side    = "buy"  if direction.upper() == "LONG" else "sell"
         position_side = "LONG" if direction.upper() == "LONG" else "SHORT"
+        close_side    = "sell" if direction.upper() == "LONG" else "buy"
 
-        params = {
-            "positionSide": position_side,
-            "stopLoss": {
-                "triggerPrice": sl_price,
-                "price": sl_price,
-            },
-            "takeProfit": {
-                "triggerPrice": tp_price,
-                "price": tp_price,
+        # ── COBA 1: Inline SL/TP params (BingX v2 native) ─────────────────────
+        order = None
+        try:
+            params_inline = {
+                "positionSide": position_side,
+                "stopLoss": {
+                    "type": "STOP_MARKET",
+                    "triggerPrice": sl_price,
+                    "price": sl_price,
+                    "workingType": "MARK_PRICE",
+                },
+                "takeProfit": {
+                    "type": "TAKE_PROFIT_MARKET",
+                    "triggerPrice": tp_price,
+                    "price": tp_price,
+                    "workingType": "MARK_PRICE",
+                },
             }
-        }
-
-        order = client.create_order(
-            symbol=ccxt_symbol,
-            type="limit",
-            side=side,
-            amount=amount,
-            price=entry_price,
-            params=params
-        )
+            order = client.create_order(
+                symbol=ccxt_symbol,
+                type="limit",
+                side=order_side,
+                amount=amount,
+                price=entry_price,
+                params=params_inline,
+            )
+        except Exception as e_inline:
+            # Fallback tanpa SL/TP inline
+            try:
+                order = client.create_order(
+                    symbol=ccxt_symbol,
+                    type="limit",
+                    side=order_side,
+                    amount=amount,
+                    price=entry_price,
+                    params={"positionSide": position_side},
+                )
+            except Exception as e_base:
+                return {"success": False, "msg": f"Gagal pasang limit order di BingX: {str(e_base)}"}
 
         order_id = str(order.get("id", ""))
-        now_str = datetime.now(WIB).strftime("%H:%M:%S WIB")
+        now_str  = datetime.now(WIB).strftime("%H:%M:%S WIB")
 
-        state = load_bingx_order_state()
+        # ── COBA 2: Pasang SL terpisah (STOP_MARKET, reduceOnly) ───────────────
+        sl_ok = False
+        sl_msg = ""
+        try:
+            client.create_order(
+                symbol=ccxt_symbol,
+                type="stop_market",
+                side=close_side,
+                amount=amount,
+                price=None,
+                params={
+                    "positionSide": position_side,
+                    "stopPrice": sl_price,
+                    "triggerPrice": sl_price,
+                    "reduceOnly": True,
+                    "workingType": "MARK_PRICE",
+                },
+            )
+            sl_ok = True
+            sl_msg = f"SL @ {sl_price}"
+        except Exception as e_sl:
+            sl_msg = f"SL inline (err sep: {str(e_sl)[:40]})"
+
+        # ── COBA 3: Pasang TP terpisah (TAKE_PROFIT_MARKET, reduceOnly) ─────────
+        tp_ok = False
+        tp_msg = ""
+        try:
+            client.create_order(
+                symbol=ccxt_symbol,
+                type="take_profit_market",
+                side=close_side,
+                amount=amount,
+                price=None,
+                params={
+                    "positionSide": position_side,
+                    "stopPrice": tp_price,
+                    "triggerPrice": tp_price,
+                    "reduceOnly": True,
+                    "workingType": "MARK_PRICE",
+                },
+            )
+            tp_ok = True
+            tp_msg = f"TP @ {tp_price}"
+        except Exception as e_tp:
+            tp_msg = f"TP inline (err sep: {str(e_tp)[:40]})"
+
+        # Simpan ke state file
+        state     = load_bingx_order_state()
         state_key = f"{account_key}_{symbol_clean}"
         state[state_key] = {
-            "account": account_key,
-            "symbol": symbol_clean,
-            "order_id": order_id,
-            "direction": direction,
-            "entry": entry_price,
-            "sl": sl_price,
-            "tp": tp_price,
-            "tp_choice": tp_choice_label,
-            "amount": amount,
-            "status": "SUKSES_BINGX",
-            "time_str": now_str,
-            "timestamp": time.time()
+            "account":    account_key,
+            "symbol":     symbol_clean,
+            "order_id":   order_id,
+            "direction":  direction,
+            "entry":      entry_price,
+            "sl":         sl_price,
+            "tp":         tp_price,
+            "tp_choice":  tp_choice_label,
+            "amount":     amount,
+            "leverage":   leverage,
+            "margin_usd": margin_usd,
+            "sl_ok":      sl_ok,
+            "tp_ok":      tp_ok,
+            "status":     "SUKSES_BINGX",
+            "time_str":   now_str,
+            "timestamp":  time.time(),
         }
         save_bingx_order_state(state)
 
         return {
-            "success": True,
+            "success":  True,
             "order_id": order_id,
-            "amount": amount,
-            "entry": entry_price,
-            "sl": sl_price,
-            "tp": tp_price,
+            "amount":   amount,
+            "entry":    entry_price,
+            "sl":       sl_price,
+            "tp":       tp_price,
+            "sl_ok":    sl_ok,
+            "tp_ok":    tp_ok,
             "time_str": now_str,
-            "msg": f"SUKSES BINGX! Order #{order_id[-6:]} terpasang pada harga {entry_price} (SL: {sl_price} | {tp_choice_label}: {tp_price})"
+            "msg": (
+                f"SUKSES! Order #{order_id[-6:]} @ {entry_price} | {sl_msg} | {tp_msg}"
+            ),
         }
 
     except Exception as e:

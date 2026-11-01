@@ -241,7 +241,7 @@ def overview(snapshot,info,summary,base):
 # ═══════════════════════════════════════════════════════════════════════
 def sinyal_page(summary=None):
     """Halaman Analisa Sinyal Limit Order Kripto BingX Berbasis Multi-Konfirmasi Teknikal Kuantitatif."""
-    LEVERAGE_DISPLAY = 20   # asumsi leverage untuk kalkulasi ROE
+    LEVERAGE_DISPLAY = 40   # Bot 2 leverage 40x
     MARGIN_DISPLAY   = 0.20  # asumsi margin per trade (USD)
 
     # ── CSS Kartu Sinyal ────────────────────────────────────────────────
@@ -345,7 +345,7 @@ def sinyal_page(summary=None):
                     min_score=filter_min_score,
                     max_orders=12,
                     margin_usd=0.20,
-                    leverage=20
+                    leverage=40
                 )
                 if batch_res.get("success"):
                     # Bersihkan cache bursa agar koin yang baru dipasang langsung hilang dari tab Siap Pasang!
@@ -747,6 +747,181 @@ def sinyal_page(summary=None):
     float_color = "#00e676" if float_pnl >= 0 else "#f44336"
     float_sign = "+" if float_pnl >= 0 else ""
 
+
+    # ── BOT 2 TELEMETRI PANEL ─────────────────────────────────────────────────
+    try:
+        _b2_state_file = Path(__file__).parent / "assets" / "bot2_sniper_state.json"
+        _b2_orders_file = Path(__file__).parent / "assets" / "bingx_orders_state.json"
+        _b2_state = {}
+        _b2_orders = {}
+        if _b2_state_file.exists():
+            _b2_state = json.loads(_b2_state_file.read_text(encoding="utf-8"))
+        if _b2_orders_file.exists():
+            _b2_orders = json.loads(_b2_orders_file.read_text(encoding="utf-8"))
+
+        _b2_running = _b2_state.get("bot_status", "") == "RUNNING"
+        _b2_cycle = _b2_state.get("cycle_number", "—")
+        _b2_last = _b2_state.get("last_cycle", "—")
+        _b2_trend = _b2_state.get("btc_htf_trend", "NEUTRAL")
+        _b2_high = _b2_state.get("high_score_signals_count", 0)
+        _b2_filtered = _b2_state.get("filtered_signals_count", 0)
+
+        _trend_color = "#00e676" if _b2_trend == "BULLISH" else "#f44336" if _b2_trend == "BEARISH" else "#ffd700"
+        _status_dot = "🟢" if _b2_running else "🔴"
+        _status_lbl = "BERJALAN" if _b2_running else "MATI"
+
+        # Count pending limit orders (dari bx_state / bingx_orders_state)
+        _now_ts = time.time()
+        _pending_orders = [(k, v) for k, v in _b2_orders.items()
+                           if v.get("status") == "SUKSES_BINGX" and (_now_ts - v.get("timestamp", 0)) < 7200]
+        _pending_count = len(_pending_orders)
+
+        # Realized PnL from live fetch
+        _realized_pnl = pnl_summary.get("realized_total", 0.0)
+        _unrealized_pnl = pnl_summary.get("unrealized_total", 0.0)
+        _wins = pnl_summary.get("realized_wins", 0)
+        _losses = pnl_summary.get("realized_losses", 0)
+        _wr = pnl_summary.get("win_rate", 0.0)
+        _pos_count = pnl_summary.get("active_positions_count", 0)
+
+        _rz_color = "#00e676" if _realized_pnl >= 0 else "#f44336"
+        _fl_color = "#00e676" if _unrealized_pnl >= 0 else "#f44336"
+
+        st.markdown(f"""
+<div style="background:#0a1520;border:1px solid #1a3040;border-radius:12px;padding:14px 18px;margin-bottom:14px">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+    <span style="font-size:14px;font-weight:800;color:#c8d8e8">🤖 BOT 2 AUTO-SNIPER</span>
+    <span style="background:#1a2d3d;color:{'#00e676' if _b2_running else '#f44336'};font-size:11px;font-weight:800;padding:2px 10px;border-radius:20px;border:1px solid {'#00e67644' if _b2_running else '#f4433644'}">{_status_dot} {_status_lbl}</span>
+    <span style="color:#3a5a7a;font-size:11px">Margin $0.20 | Lev 40x | Siklus #{_b2_cycle}</span>
+    <span style="color:#3a5a7a;font-size:11px;margin-left:auto">BTC 4H: <b style="color:{_trend_color}">{_b2_trend}</b></span>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px">
+    <div style="background:#111a22;border-radius:8px;padding:10px;text-align:center">
+      <div style="color:#3a5a7a;font-size:10px;font-weight:600">REALIZED PnL</div>
+      <div style="color:{_rz_color};font-size:16px;font-weight:800;margin-top:4px">{'+' if _realized_pnl >= 0 else ''}${_realized_pnl:.2f}</div>
+    </div>
+    <div style="background:#111a22;border-radius:8px;padding:10px;text-align:center">
+      <div style="color:#3a5a7a;font-size:10px;font-weight:600">FLOATING PnL</div>
+      <div style="color:{_fl_color};font-size:16px;font-weight:800;margin-top:4px">{'+' if _unrealized_pnl >= 0 else ''}${_unrealized_pnl:.2f}</div>
+    </div>
+    <div style="background:#111a22;border-radius:8px;padding:10px;text-align:center">
+      <div style="color:#3a5a7a;font-size:10px;font-weight:600">WIN RATE</div>
+      <div style="color:#ffd700;font-size:16px;font-weight:800;margin-top:4px">{_wr:.0f}%</div>
+      <div style="color:#3a5a7a;font-size:10px">{_wins}W / {_losses}L</div>
+    </div>
+    <div style="background:#111a22;border-radius:8px;padding:10px;text-align:center">
+      <div style="color:#3a5a7a;font-size:10px;font-weight:600">POSISI AKTIF</div>
+      <div style="color:#00e676;font-size:16px;font-weight:800;margin-top:4px">{_pos_count}</div>
+    </div>
+    <div style="background:#111a22;border-radius:8px;padding:10px;text-align:center">
+      <div style="color:#3a5a7a;font-size:10px;font-weight:600">LIMIT ANTRE</div>
+      <div style="color:#00bcd4;font-size:16px;font-weight:800;margin-top:4px">{_pending_count}</div>
+    </div>
+    <div style="background:#111a22;border-radius:8px;padding:10px;text-align:center">
+      <div style="color:#3a5a7a;font-size:10px;font-weight:600">SINYAL VALID</div>
+      <div style="color:#7ec8e3;font-size:16px;font-weight:800;margin-top:4px">{_b2_filtered}</div>
+      <div style="color:#3a5a7a;font-size:10px">skor≥75 siklus ini</div>
+    </div>
+  </div>
+  <div style="color:#2a4060;font-size:10px;margin-top:8px">Terakhir aktif: {_b2_last} · Siklus tiap 2 menit · Auto-BEP tiap 15 detik</div>
+</div>
+""", unsafe_allow_html=True)
+
+        # ── TABEL POSISI AKTIF (FLOATING PnL) ─────────────────────────────────
+        _active_pos_list = []
+        for _k_pos, _v_pos in live_bx.items():
+            if _v_pos.get("type") == "POSITION" and _v_pos.get("pnl") is not None:
+                _norm_pos = _v_pos.get("norm", "")
+                if _norm_pos and any(_ap.get("_norm_key") == _norm_pos for _ap in _active_pos_list):
+                    continue
+                _active_pos_list.append({
+                    "_norm_key": _norm_pos,
+                    "Koin": _v_pos.get("base", _k_pos),
+                    "Arah": _v_pos.get("side", "?"),
+                    "Entry": f"${_v_pos.get('entry', 0):,.4f}",
+                    "Mark": f"${_v_pos.get('mark', 0):,.4f}",
+                    "PnL $": round(float(_v_pos.get("pnl", 0)), 4),
+                    "ROE %": round(float(_v_pos.get("roe", 0)), 2),
+                    "Lev": f"{int(_v_pos.get('leverage', 40))}x",
+                    "Akun": str(_v_pos.get("account", "")).replace("akun_", "Akun "),
+                })
+        if _active_pos_list:
+            import pandas as pd
+            _df_pos = pd.DataFrame([{k: v for k, v in r.items() if k != "_norm_key"} for r in _active_pos_list])
+            with st.expander(f"📊 **Posisi Sedang Aktif (Floating PnL)** — {len(_active_pos_list)} posisi", expanded=True):
+                def _color_pnl(val):
+                    if isinstance(val, (int, float)):
+                        return f"color: {'#00e676' if val >= 0 else '#f44336'}; font-weight: bold"
+                    return ""
+                styled = _df_pos.style.applymap(_color_pnl, subset=["PnL $", "ROE %"])
+                st.dataframe(styled, use_container_width=True, hide_index=True)
+                # Auto-BEP button
+                _col_bep1, _col_bep2 = st.columns([2, 5])
+                with _col_bep1:
+                    if st.button("🛡️ Kunci BEP Semua (+25% ROE)", use_container_width=True, key="bot2_bep_quick"):
+                        with st.spinner("Mengunci BEP..."):
+                            _bep_r = bingx_executor.apply_bep_to_profit_positions("akun_1", min_roe=25.0)
+                            if _bep_r.get("success") and _bep_r.get("count", 0) > 0:
+                                st.success(f"🛡️ Dikunci: {_bep_r.get('count')} koin")
+                                for _bd in _bep_r.get("details", []):
+                                    st.caption(_bd)
+                            else:
+                                st.info(_bep_r.get("msg", "Tidak ada yang memenuhi syarat BEP"))
+
+        # ── TABEL LIMIT ORDER ANTRE ────────────────────────────────────────────
+        _orders_live = [(k, v) for k, v in live_bx.items() if v.get("type") == "ORDER"]
+        _seen_order_syms = set()
+        _orders_dedup = []
+        for _k_o, _v_o in _orders_live:
+            _norm_o = _v_o.get("norm", _k_o)
+            if _norm_o and _norm_o in _seen_order_syms:
+                continue
+            _seen_order_syms.add(_norm_o)
+            _orders_dedup.append({
+                "Koin": _v_o.get("base", _k_o),
+                "Arah": str(_v_o.get("side", "?")).replace("BUY", "LONG").replace("SELL", "SHORT"),
+                "Harga Limit": f"${_v_o.get('price', 0):,.4f}" if _v_o.get("price") else "—",
+                "Qty": f"{_v_o.get('amount', 0):.4f}",
+                "Order ID": str(_v_o.get("order_id", ""))[-8:] if _v_o.get("order_id") else "—",
+                "Akun": str(_v_o.get("account", "")).replace("akun_", "Akun "),
+            })
+        if _orders_dedup:
+            import pandas as pd
+            with st.expander(f"⏳ **Limit Order Sedang Antre** — {len(_orders_dedup)} order", expanded=False):
+                st.dataframe(pd.DataFrame(_orders_dedup), use_container_width=True, hide_index=True)
+                _col_co, _col_co2 = st.columns([2, 5])
+                with _col_co:
+                    if st.button("🛑 Batalkan Semua Limit", use_container_width=True, key="bot2_cancel_limits"):
+                        _cr = bingx_executor.cancel_all_bingx_open_orders("akun_1")
+                        st.info(f"Dibatalkan: {_cr}")
+
+        # ── TABEL REALIZED PnL (50 TRADE TERAKHIR) ────────────────────────────
+        _closed_trades = closed_bx or []
+        if _closed_trades:
+            import pandas as pd
+            _rows_closed = []
+            for _ct in _closed_trades[:25]:
+                _income_v = float(_ct.get("income", 0))
+                _is_win = _income_v > 0
+                _rows_closed.append({
+                    "Koin": _ct.get("base", _ct.get("symbol", "?")),
+                    "Arah": _ct.get("direction", "?"),
+                    "Hasil": "✅ TP" if _is_win else "❌ SL",
+                    "PnL $": round(_income_v, 4),
+                    "Info": str(_ct.get("info", ""))[:30],
+                    "Waktu": datetime.fromtimestamp(_ct.get("time", 0) / 1000 if _ct.get("time", 0) > 1e10 else _ct.get("time", 0), WIB_TZ).strftime("%d/%m %H:%M") if _ct.get("time") else "—",
+                })
+            _df_closed = pd.DataFrame(_rows_closed)
+            with st.expander(f"📋 **Riwayat Trade Terakhir (Realized PnL)** — {len(_rows_closed)} trade", expanded=False):
+                def _color_closed(val):
+                    if isinstance(val, (int, float)):
+                        return f"color: {'#00e676' if val >= 0 else '#f44336'}; font-weight: bold"
+                    return ""
+                st.dataframe(_df_closed.style.applymap(_color_closed, subset=["PnL $"]), use_container_width=True, hide_index=True)
+    except Exception as _e_bot2:
+        st.warning(f"⚠️ Panel Bot 2 error (bukan crash): {str(_e_bot2)[:80]}")
+
+    # ── SCAN SUMMARY (ASLI) ────────────────────────────────────────────────────
     # ── 6. RINGKASAN SCAN ANALISA ───────────────────────────────────────
     st.markdown(f"""
 <div class="scan-summary">
