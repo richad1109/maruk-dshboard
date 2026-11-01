@@ -698,33 +698,28 @@ def place_bingx_sniper_order(account_key: str, symbol_clean: str, direction: str
     except Exception as e:
         return {"success": False, "msg": f"Gagal pasang di BingX: {str(e)}"}
 
-def apply_bep_to_profit_positions(account_key: str = "akun_1", min_roe: float = 25.0) -> dict:
+def apply_bep_to_profit_positions(account_key: str = "akun_1", min_roe: float = 15.0) -> dict:
     """
-    Otomatis geser Stop Loss ke harga modal (BEP / Break-Even) HANYA untuk posisi yang
-    telah memenuhi aturan baku backtest (+0.8R / Floating ROE >= +25.0%).
-    Posisi yang profitnya masih tipis (< +25% ROE) TIDAK AKAN DISENTUH agar tidak rugi momentum akibat noise pasar!
+    Otomatis geser Stop Loss ke harga modal (BEP / Break-Even) untuk posisi yang
+    telah mencapai target Floating ROE >= min_roe (default +15.0%).
+    
+    Fitur Unggulan:
+    1. Memindai SEMUA posisi aktif milik bot (micro margin <= $1.50) & sinyal web dashboard.
+    2. Mendeteksi order STOP_MARKET lama yang masih di level rugi via field stopPrice asli.
+    3. Jika sudah di BEP, tidak diulang (idempotent, hemat API call).
+    4. Membatalkan SL lama dan memasang STOP_MARKET baru di harga Entry.
+    5. Menggunakan API swapV2 resmi BingX tanpa ReduceOnly (bebas error 109400 di Hedge Mode).
+    6. Posisi manual ber-margin besar (BTC/ETH) dikecualikan demi keamanan portofolio manual user.
     """
     client = get_bingx_client(account_key)
     if not client:
         return {"success": False, "msg": f"Client BingX untuk {account_key} tidak ditemukan."}
 
-    # Baca data sinyal engine cache jika ada untuk mengetahui level BEP (+0.8R) presisi tiap koin
-    bep_signals = {}
-    try:
-        import sinyal_engine
-        cached = sinyal_engine.get_cached_signals(max_age_minutes=60) or []
-        for s in cached:
-            bep_signals[s.get("symbol", "").replace("-USDT", "").replace("1000", "")] = s
-    except Exception:
-        pass
-
     results = []
     skipped_momentum = []
     try:
-        # 1. Ambil semua open orders yang ada saat ini
+        # 1. Ambil semua open orders saat ini
         open_orders = client.fetch_open_orders()
-        
-        # Map symbol -> list of orders
         existing_orders_map = {}
         for o in open_orders:
             sym_raw = o.get("symbol", "").split(":")[0].replace("/", "-")
@@ -734,7 +729,7 @@ def apply_bep_to_profit_positions(account_key: str = "akun_1", min_roe: float = 
         resp = client.swapV2PrivateGetUserPositions()
         positions = resp.get("data", [])
 
-        # Baca order yang dipasang LEWAT WEB Dashboard (assets/bingx_orders_state.json)
+        # Baca order state jika ada
         state = load_bingx_order_state()
         web_symbols = {v.get("symbol") for v in state.values() if v.get("status") == "SUKSES_BINGX" and v.get("account") == account_key}
         web_bases = {s.replace("-USDT", "").replace("1000", "") for s in web_symbols if s}
@@ -743,81 +738,91 @@ def apply_bep_to_profit_positions(account_key: str = "akun_1", min_roe: float = 
             amt = float(p.get("positionAmt") or 0)
             if amt == 0:
                 continue
-            
+
             sym = p.get("symbol", "")
             base = sym.split("-")[0].replace("1000", "")
-
-            # PROTEKSI KETAT: HANYA proses posisi yang berasal dari Web Dashboard!
-            # Posisi milik Bot VPS 1 (multi_wallet_quant_engine) atau manual di HP 100% DIKECUALIKAN!
-            if sym not in web_symbols and base not in web_bases:
-                continue
             entry_p = float(p.get("avgPrice") or 0)
             mark_p = float(p.get("markPrice") or entry_p)
             unrealized = float(p.get("unrealizedProfit") or 0)
             leverage = float(p.get("leverage") or 20)
             pos_side = str(p.get("positionSide", "SHORT")).upper()
 
-            # Hitung ROE
+            # Hitung Margin & ROE
             margin = (abs(amt) * entry_p) / (leverage + 1e-10)
             roe = (unrealized / margin * 100.0) if margin > 0 else 0.0
 
-            # Cek Level BEP dari Signal Vault (+0.8R)
-            sig_data = bep_signals.get(base)
-            hit_08r = False
-            if sig_data and "bep" in sig_data:
-                try:
-                    bep_lvl = float(sig_data["bep"])
-                    if pos_side == "SHORT" and mark_p <= bep_lvl and bep_lvl > 0:
-                        hit_08r = True
-                    elif pos_side == "LONG" and mark_p >= bep_lvl and bep_lvl > 0:
-                        hit_08r = True
-                except Exception:
-                    pass
+            # Filter posisi manual besar (BTC & ETH margin > $1.00) agar tidak disentuh
+            if base in ["BTC", "ETH"] and margin > 1.0:
+                continue
 
-            # ATURAN BAKU: Harus tembus level +0.8R ATAU Floating ROE >= +25%
-            is_valid_bep = unrealized > 0 and (hit_08r or roe >= min_roe)
+            # Hanya proses koin bot (margin micro <= $1.50 atau ada di web dashboard)
+            is_bot_pos = margin <= 1.50 or sym in web_symbols or base in web_bases
+            if not is_bot_pos:
+                continue
+
+            # Kualifikasi BEP: Unrealized PnL positif & ROE >= min_roe (default +15.0%)
+            is_valid_bep = unrealized > 0 and roe >= min_roe
 
             if not is_valid_bep:
                 if unrealized > 0:
-                    skipped_momentum.append(f"⏳ {base}: Profit +{roe:.1f}% belum capai batas +0.8R (>=+25% ROE). SL awal dijaga.")
+                    skipped_momentum.append(f"⏳ {base}: Profit +{roe:.1f}% belum capai syarat BEP (>=+{min_roe:.1f}% ROE). SL awal dijaga.")
                 continue
 
+            # Periksa order STOP_MARKET yang ada untuk simbol ini
             sym_clean = sym
-            sym_orders = existing_orders_map.get(sym_clean, []) + existing_orders_map.get(f"{base}/USDT:USDT", [])
-            
+            sym_orders = (
+                existing_orders_map.get(sym_clean, []) +
+                existing_orders_map.get(f"{base}/USDT:USDT", []) +
+                existing_orders_map.get(f"1000{base}/USDT:USDT", [])
+            )
+
             already_bep = False
             old_sl_orders = []
             for o in sym_orders:
-                o_type = str(o.get("info", {}).get("type") or o.get("type", "")).upper()
-                o_price = float(o.get("price") or o.get("stopPrice") or 0)
-                if "STOP" in o_type:
-                    # Cek selisih harga dengan entry
-                    if abs(o_price - entry_p) / (entry_p + 1e-10) < 0.002:
-                        already_bep = True
-                    else:
-                        old_sl_orders.append(o)
+                info = o.get("info", {})
+                o_type = str(info.get("type") or o.get("type") or "").upper()
+                if "STOP" in o_type and "TAKE_PROFIT" not in o_type:
+                    real_stop = float(info.get("stopPrice") or o.get("stopPrice") or 0)
+                    if pos_side == "SHORT":
+                        # Untuk SHORT, stop loss di bawah atau sama dengan entry (+0.05% toleransi) sudah BEP
+                        if real_stop > 0 and real_stop <= entry_p * 1.0005:
+                            already_bep = True
+                        else:
+                            old_sl_orders.append(o)
+                    elif pos_side == "LONG":
+                        # Untuk LONG, stop loss di atas atau sama dengan entry (-0.05% toleransi) sudah BEP
+                        if real_stop > 0 and real_stop >= entry_p * 0.9995:
+                            already_bep = True
+                        else:
+                            old_sl_orders.append(o)
 
             if already_bep:
                 results.append(f"🔒 {base}: Sudah terkunci di BEP ({entry_p})")
                 continue
 
-            # Batalkan SL lama yang masih di level awal (rugi)
+            # Batalkan SL lama yang masih di level rugi
             for old_o in old_sl_orders:
                 try:
                     client.cancel_order(old_o["id"], old_o.get("symbol"))
                 except Exception:
                     pass
 
-            # Pasang STOP_MARKET di harga Entry
+            # Tentukan harga BEP aman (sedikit menguntungkan untuk cover fee)
+            if pos_side == "SHORT":
+                bep_price = entry_p * 0.9998
+            else:
+                bep_price = entry_p * 1.0002
+
             order_side = "BUY" if pos_side == "SHORT" else "SELL"
-            ccxt_sym = f"{base}/USDT:USDT"
-            
+            ccxt_sym = f"{sym.replace('-USDT', '')}/USDT:USDT"
+
             bep_placed = False
-            # Cara 1: via endpoint swapV2 resmi BingX
+            price_str = client.price_to_precision(ccxt_sym, bep_price) if hasattr(client, 'price_to_precision') else str(bep_price)
+            amt_str = client.amount_to_precision(ccxt_sym, abs(amt)) if hasattr(client, 'amount_to_precision') else str(abs(amt))
+
+            # Cara 1: via endpoint swapV2 resmi BingX (PASTI JALAN di Hedge Mode tanpa ReduceOnly)
             try:
-                price_str = client.price_to_precision(ccxt_sym, entry_p) if hasattr(client, 'price_to_precision') else str(entry_p)
-                amt_str = client.amount_to_precision(ccxt_sym, abs(amt)) if hasattr(client, 'amount_to_precision') else str(abs(amt))
-                client.swapV2PrivatePostTradeOrder({
+                r_v2 = client.swapV2PrivatePostTradeOrder({
                     "symbol": sym,
                     "type": "STOP_MARKET",
                     "side": order_side,
@@ -825,31 +830,36 @@ def apply_bep_to_profit_positions(account_key: str = "akun_1", min_roe: float = 
                     "stopPrice": price_str,
                     "quantity": amt_str,
                 })
-                results.append(f"🛡️ {base}: BERHASIL dikunci BEP @ {entry_p} (ROE +{roe:.1f}% >= +0.8R)")
-                bep_placed = True
-            except Exception:
-                pass
+                if r_v2.get("code") == 0:
+                    results.append(f"🛡️ {base}: BERHASIL dipindah ke BEP @ {price_str} (ROE +{roe:.1f}% >= +{min_roe:.1f}%)")
+                    bep_placed = True
+                else:
+                    results.append(f"⚠️ {base}: swapV2 resp code {r_v2.get('code')}: {r_v2.get('msg')}")
+            except Exception as e_v2:
+                results.append(f"⚠️ {base}: Error swapV2: {str(e_v2)}")
 
-            # Cara 2: Fallback via CCXT create_order
+            # Cara 2: Fallback via CCXT tanpa reduceOnly
             if not bep_placed:
                 try:
                     client.create_order(
                         symbol=ccxt_sym,
-                        type="market",
+                        type="stop_market",
                         side=order_side.lower(),
-                        amount=abs(amt),
+                        amount=float(amt_str),
+                        price=None,
                         params={
-                            "stopLossPrice": entry_p,
+                            "stopPrice": float(price_str),
+                            "triggerPrice": float(price_str),
                             "positionSide": pos_side,
-                            "reduceOnly": True
+                            "workingType": "MARK_PRICE"
                         }
                     )
-                    results.append(f"🛡️ {base}: BERHASIL dikunci BEP via CCXT @ {entry_p} (ROE +{roe:.1f}%)")
+                    results.append(f"🛡️ {base}: BERHASIL dikunci BEP via CCXT @ {price_str} (ROE +{roe:.1f}%)")
                     bep_placed = True
                 except Exception as e_ccxt:
                     results.append(f"⚠️ {base}: Gagal pasang BEP ({str(e_ccxt)})")
 
-        msg = f"Terkunci BEP: {len(results)} koin (Lolos target +0.8R / >=+25% ROE). Dijaga momentum: {len(skipped_momentum)} koin."
+        msg = f"Terkunci BEP: {len(results)} koin. Menunggu target: {len(skipped_momentum)} koin."
         return {
             "success": True,
             "count": len(results),
@@ -859,6 +869,7 @@ def apply_bep_to_profit_positions(account_key: str = "akun_1", min_roe: float = 
         }
     except Exception as e:
         return {"success": False, "msg": f"Error apply BEP: {str(e)}"}
+
 
 def fetch_recently_closed_pnl_trades(account_key: str = "akun_1", limit: int = 50) -> list:
     """Membaca trade yang baru saja ditutup (Take Profit / Stop Loss) resmi dari bursa BingX."""

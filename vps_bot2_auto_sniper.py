@@ -99,23 +99,34 @@ def get_btc_htf_trend():
 
 # ─── THREAD 1: AUTO-BEP PATROL SCANNER (TIAP 15 DETIK) ───────────────────────
 def bep_patrol_worker():
-    log("Thread Auto-BEP Patrol Aktif! Memindai posisi terbuka tiap 15 detik...", "START")
+    log(f"Thread Auto-BEP Patrol Aktif! Memindai posisi terbuka tiap {CONFIG['bep_check_interval_sec']} detik...", "START")
+    scan_count = 0
     while True:
         try:
             bep_res = bingx_executor.apply_bep_to_profit_positions(
                 account_key=CONFIG["account_key"],
                 min_roe=CONFIG["min_bep_roe"]
             )
-            if bep_res.get("success") and bep_res.get("count", 0) > 0:
+            scan_count += 1
+            if bep_res.get("success"):
                 details = bep_res.get("details", [])
+                skipped = bep_res.get("skipped", [])
+
+                # Kirim ntfy dan log khusus jika ada yang baru berhasil dipindah ke BEP
                 for d in details:
                     if "BERHASIL" in d:
                         log(f"🛡️ AUTO-BEP: {d}", "BEP")
                         send_ntfy(
                             title="🛡️ AUTO-BEP TERKUNCI (MODAL AMAN)",
-                            message=f"{d}\nStop Loss berhasil dipindah ke Entry + fee. Trade kini 100% bebas risiko rugi!",
+                            message=f"{d} - Stop Loss dipindah ke Entry (Bebas Risiko Rugi)!",
                             tags="shield,white_check_mark"
                         )
+
+                # Log ringkasan status patroli setiap siklus scan
+                bep_count = len(details)
+                wait_count = len(skipped)
+                bep_names = ", ".join([d.split(":")[0].replace("🔒", "").replace("🛡️", "").strip() for d in details])
+                log(f"🛡️ Patroli BEP #{scan_count}: {bep_count} koin terkunci BEP ({bep_names or 'belum ada'}), {wait_count} koin memantau target ROE +{CONFIG['min_bep_roe']}%.", "BEP_PATROL")
         except Exception as e:
             log(f"Error pada patroli BEP: {e}", "ERROR")
         time.sleep(CONFIG["bep_check_interval_sec"])
