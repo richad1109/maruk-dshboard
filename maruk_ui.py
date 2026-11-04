@@ -18,6 +18,7 @@ import sakti_monitor
 import btc_research
 import sinyal_engine
 import bingx_executor
+import anubis_signal_engine
 
 ROOT=Path(__file__).resolve().parent
 WIB=timezone(timedelta(hours=7))
@@ -25,7 +26,7 @@ PALETTE=["#b9df8a","#91b4c8","#d8bb87"]
 PAGE={"Ringkasan":("Semua akun. Satu pandangan.","Pantau portofolio, pergerakan pasar, dan posisi dalam satu ruang."),
       "Posisi & Bursa":("Setiap posisi, lebih jelas.","Detail eksposur dan koneksi delapan wallet di tiga bursa."),
       "Bot Sakti":("Satu sistem. Setiap langkah terpantau.","Jurnal Termux terenkripsi, peringatan proteksi, dan status Bot Final."),
-      "Sinyal":("50 koin. Sniper presisi.","Sinyal limit order multi-konfirmasi dari BingX. Skor 1-100, status real-time, TP1/2/3 otomatis.")}
+      "Sinyal":("Anubis 95% Pro. Radar BingX Futures.","Sinyal manual trading 7 koin konsisten $50/bulan. Entry, TP1, TP MAX, SL, dan Kunci BEP otomatis.")}
 
 CUSTOM_BALANCE_FILE = ROOT / "assets" / "custom_display_balance.json"
 
@@ -240,1053 +241,373 @@ def overview(snapshot,info,summary,base):
 # HALAMAN SINYAL — Multi-Confirmation Sniper Limit Order Signal Room
 # ═══════════════════════════════════════════════════════════════════════
 def sinyal_page(summary=None):
-    """Halaman Analisa Sinyal Limit Order Kripto BingX Berbasis Multi-Konfirmasi Teknikal Kuantitatif."""
-    LEVERAGE_DISPLAY = 40   # Bot 2 leverage 40x
-    MARGIN_DISPLAY   = 0.20  # asumsi margin per trade (USD)
-
-    # ── CSS Kartu Sinyal ────────────────────────────────────────────────
+    """Halaman Sinyal Manual Anubis 95% BingX Futures (Target Konsisten $50/Bulan)."""
     st.markdown("""
 <style>
-.sig-card{background:#111a22;border:1px solid #1e2d3d;border-radius:12px;padding:16px 18px;margin-bottom:10px;position:relative;overflow:hidden}
-.sig-card:hover{border-color:#2a4060}
-.sig-card-long{border-left:4px solid #00e676}
-.sig-card-short{border-left:4px solid #f44336}
-.sig-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-.sig-sym{font-size:18px;font-weight:700;color:#e8f0fe;letter-spacing:1px}
-.sig-dir-long{background:#00e676;color:#000;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px}
-.sig-dir-short{background:#f44336;color:#fff;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px}
-.sig-score-bar-wrap{background:#1e2d3d;border-radius:6px;height:6px;width:100%;margin:6px 0 10px}
-.sig-score-bar{border-radius:6px;height:6px;transition:width .3s}
-.sig-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-top:8px}
-.sig-cell{background:#0d1520;border-radius:8px;padding:8px 10px}
-.sig-cell-label{color:#4e6b8a;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
-.sig-cell-val{color:#c8d8e8;font-size:13px;font-weight:700;margin-top:2px}
-.sig-cell-val.green{color:#00e676}
-.sig-cell-val.red{color:#f44336}
-.sig-cell-val.gold{color:#ffd700}
-.sig-status{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-left:8px}
-.sig-reasons{margin-top:8px;padding-top:8px;border-top:1px solid #1e2d3d}
-.sig-reason-item{color:#5a7a9a;font-size:11px;padding:1px 0}
-.sig-meta{display:flex;gap:12px;margin-top:6px;flex-wrap:wrap}
-.sig-meta-item{color:#3a5a7a;font-size:10px}
-.sig-valid{color:#4a8a6a;font-size:10px;font-weight:600}
-.empty-state{background:#0d1520;border:1px dashed #1e2d3d;border-radius:12px;padding:40px;text-align:center;color:#3a5a7a}
-.scan-summary{background:#0d1520;border:1px solid #1e2d3d;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;gap:24px;flex-wrap:wrap}
-.scan-summary-item{color:#4e6b8a;font-size:12px}
-.scan-summary-item strong{color:#c8d8e8;font-size:15px;display:block}
+.anubis-hero {
+    background: linear-gradient(135deg, rgba(17, 26, 34, 0.95) 0%, rgba(26, 40, 56, 0.9) 100%);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+.anubis-title {
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: #e8f0fe;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.anubis-badge-manual {
+    background: rgba(16, 185, 129, 0.15);
+    color: #00e676;
+    border: 1px solid rgba(0, 230, 118, 0.4);
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+.anubis-badge-wr {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+.anubis-sub {
+    font-size: 0.8rem;
+    color: #8da4c4;
+    margin-top: 4px;
+}
+.anubis-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-top: 14px;
+}
+.anubis-stat-box {
+    background: #0d1520;
+    border: 1px solid #1e2d3d;
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+.anubis-stat-box b {
+    color: #e8f0fe;
+    font-size: 1.15rem;
+    display: block;
+    margin-top: 2px;
+}
+.anubis-stat-box span {
+    color: #5a7a9a;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+.anubis-card {
+    background: #111a22;
+    border: 1px solid #1e2d3d;
+    border-radius: 12px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+    position: relative;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+}
+.anubis-card-long { border-left: 4px solid #00e676; }
+.anubis-card-short { border-left: 4px solid #f44336; }
+.anubis-card-neutral { border-left: 4px solid #5a7a9a; }
+.anubis-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.anubis-coin-name {
+    font-size: 1.2rem;
+    font-weight: 900;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+}
+.anubis-badge-long {
+    background: rgba(0, 230, 118, 0.2);
+    color: #00e676;
+    border: 1px solid #00e676;
+    font-weight: 800;
+    font-size: 0.74rem;
+    padding: 3px 10px;
+    border-radius: 6px;
+}
+.anubis-badge-short {
+    background: rgba(244, 67, 54, 0.2);
+    color: #f44336;
+    border: 1px solid #f44336;
+    font-weight: 800;
+    font-size: 0.74rem;
+    padding: 3px 10px;
+    border-radius: 6px;
+}
+.anubis-badge-standby {
+    background: rgba(141, 164, 196, 0.15);
+    color: #8da4c4;
+    border: 1px solid rgba(141, 164, 196, 0.3);
+    font-weight: 700;
+    font-size: 0.74rem;
+    padding: 3px 10px;
+    border-radius: 6px;
+}
+.anubis-levels {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 10px;
+    text-align: center;
+}
+.anubis-level-cell {
+    background: #0d1520;
+    border: 1px solid #1e2d3d;
+    border-radius: 8px;
+    padding: 8px 6px;
+}
+.anubis-level-title {
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+.anubis-level-val {
+    font-size: 0.92rem;
+    font-weight: 900;
+    margin-top: 2px;
+}
+.anubis-bep-bar {
+    background: rgba(255, 215, 0, 0.08);
+    border: 1px dashed rgba(255, 215, 0, 0.4);
+    border-radius: 8px;
+    padding: 7px 12px;
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+}
 </style>
 """, unsafe_allow_html=True)
 
-    WIB_TZ = timezone(timedelta(hours=7))
-    now_wib = datetime.now(WIB_TZ)
+    # 1. HEADER BANNER
+    st.markdown("""
+<div class="anubis-hero">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <div>
+      <div class="anubis-title">
+        👑 RADAR SINYAL ANUBIS 95% (BINGX FUTURES PRO)
+        <span class="anubis-badge-manual">100% MANUAL TRADING (NO AUTO-TRADE)</span>
+        <span class="anubis-badge-wr">WR HISTORIS: 92.1% (210 W / 19 L)</span>
+      </div>
+      <div class="anubis-sub">
+        Fokus 7 Koin Likuid Terpilih: <b>SOL, AVAX, DOGE, PEPE, SUI, BTC, ETH</b> • Data Live Langsung dari <b>BingX Swap API</b> (Tanpa Biaya Webhook)
+      </div>
+    </div>
+  </div>
+  <div class="anubis-grid">
+    <div class="anubis-stat-box">
+      <span>Target Konsisten</span>
+      <b style="color: #ffd700;">Min. $50 / Bulan</b>
+    </div>
+    <div class="anubis-stat-box">
+      <span>Rekomendasi Modal</span>
+      <b style="color: #00e676;">$1.00 - $2.00 / Koin</b>
+    </div>
+    <div class="anubis-stat-box">
+      <span>Leverage & Mode</span>
+      <b style="color: #38bdf8;">10x Isolated</b>
+    </div>
+    <div class="anubis-stat-box">
+      <span>Protokol Proteksi</span>
+      <b style="color: #c084fc;">Kunci BEP di TP1 (Zero Risk)</b>
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
-    # ── 1. SCANNER MAKRO BTC & KONTROL DARURAT ───────────────────────────
-    if 'cached_btc_sent' not in st.session_state or (time.time() - st.session_state.get('cached_btc_time', 0)) > 60:
-        st.session_state['cached_btc_sent'] = bingx_executor.get_btc_macro_sentiment()
-        st.session_state['cached_btc_time'] = time.time()
-    btc_sent = st.session_state['cached_btc_sent']
-    b_stat = btc_sent.get("status", "NORMAL")
-    b_lbl = btc_sent.get("label", "🛡️ BTC TREN NETRAL")
-    b_price = btc_sent.get("price", 0)
-    b_chg = btc_sent.get("change_1h", 0)
-    b_rsi = btc_sent.get("rsi", 50)
-    b_rec = btc_sent.get("recommendation", "Aman")
-
-    col_macro, col_kill = st.columns([3, 1.2])
-    with col_macro:
-        if b_stat in ("PUMP_SPIKE", "DUMP_SPIKE"):
-            st.error(f"**{b_lbl}** · BTC: ${b_price:,.1f} (1H Change: {b_chg:+}% | RSI: {b_rsi}) · *{b_rec}*")
-        else:
-            st.info(f"**{b_lbl}** · BTC: ${b_price:,.1f} (1H Change: {b_chg:+}% | RSI: {b_rsi}) · *{b_rec}*")
-
-    with col_kill:
-        col_k1, col_k2 = st.columns(2)
-        with col_k1:
-            if st.button("🛑 Cancel Limit Web", type="secondary", use_container_width=True, help="Batalkan limit order antre yang dipasang via Web. Order manual di BingX 100% AMAN!"):
-                with st.spinner("Membatalkan limit order web..."):
-                    c_res = bingx_executor.cancel_web_orders_only("all")
-                    st.warning(f"Hasil: {c_res}")
-                    time.sleep(1)
-                    st.rerun()
-        with col_k2:
-            if st.button("⚡ Tutup Posisi Web", type="secondary", use_container_width=True, help="Tutup darurat posisi yang dibuka via Web. Posisi manual (seperti ENS, dll.) 100% AMAN!"):
-                with st.spinner("Menutup posisi web..."):
-                    c_res = bingx_executor.close_web_positions_only("all")
-                    st.warning(f"Hasil: {c_res}")
-                    time.sleep(1)
-                    st.rerun()
-
-    # ── 2. HEADER KONTROL, FILTER & PENGURUTAN (WR & PnL) ────────────────
-    c1, c2, c3, c4 = st.columns([1.5, 1.8, 1.2, 1])
-    with c1:
-        filter_dir = st.selectbox("Filter Arah", ["Semua", "LONG", "SHORT"], key="sinyal_dir_filter")
-    with c2:
-        sort_by = st.selectbox("Urutkan Berdasarkan", [
-            "🏆 Skor Kualitas (WR Tertinggi)",
-            "📈 PnL / ROE Tertinggi (Paling Cuan)",
-            "📉 PnL Terendah (Dari Minus)",
-            "⚡ Jarak Terdekat ke Limit"
-        ], key="sinyal_sort_by")
-    with c3:
-        filter_min_score = st.slider("Skor Minimum", 50, 100, 60, 5, key="sinyal_score_filter")
-    with c4:
+    # 2. KONTROL REFRESH & FILTER
+    c_f1, c_f2, c_f3 = st.columns([2, 1.5, 1])
+    with c_f1:
+        f_choice = st.radio(
+            "Filter Sinyal:",
+            ["🔥 Semua 7 Koin", "🟢 BUY / LONG Saja", "🔴 SHORT Saja", "🏃 Sedang Berjalan (Running)", "👑 TP MAX / BEP"],
+            horizontal=True,
+            key="anubis_filter_radio"
+        )
+    with c_f3:
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-        do_scan = st.button("🔄 Scan 100+ Koin", type="primary", use_container_width=True, key="sinyal_scan_btn")
-
-    # ── BAR AKSI CEPAT: PASANG SEMUA LIMIT 1-KLIK & AUTO-BEP ATURAN BAKU ───
-    col_act0, col_act1, col_act2, col_act3 = st.columns([1.8, 1.5, 1.2, 0.9])
-    with col_act0:
-        if st.button("🚀 Pasang Semua Limit Sekaligus (1-Klik)", type="primary", use_container_width=True, help="Otomatis pasang Limit Order + TP/SL untuk SEMUA koin valid yang belum buka posisi di BingX"):
-            with st.spinner("Mengirim antrean limit order semua koin valid ke bursa BingX..."):
-                current_sigs = list(st.session_state.get("sinyal_signals", []))
-                batch_res = bingx_executor.batch_place_all_valid_limits(
-                    signals=current_sigs,
-                    account_key="akun_1",
-                    min_score=filter_min_score,
-                    max_orders=12,
-                    margin_usd=0.20,
-                    leverage=40
-                )
-                if batch_res.get("success"):
-                    # Bersihkan cache bursa agar koin yang baru dipasang langsung hilang dari tab Siap Pasang!
-                    st.session_state.pop('cached_live_bx', None)
-                    st.session_state.pop('cached_bx_time', None)
-                    st.balloons()
-                    st.success(f"🎉 **{batch_res.get('msg')}**")
-                    if batch_res.get("success_list"):
-                        st.markdown("**Koin Berhasil Dipasang Limit:**")
-                        for sc in batch_res.get("success_list", []):
-                            st.caption(f"✅ {sc}")
-                    time.sleep(1)
-                    st.rerun()
-                else:
-                    st.error(f"Gagal: {batch_res.get('msg')}")
-    with col_act1:
-        if st.button("🛡️ Kunci BEP Sesuai Aturan (+0.8R / ROE ≥ +25%)", type="secondary", use_container_width=True, help="HANYA geser SL ke Entry jika posisi sudah tembus +0.8R / ROE >= +25%. Posisi profit tipis tetap dijaga SL awalnya agar momentum tidak terbunuh oleh retest modal!"):
-            with st.spinner("Memeriksa posisi & mengunci BEP sesuai aturan baku backtest (+0.8R / ROE >= 25%)..."):
-                bep_res = bingx_executor.apply_bep_to_profit_positions("akun_1", min_roe=25.0)
-                if bep_res.get("success"):
-                    st.success(f"🎯 **{bep_res.get('msg')}**")
-                    if bep_res.get("details"):
-                        st.markdown("**Posisi Terkunci BEP Aman (+0.8R):**")
-                        for d in bep_res.get("details", []):
-                            st.caption(d)
-                    if bep_res.get("skipped"):
-                        with st.expander("ℹ️ Posisi Dijaga Momentum (SL Awal Tetap Aktif)"):
-                            for sk in bep_res.get("skipped", []):
-                                st.caption(sk)
-                else:
-                    st.error(f"Gagal: {bep_res.get('msg')}")
-    with col_act2:
-        if st.button("❌ Batalkan Limit Web Saja", use_container_width=True, help="Batalkan antrean limit yang dipasang via web (order manual BingX tetap aman)"):
-            cancel_res = bingx_executor.cancel_web_orders_only("akun_1")
-            st.info(str(cancel_res))
-    with col_act3:
-        if st.button("↻ Refresh Layar", use_container_width=True):
+        if st.button("🔄 Segarkan Data BingX", type="primary", use_container_width=True, key="btn_refresh_anubis_maruk"):
+            st.cache_data.clear()
             st.rerun()
 
-    # ── 3. AMBIL / REFRESH SINYAL MURNI (SELALU BACA CACHE SEGAR DARI DISK) ──
-    cache_key = "sinyal_signals"
-    scan_time_key = "sinyal_scan_time"
+    # 3. AMBIL DATA LIVE DARI BINGX VIA anubis_signal_engine
+    with st.spinner("Mengambil kalkulasi teknikal Anubis 95% langsung dari BingX Futures API..."):
+        try:
+            import anubis_signal_engine
+            signals = anubis_signal_engine.scan_anubis_signals()
+        except Exception as e:
+            st.error(f"Gagal memuat engine sinyal Anubis: {e}")
+            signals = []
 
-    disk_data = sinyal_engine.load_cache() or {}
-    disk_signals = disk_data.get("signals", [])
-    disk_scan_ts = disk_data.get("scanned_at", 0)
-
-    if do_scan:
-        progress_bar = st.progress(0, text="🔍 Scanning 100+ koin kripto BingX...")
-        def on_progress(done, total):
-            pct = done / max(total, 1)
-            try:
-                progress_bar.progress(pct, text=f"🔍 Scanning... {done}/{total} koin")
-            except Exception:
-                pass
-
-        with st.spinner(""):
-            signals = sinyal_engine.refresh_scan(progress_callback=on_progress)
-
-        progress_bar.empty()
-        st.session_state[cache_key] = signals
-        st.session_state[scan_time_key] = time.time()
+    # Filter tampilan
+    if f_choice == "🟢 BUY / LONG Saja":
+        display_sigs = [s for s in signals if s.get('signal') == 'LONG']
+    elif f_choice == "🔴 SHORT Saja":
+        display_sigs = [s for s in signals if s.get('signal') == 'SHORT']
+    elif f_choice == "🏃 Sedang Berjalan (Running)":
+        display_sigs = [s for s in signals if 'RUNNING' in s.get('status_type', '')]
+    elif f_choice == "👑 TP MAX / BEP":
+        display_sigs = [s for s in signals if s.get('status_type') in ['TP_MAX', 'BEP_EXIT']]
     else:
-        # SELALU update session state dari file cache disk jika file disk ada & valid
-        # Mencegah bug session membeku (94 menit lalu) yang dialami user
-        if disk_signals:
-            st.session_state[cache_key] = disk_signals
-            st.session_state[scan_time_key] = disk_scan_ts
-        elif cache_key not in st.session_state:
-            with st.spinner("Inisialisasi scan 100+ koin..."):
-                signals = sinyal_engine.refresh_scan()
-            st.session_state[cache_key] = signals
-            st.session_state[scan_time_key] = time.time()
-
-    all_signals = list(st.session_state.get(cache_key, []))
-    scan_ts = st.session_state.get(scan_time_key, 0)
-    scan_age_min = int((time.time() - scan_ts) / 60) if scan_ts else 0
-
-    # ── 4. CEK STATUS AKTIF & RIWAYAT TP DARI BURSA BINGX ──────────────
-    if 'cached_live_bx' not in st.session_state or (time.time() - st.session_state.get('cached_bx_time', 0)) > 60:
-        try:
-            st.session_state['cached_live_bx'] = bingx_executor.fetch_live_active_bingx_coins()
-        except Exception:
-            st.session_state['cached_live_bx'] = {}
-        try:
-            st.session_state['cached_closed_bx'] = bingx_executor.fetch_recently_closed_pnl_trades("akun_1", limit=30)
-        except Exception:
-            st.session_state['cached_closed_bx'] = []
-        st.session_state['cached_bx_time'] = time.time()
-    live_bx = st.session_state.get('cached_live_bx', {})
-    closed_bx = st.session_state.get('cached_closed_bx', [])
-
-    # Map closed trades: TP (income > 0) dan SL (income <= 0)
-    tp_closed_map = {}
-    sl_closed_map = {}
-    for ct in closed_bx:
-        sym_ct  = ct.get("symbol", "")
-        base_ct = ct.get("base", "")
-        if ct.get("is_tp"):
-            tp_closed_map[sym_ct] = ct
-            if base_ct:
-                tp_closed_map[base_ct] = ct
-        else:
-            # income <= 0 berarti kena SL / loss
-            sl_closed_map[sym_ct] = ct
-            if base_ct:
-                sl_closed_map[base_ct] = ct
-
-    def _find_orig_sig(sym_ct):
-        """Cari sinyal scanner asli untuk koin ini (agar entry/tp/sl tidak hardcode)."""
-        base_ct = sym_ct.split("-")[0]
-        norm_ct = bingx_executor.normalize_coin_symbol(sym_ct)
-        for _s in all_signals:
-            _sn = bingx_executor.normalize_coin_symbol(_s.get("symbol", ""))
-            if (_s.get("symbol") == sym_ct
-                    or _s.get("symbol", "").split("-")[0] == base_ct
-                    or (_sn and _sn == norm_ct)):
-                return _s
-        return None
-
-    # ── INJECT kartu TP resmi bursa BingX ───────────────────────────────
-    seen_tp_ids = set()
-    for idx_ct, ct in enumerate(closed_bx):
-        if not ct.get("is_tp"):
-            continue
-        ct_uid = f"closed_tp_{ct['symbol']}_{ct.get('time', idx_ct)}"
-        if ct_uid in seen_tp_ids:
-            continue
-        seen_tp_ids.add(ct_uid)
-
-        orig_sig = _find_orig_sig(ct["symbol"])
-        time_wib_str = datetime.fromtimestamp(ct.get("time", time.time()*1000)/1000, WIB_TZ).strftime("%d/%m %H:%M WIB")
-        entry_v = orig_sig["entry"] if orig_sig and orig_sig.get("entry",0) > 0 else 1.0
-        sl_v    = orig_sig["sl"]    if orig_sig and orig_sig.get("sl",0) > 0 else round(entry_v * 0.985, 6)
-        tp1_v   = orig_sig["tp1"]   if orig_sig and orig_sig.get("tp1",0) > 0 else round(entry_v * 1.02, 6)
-        tp2_v   = orig_sig["tp2"]   if orig_sig and orig_sig.get("tp2",0) > 0 else round(entry_v * 1.03, 6)
-        tp3_v   = orig_sig["tp3"]   if orig_sig and orig_sig.get("tp3",0) > 0 else round(entry_v * 1.05, 6)
-        dir_v   = orig_sig.get("direction", ct.get("direction","LONG")) if orig_sig else ct.get("direction","LONG")
-
-        all_signals.insert(0, {
-            "symbol": ct["symbol"],
-            "direction": dir_v,
-            "score": 99,
-            "entry": entry_v,
-            "current_price": entry_v,
-            "sl": sl_v,
-            "bep": orig_sig.get("bep", entry_v) if orig_sig else entry_v,
-            "tp1": tp1_v,
-            "tp2": tp2_v,
-            "tp3": tp3_v,
-            "rr": orig_sig.get("rr", 2.5) if orig_sig else 2.5,
-            "ker": orig_sig.get("ker", 0.42) if orig_sig else 0.42,
-            "rsi_4h": orig_sig.get("rsi_4h", 55.0) if orig_sig else 55.0,
-            "rsi_1h": orig_sig.get("rsi_1h", 55.0) if orig_sig else 55.0,
-            "vol_ratio": orig_sig.get("vol_ratio", 1.5) if orig_sig else 1.5,
-            "is_active": False,
-            "_is_real_tp": True,
-            "_real_income": ct.get("income", 0.0),
-            "_close_info": ct.get("info", "Take Profit"),
-            "_live_status": "TP1_HIT",
-            "_card_uid": ct_uid,
-            "reasons": [
-                f"🏆 Take Profit Resmi Berhasil Terpenuhi di BingX (+${ct.get('income', 0.0):.4f} USD)",
-                f"Waktu Eksekusi: {time_wib_str} · Posisi sukses cuan cair masuk dompet bursa"
-            ]
-        })
-
-    # ── INJECT kartu SL resmi bursa BingX (biar muncul di tab Kena SL) ──
-    seen_sl_ids = set()
-    for idx_ct, ct in enumerate(closed_bx):
-        if ct.get("is_tp"):
-            continue
-        income_v = float(ct.get("income", 0.0))
-        if income_v == 0.0:
-            continue  # skip netral, bukan SL nyata
-        ct_uid = f"closed_sl_{ct['symbol']}_{ct.get('time', idx_ct)}"
-        if ct_uid in seen_sl_ids:
-            continue
-        seen_sl_ids.add(ct_uid)
-
-        orig_sig = _find_orig_sig(ct["symbol"])
-        time_wib_str = datetime.fromtimestamp(ct.get("time", time.time()*1000)/1000, WIB_TZ).strftime("%d/%m %H:%M WIB")
-        entry_v = orig_sig["entry"] if orig_sig and orig_sig.get("entry",0) > 0 else 1.0
-        sl_v    = orig_sig["sl"]    if orig_sig and orig_sig.get("sl",0) > 0 else round(entry_v * 0.985, 6)
-        tp1_v   = orig_sig["tp1"]   if orig_sig and orig_sig.get("tp1",0) > 0 else round(entry_v * 1.02, 6)
-        tp2_v   = orig_sig["tp2"]   if orig_sig and orig_sig.get("tp2",0) > 0 else round(entry_v * 1.03, 6)
-        tp3_v   = orig_sig["tp3"]   if orig_sig and orig_sig.get("tp3",0) > 0 else round(entry_v * 1.05, 6)
-        dir_v   = orig_sig.get("direction", ct.get("direction","LONG")) if orig_sig else ct.get("direction","LONG")
-
-        all_signals.insert(0, {
-            "symbol": ct["symbol"],
-            "direction": dir_v,
-            "score": 60,
-            "entry": entry_v,
-            "current_price": entry_v,
-            "sl": sl_v,
-            "bep": entry_v,
-            "tp1": tp1_v,
-            "tp2": tp2_v,
-            "tp3": tp3_v,
-            "rr": orig_sig.get("rr", 1.5) if orig_sig else 1.5,
-            "ker": orig_sig.get("ker", 0.3) if orig_sig else 0.3,
-            "rsi_4h": orig_sig.get("rsi_4h", 50.0) if orig_sig else 50.0,
-            "rsi_1h": orig_sig.get("rsi_1h", 50.0) if orig_sig else 50.0,
-            "vol_ratio": orig_sig.get("vol_ratio", 1.0) if orig_sig else 1.0,
-            "is_active": False,
-            "_is_real_sl": True,
-            "_real_income": income_v,
-            "_close_info": ct.get("info", "Stop Loss"),
-            "_live_status": "KENA_SL",
-            "_card_uid": ct_uid,
-            "reasons": [
-                f"❌ Stop Loss Terpicu di BingX (Rugi: ${income_v:.4f} USD)",
-                f"Waktu SL: {time_wib_str} · Posisi telah ditutup otomatis oleh sistem proteksi"
-            ]
-        })
-
-    # Sisipkan SEMUA posisi live yang sedang jalan di BingX ke all_signals (agar tidak ada koin aktif yang hilang!)
-    existing_syms = {s["symbol"] for s in all_signals}
-    existing_norms = {s.get("_norm_sym") for s in all_signals if s.get("_norm_sym")}
-    
-    seen_live_pos = set()
-    for k_bx, p_bx in live_bx.items():
-        if p_bx.get("type") == "POSITION":
-            s_raw = p_bx.get("symbol", "")
-            norm_k = p_bx.get("norm", bingx_executor.normalize_coin_symbol(s_raw))
-            if norm_k in seen_live_pos:
-                continue
-            seen_live_pos.add(norm_k)
-
-            # SKIP jika koin sudah kena SL resmi (closed_bx sudah konfirmasi) —
-            # live_bx mungkin belum terupdate tapi closed_bx sudah final
-            base_raw = s_raw.split("-")[0]
-            if s_raw in sl_closed_map or base_raw in sl_closed_map or (norm_k and norm_k in sl_closed_map):
-                continue
-
-            # Jika belum ada di kartu scanner, buatkan kartu posisi aktif riil
-            if s_raw not in existing_syms and norm_k not in existing_norms:
-                entry_val = float(p_bx.get("entry", 0))
-                mark_val = float(p_bx.get("mark", entry_val))
-                side_val = str(p_bx.get("side", "LONG")).upper()
-                pnl_val = float(p_bx.get("pnl", 0))
-                roe_val = float(p_bx.get("roe", 0))
-                acc_val = str(p_bx.get("account", "akun_1")).replace("akun_", "Akun ")
-
-                all_signals.append({
-                    "symbol": s_raw,
-                    "direction": side_val,
-                    "score": 95,
-                    "entry": entry_val,
-                    "current_price": mark_val,
-                    "sl": round(entry_val * 0.985 if side_val == "LONG" else entry_val * 1.015, 6),
-                    "bep": entry_val,
-                    "tp1": round(entry_val * 1.02 if side_val == "LONG" else entry_val * 0.98, 6),
-                    "tp2": round(entry_val * 1.03 if side_val == "LONG" else entry_val * 0.97, 6),
-                    "tp3": round(entry_val * 1.05 if side_val == "LONG" else entry_val * 0.95, 6),
-                    "rr": 2.0,
-                    "ker": 0.35,
-                    "rsi_4h": 50.0,
-                    "rsi_1h": 50.0,
-                    "vol_ratio": 1.2,
-                    "is_active": True,
-                    "_is_real_pos": True,
-                    "_in_bingx_pos": True,
-                    "_real_roe": roe_val,
-                    "_real_pnl": pnl_val,
-                    "_real_acc": acc_val,
-                    "_live_status": "AKTIF",
-                    "_card_uid": f"live_pos_{s_raw}",
-                    "reasons": [
-                        f"🟢 Posisi Riil Sedang Aktif di BingX ({acc_val})",
-                        f"Floating PnL: ${pnl_val:.4f} USD · ROE: {roe_val:+.2f}%"
-                    ]
-                })
-
-    # ── 4.5 LOAD WEB ORDER STATE (dipakai di status loop & render) ─────
-    bx_state = bingx_executor.load_bingx_order_state()
-
-    # ── 5. UPDATE HARGA REAL-TIME CEPAT & STATUS ───────────────────────
-    bulk_prices = sinyal_engine.fetch_all_tickers()
-
-    status_counts = {"SCANNING": 0, "AKTIF": 0, "MENDEKATI": 0,
-                     "TP1_HIT": 0, "TP2_HIT": 0, "TP3_HIT": 0,
-                     "KENA_SL": 0, "TELAT": 0, "EXPIRED": 0}
-
-    for s in all_signals:
-        sym = s["symbol"]
-        norm_sym = bingx_executor.normalize_coin_symbol(sym)
-        base = sym.replace("-USDT", "")
-        s["_norm_sym"] = norm_sym
-
-        # Cek apakah koin ini baru Take Profit di bursa
-        if sym in tp_closed_map or base in tp_closed_map or (norm_sym and norm_sym in tp_closed_map):
-            ct_info = tp_closed_map.get(sym) or tp_closed_map.get(base) or tp_closed_map.get(norm_sym)
-            s["_is_real_tp"] = True
-            s["_real_income"] = ct_info.get("income", 0.0)
-            s["_close_info"] = ct_info.get("info", "Take Profit")
-            s["_live_status"] = "TP1_HIT"
-
-        cp = bulk_prices.get(sym) or bulk_prices.get(base) or s.get("current_price") or 0.0
-        s["_live_price"] = cp
-
-        info_bx = live_bx.get(sym) or live_bx.get(base) or (live_bx.get(norm_sym) if norm_sym else None)
-        is_pos_bursa = False
-        is_order_bursa = False
-
-        if info_bx:
-            if info_bx.get("type") == "POSITION":
-                is_pos_bursa = True
-                s["_is_real_pos"] = True
-                s["_real_roe"] = info_bx.get("roe", 0)
-                s["_real_pnl"] = info_bx.get("pnl", 0)
-                s["_real_acc"] = str(info_bx.get("account", "akun_1")).replace("akun_", "Akun ")
-            elif info_bx.get("type") == "ORDER":
-                is_order_bursa = True
-                s["_is_open_order"] = True
-
-        # Cek state instan dari bx_state jika baru saja dipasang dari web
-        if not is_pos_bursa:
-            for acc_k in ["akun_1", "akun_2", "akun_3"]:
-                rec = bx_state.get(f"{acc_k}_{sym}") or bx_state.get(f"{acc_k}_{norm_sym}")
-                if rec and rec.get("status") == "SUKSES_BINGX":
-                    is_order_bursa = True
-                    s["_is_open_order"] = True
-                    break
-
-        s["_in_bingx_pos"] = is_pos_bursa
-        s["_in_bingx_order"] = is_order_bursa
-        s["_is_in_bingx"] = is_pos_bursa or is_order_bursa
-
-        if s.get("_is_real_tp"):
-            st_key = "TP1_HIT"
-        elif s.get("_is_real_sl"):
-            st_key = "KENA_SL"
-        elif is_pos_bursa:
-            try:
-                tp1_v = float(s.get("tp1", 0))
-                sl_v = float(s.get("sl", 0))
-                d = s.get("direction", "LONG")
-                if d == "SHORT" and cp <= tp1_v and tp1_v > 0:
-                    st_key = "TP1_HIT"
-                elif d == "LONG" and cp >= tp1_v and tp1_v > 0:
-                    st_key = "TP1_HIT"
-                elif d == "SHORT" and cp >= sl_v and sl_v > 0:
-                    st_key = "KENA_SL"
-                elif d == "LONG" and cp <= sl_v and sl_v > 0:
-                    st_key = "KENA_SL"
-                else:
-                    st_key = "AKTIF"
-            except Exception:
-                st_key = "AKTIF"
-        else:
-            st_key = sinyal_engine.get_signal_status(s, cp)
-
-        s["_live_status"] = st_key
-        status_counts[st_key] = status_counts.get(st_key, 0) + 1
-
-    # Kalkulasi ROE untuk setiap sinyal untuk pengurutan
-    for s in all_signals:
-        is_pos = s.get("_is_real_pos", False)
-        if is_pos and "_real_roe" in s:
-            f_roe = s["_real_roe"]
-        else:
-            d = s["direction"]
-            lp = s.get("_live_price", s.get("current_price", s["entry"]))
-            en = s["entry"]
-            if d == "LONG":
-                f_roe = ((lp - en) / (en + 1e-10)) * LEVERAGE_DISPLAY * 100
-            else:
-                f_roe = ((en - lp) / (en + 1e-10)) * LEVERAGE_DISPLAY * 100
-        s["_calc_roe"] = f_roe
-
-    # Pengurutan dinamis sesuai pilihan (WR / Skor / PnL)
-    if "WR Tertinggi" in sort_by:
-        all_signals.sort(key=lambda x: (x["score"], x.get("_calc_roe", 0)), reverse=True)
-    elif "PnL / ROE Tertinggi" in sort_by:
-        all_signals.sort(key=lambda x: x.get("_calc_roe", 0), reverse=True)
-    elif "PnL Terendah" in sort_by:
-        all_signals.sort(key=lambda x: x.get("_calc_roe", 0), reverse=False)
-    elif "Jarak Terdekat" in sort_by:
-        all_signals.sort(key=lambda x: abs(((x.get("_live_price", x["entry"]) - x["entry"]) / (x["entry"] + 1e-10)) * 100))
-
-    long_count = sum(1 for s in all_signals if s.get("direction") == "LONG")
-    short_count = sum(1 for s in all_signals if s.get("direction") == "SHORT")
-
-        # ── 5.1 BACA PnL REALISASI & UNREALISASI BINGX (CACHED 60s) ────────
-    if 'cached_pnl_data' not in st.session_state or (time.time() - st.session_state.get('cached_pnl_time', 0)) > 60:
-        try:
-            st.session_state['cached_pnl_data'] = bingx_executor.fetch_comprehensive_pnl("akun_1")
-        except Exception:
-            st.session_state['cached_pnl_data'] = {}
-        st.session_state['cached_pnl_time'] = time.time()
-    pnl_summary = st.session_state.get('cached_pnl_data', {})
-
-    real_pnl = pnl_summary.get('realized_total', 0.0)
-    float_pnl = pnl_summary.get('unrealized_total', 0.0)
-    real_color = "#00e676" if real_pnl >= 0 else "#f44336"
-    real_sign = "+" if real_pnl >= 0 else ""
-    float_color = "#00e676" if float_pnl >= 0 else "#f44336"
-    float_sign = "+" if float_pnl >= 0 else ""
-
-
-    # ── BOT 2 TELEMETRI PANEL ─────────────────────────────────────────────────
-    try:
-        _b2_state_file = Path(__file__).parent / "assets" / "bot2_sniper_state.json"
-        _b2_orders_file = Path(__file__).parent / "assets" / "bingx_orders_state.json"
-        _b2_state = {}
-        _b2_orders = {}
-        if _b2_state_file.exists():
-            _b2_state = json.loads(_b2_state_file.read_text(encoding="utf-8"))
-        if _b2_orders_file.exists():
-            _b2_orders = json.loads(_b2_orders_file.read_text(encoding="utf-8"))
-
-        _b2_running = _b2_state.get("bot_status", "") == "RUNNING"
-        _b2_cycle = _b2_state.get("cycle_number", "—")
-        _b2_last = _b2_state.get("last_cycle", "—")
-        _b2_trend = _b2_state.get("btc_htf_trend", "NEUTRAL")
-        _b2_high = _b2_state.get("high_score_signals_count", 0)
-        _b2_filtered = _b2_state.get("filtered_signals_count", 0)
-
-        _trend_color = "#00e676" if _b2_trend == "BULLISH" else "#f44336" if _b2_trend == "BEARISH" else "#ffd700"
-        _status_dot = "🟢" if _b2_running else "🔴"
-        _status_lbl = "BERJALAN" if _b2_running else "MATI"
-
-        # Count pending limit orders (dari bx_state / bingx_orders_state)
-        _now_ts = time.time()
-        _pending_orders = [(k, v) for k, v in _b2_orders.items()
-                           if v.get("status") == "SUKSES_BINGX" and (_now_ts - v.get("timestamp", 0)) < 7200]
-        _pending_count = len(_pending_orders)
-
-        # Realized PnL from live fetch
-        _realized_pnl = pnl_summary.get("realized_total", 0.0)
-        _unrealized_pnl = pnl_summary.get("unrealized_total", 0.0)
-        _wins = pnl_summary.get("realized_wins", 0)
-        _losses = pnl_summary.get("realized_losses", 0)
-        _wr = pnl_summary.get("win_rate", 0.0)
-        _pos_count = pnl_summary.get("active_positions_count", 0)
-
-        _rz_color = "#00e676" if _realized_pnl >= 0 else "#f44336"
-        _fl_color = "#00e676" if _unrealized_pnl >= 0 else "#f44336"
-
-        st.markdown(f"""
-<div style="background:#0a1520;border:1px solid #1a3040;border-radius:12px;padding:14px 18px;margin-bottom:14px">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-    <span style="font-size:14px;font-weight:800;color:#c8d8e8">🤖 BOT 2 AUTO-SNIPER</span>
-    <span style="background:#1a2d3d;color:{'#00e676' if _b2_running else '#f44336'};font-size:11px;font-weight:800;padding:2px 10px;border-radius:20px;border:1px solid {'#00e67644' if _b2_running else '#f4433644'}">{_status_dot} {_status_lbl}</span>
-    <span style="color:#3a5a7a;font-size:11px">Margin $0.20 | Lev 40x | Siklus #{_b2_cycle}</span>
-    <span style="color:#3a5a7a;font-size:11px;margin-left:auto">BTC 4H: <b style="color:{_trend_color}">{_b2_trend}</b></span>
-  </div>
-  <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px">
-    <div style="background:#111a22;border-radius:8px;padding:10px;text-align:center">
-      <div style="color:#3a5a7a;font-size:10px;font-weight:600">REALIZED PnL</div>
-      <div style="color:{_rz_color};font-size:16px;font-weight:800;margin-top:4px">{'+' if _realized_pnl >= 0 else ''}${_realized_pnl:.2f}</div>
-    </div>
-    <div style="background:#111a22;border-radius:8px;padding:10px;text-align:center">
-      <div style="color:#3a5a7a;font-size:10px;font-weight:600">FLOATING PnL</div>
-      <div style="color:{_fl_color};font-size:16px;font-weight:800;margin-top:4px">{'+' if _unrealized_pnl >= 0 else ''}${_unrealized_pnl:.2f}</div>
-    </div>
-    <div style="background:#111a22;border-radius:8px;padding:10px;text-align:center">
-      <div style="color:#3a5a7a;font-size:10px;font-weight:600">WIN RATE</div>
-      <div style="color:#ffd700;font-size:16px;font-weight:800;margin-top:4px">{_wr:.0f}%</div>
-      <div style="color:#3a5a7a;font-size:10px">{_wins}W / {_losses}L</div>
-    </div>
-    <div style="background:#111a22;border-radius:8px;padding:10px;text-align:center">
-      <div style="color:#3a5a7a;font-size:10px;font-weight:600">POSISI AKTIF</div>
-      <div style="color:#00e676;font-size:16px;font-weight:800;margin-top:4px">{_pos_count}</div>
-    </div>
-    <div style="background:#111a22;border-radius:8px;padding:10px;text-align:center">
-      <div style="color:#3a5a7a;font-size:10px;font-weight:600">LIMIT ANTRE</div>
-      <div style="color:#00bcd4;font-size:16px;font-weight:800;margin-top:4px">{_pending_count}</div>
-    </div>
-    <div style="background:#111a22;border-radius:8px;padding:10px;text-align:center">
-      <div style="color:#3a5a7a;font-size:10px;font-weight:600">SINYAL VALID</div>
-      <div style="color:#7ec8e3;font-size:16px;font-weight:800;margin-top:4px">{_b2_filtered}</div>
-      <div style="color:#3a5a7a;font-size:10px">skor≥75 siklus ini</div>
-    </div>
-  </div>
-  <div style="color:#2a4060;font-size:10px;margin-top:8px">Terakhir aktif: {_b2_last} · Siklus tiap 2 menit · Auto-BEP tiap 15 detik</div>
-</div>
-""", unsafe_allow_html=True)
-
-        # ── TABEL POSISI AKTIF (FLOATING PnL) ─────────────────────────────────
-        _active_pos_list = []
-        for _k_pos, _v_pos in live_bx.items():
-            if _v_pos.get("type") == "POSITION" and _v_pos.get("pnl") is not None:
-                _norm_pos = _v_pos.get("norm", "")
-                if _norm_pos and any(_ap.get("_norm_key") == _norm_pos for _ap in _active_pos_list):
-                    continue
-                _active_pos_list.append({
-                    "_norm_key": _norm_pos,
-                    "Koin": _v_pos.get("base", _k_pos),
-                    "Arah": _v_pos.get("side", "?"),
-                    "Entry": f"${_v_pos.get('entry', 0):,.4f}",
-                    "Mark": f"${_v_pos.get('mark', 0):,.4f}",
-                    "PnL $": round(float(_v_pos.get("pnl", 0)), 4),
-                    "ROE %": round(float(_v_pos.get("roe", 0)), 2),
-                    "Lev": f"{int(_v_pos.get('leverage', 40))}x",
-                    "Akun": str(_v_pos.get("account", "")).replace("akun_", "Akun "),
-                })
-        if _active_pos_list:
-            import pandas as pd
-            _df_pos = pd.DataFrame([{k: v for k, v in r.items() if k != "_norm_key"} for r in _active_pos_list])
-            with st.expander(f"📊 **Posisi Sedang Aktif (Floating PnL)** — {len(_active_pos_list)} posisi", expanded=True):
-                def _color_pnl(val):
-                    if isinstance(val, (int, float)):
-                        return f"color: {'#00e676' if val >= 0 else '#f44336'}; font-weight: bold"
-                    return ""
-                styled = _df_pos.style.applymap(_color_pnl, subset=["PnL $", "ROE %"])
-                st.dataframe(styled, use_container_width=True, hide_index=True)
-                # Auto-BEP button
-                _col_bep1, _col_bep2 = st.columns([2, 5])
-                with _col_bep1:
-                    if st.button("🛡️ Kunci BEP Semua (+25% ROE)", use_container_width=True, key="bot2_bep_quick"):
-                        with st.spinner("Mengunci BEP..."):
-                            _bep_r = bingx_executor.apply_bep_to_profit_positions("akun_1", min_roe=25.0)
-                            if _bep_r.get("success") and _bep_r.get("count", 0) > 0:
-                                st.success(f"🛡️ Dikunci: {_bep_r.get('count')} koin")
-                                for _bd in _bep_r.get("details", []):
-                                    st.caption(_bd)
-                            else:
-                                st.info(_bep_r.get("msg", "Tidak ada yang memenuhi syarat BEP"))
-
-        # ── TABEL LIMIT ORDER ANTRE ────────────────────────────────────────────
-        _orders_live = [(k, v) for k, v in live_bx.items() if v.get("type") == "ORDER"]
-        _seen_order_syms = set()
-        _orders_dedup = []
-        for _k_o, _v_o in _orders_live:
-            _norm_o = _v_o.get("norm", _k_o)
-            if _norm_o and _norm_o in _seen_order_syms:
-                continue
-            _seen_order_syms.add(_norm_o)
-            _orders_dedup.append({
-                "Koin": _v_o.get("base", _k_o),
-                "Arah": str(_v_o.get("side", "?")).replace("BUY", "LONG").replace("SELL", "SHORT"),
-                "Harga Limit": f"${_v_o.get('price', 0):,.4f}" if _v_o.get("price") else "—",
-                "Qty": f"{_v_o.get('amount', 0):.4f}",
-                "Order ID": str(_v_o.get("order_id", ""))[-8:] if _v_o.get("order_id") else "—",
-                "Akun": str(_v_o.get("account", "")).replace("akun_", "Akun "),
-            })
-        if _orders_dedup:
-            import pandas as pd
-            with st.expander(f"⏳ **Limit Order Sedang Antre** — {len(_orders_dedup)} order", expanded=False):
-                st.dataframe(pd.DataFrame(_orders_dedup), use_container_width=True, hide_index=True)
-                _col_co, _col_co2 = st.columns([2, 5])
-                with _col_co:
-                    if st.button("🛑 Batalkan Semua Limit", use_container_width=True, key="bot2_cancel_limits"):
-                        _cr = bingx_executor.cancel_all_bingx_open_orders("akun_1")
-                        st.info(f"Dibatalkan: {_cr}")
-
-        # ── TABEL REALIZED PnL (50 TRADE TERAKHIR) ────────────────────────────
-        _closed_trades = closed_bx or []
-        if _closed_trades:
-            import pandas as pd
-            _rows_closed = []
-            for _ct in _closed_trades[:25]:
-                _income_v = float(_ct.get("income", 0))
-                _is_win = _income_v > 0
-                _rows_closed.append({
-                    "Koin": _ct.get("base", _ct.get("symbol", "?")),
-                    "Arah": _ct.get("direction", "?"),
-                    "Hasil": "✅ TP" if _is_win else "❌ SL",
-                    "PnL $": round(_income_v, 4),
-                    "Info": str(_ct.get("info", ""))[:30],
-                    "Waktu": datetime.fromtimestamp(_ct.get("time", 0) / 1000 if _ct.get("time", 0) > 1e10 else _ct.get("time", 0), WIB_TZ).strftime("%d/%m %H:%M") if _ct.get("time") else "—",
-                })
-            _df_closed = pd.DataFrame(_rows_closed)
-            with st.expander(f"📋 **Riwayat Trade Terakhir (Realized PnL)** — {len(_rows_closed)} trade", expanded=False):
-                def _color_closed(val):
-                    if isinstance(val, (int, float)):
-                        return f"color: {'#00e676' if val >= 0 else '#f44336'}; font-weight: bold"
-                    return ""
-                st.dataframe(_df_closed.style.applymap(_color_closed, subset=["PnL $"]), use_container_width=True, hide_index=True)
-    except Exception as _e_bot2:
-        st.warning(f"⚠️ Panel Bot 2 error (bukan crash): {str(_e_bot2)[:80]}")
-
-    # ── SCAN SUMMARY (ASLI) ────────────────────────────────────────────────────
-    # ── 6. RINGKASAN SCAN ANALISA ───────────────────────────────────────
-    st.markdown(f"""
-<div class="scan-summary">
-  <div class="scan-summary-item"><strong>{len(all_signals)}</strong>Sinyal Teranalisa</div>
-  <div class="scan-summary-item"><strong style="color:{real_color}">{real_sign}${real_pnl:.2f}</strong>PnL Realisasi (Cair)</div>
-  <div class="scan-summary-item"><strong style="color:{float_color}">{float_sign}${float_pnl:.2f}</strong>PnL Floating (Jalan)</div>
-  <div class="scan-summary-item"><strong style="color:#4caf50">{status_counts.get('AKTIF',0)}</strong>Posisi Aktif</div>
-  <div class="scan-summary-item"><strong style="color:#00e676">{status_counts.get('TP1_HIT',0)+status_counts.get('TP2_HIT',0)+status_counts.get('TP3_HIT',0)}</strong>TP Hit (Cuan)</div>
-  <div class="scan-summary-item"><strong style="color:#f44336">{status_counts.get('KENA_SL',0)}</strong>SL Hit</div>
-  <div class="scan-summary-item"><strong style="color:#00e676">{long_count}</strong>LONG</div>
-  <div class="scan-summary-item"><strong style="color:#f44336">{short_count}</strong>SHORT</div>
-  <div class="scan-summary-item"><strong style="color:#5a7a9a">{scan_age_min}m</strong>Usia Cache</div>
-</div>
-""", unsafe_allow_html=True)
-
-    # ── 7. TAB FILTER STATUS RIGID (TANPA NUMPUK · TP/SL MUTLAK DIPISAHKAN) ─
-    def match_signal_tab(s, tab_name: str) -> bool:
-        st_val = s.get("_live_status", "SCANNING")
-        is_tp = bool(s.get("_is_real_tp"))
-        is_sl = bool(s.get("_is_real_sl"))
-        is_pos_bx = bool(s.get("_in_bingx_pos") or s.get("_is_real_pos"))
-        is_order_bx = bool(s.get("_in_bingx_order") or s.get("_is_open_order"))
-        is_in_bx = is_pos_bx or is_order_bx
-
-        # Filter dasar skor & arah — kartu TP/SL/Aktif SELALU lolos, tidak terblok filter skor
-        if not (is_pos_bx or is_tp or is_sl or s["score"] >= filter_min_score):
-            return False
-        if filter_dir != "Semua" and s.get("direction") != filter_dir:
-            return False
-
-        if tab_name == "🔍 Semua":
-            return True
-
-        # SIKLUS HIDUP RESMI:
-        # 1. TP Cuan: Hanya yang sudah Take Profit resmi bursa
-        if tab_name == "🎯 TP Cuan":
-            return is_tp
-
-        # 2. Kena SL: Hanya yang sudah Stop Loss resmi bursa (real closed SL)
-        if tab_name == "❌ Kena SL":
-            return is_sl or bool(s.get("_is_real_sl"))
-
-        # 3. Posisi Sedang Aktif: Yang sudah antre kalau sudah kejemput -> PINDAH KE AKTIF!
-        #    KECUALIKAN koin yang kena SL / TP (sudah closed) agar tidak numpuk!
-        if tab_name == "✅ Posisi Sedang Aktif":
-            return is_pos_bx and not is_tp and not is_sl
-
-        # 4. Sedang Antre Limit: Yang sudah dilimit -> PINDAH KE SEDANG ANTRE (Belum kejemput)!
-        #    KECUALIKAN koin yang kena SL (sudah closed di BingX)!
-        if tab_name == "⏳ Sedang Antre Limit":
-            return is_order_bx and not is_pos_bx and not is_tp and not is_sl and (st_val not in ("EXPIRED", "TELAT"))
-
-        # 5. Siap Pasang Limit: HANYA yang BELUM DILIMIT dan BELUM OPEN POSISI sama sekali di BingX!
-        if tab_name == "⚡ Siap Pasang Limit (Belum di BingX)":
-            return (not is_in_bx) and (not is_pos_bx) and (not is_order_bx) and (not is_tp) and (not is_sl) and (st_val in ("SCANNING", "MENDEKATI"))
-
-        # 6. Telat (Lari Duluan sebelum disentuh limit):
-        if tab_name == "⏰ Telat (Lari Duluan)":
-            return (st_val == "TELAT") and (not is_in_bx) and (not is_tp)
-
-        # 7. Expired (Waktu habis):
-        if tab_name == "💀 Expired":
-            return (st_val == "EXPIRED") and (not is_in_bx) and (not is_tp)
-
-        return False
-
-    tab_categories = [
-        "🔍 Semua",
-        "⚡ Siap Pasang Limit (Belum di BingX)",
-        "⏳ Sedang Antre Limit",
-        "✅ Posisi Sedang Aktif",
-        "🎯 TP Cuan",
-        "❌ Kena SL",
-        "⏰ Telat (Lari Duluan)",
-        "💀 Expired"
-    ]
-
-    tab_labels = [f"{k} ({sum(1 for s in all_signals if match_signal_tab(s, k))})" for k in tab_categories]
-    selected_tab_str = st.radio(
-        "Filter Status", tab_labels, horizontal=True, key="sinyal_status_tab",
-        label_visibility="collapsed"
-    )
-    # Gunakan index label untuk mengambil kategori asli agar tidak terpotong oleh tanda kurung!
-    sel_idx = tab_labels.index(selected_tab_str) if selected_tab_str in tab_labels else 0
-    selected_tab_key = tab_categories[sel_idx]
-    filtered = [s for s in all_signals if match_signal_tab(s, selected_tab_key)]
-
-    if not filtered:
-        st.markdown("""
-<div class="empty-state">
-  <div style="font-size:40px">🔍</div>
-  <div style="font-size:16px;margin-top:10px;color:#5a7a9a">Belum ada sinyal yang memenuhi kriteria</div>
-  <div style="font-size:12px;margin-top:6px;color:#3a5a7a">Tekan "Scan 100+ Koin" untuk memperbarui analisa pasar BingX</div>
-</div>
-""", unsafe_allow_html=True)
-        return
-
-    # ── 8. RENDER KARTU ANALISA SINYAL MURNI ───────────────────────────
-
-    for card_idx, sig in enumerate(filtered):
-        sym = sig["symbol"]
-        card_uid = sig.get("_card_uid", f"{sym}_{card_idx}")
-        coin = sym.replace("-USDT", "").replace("1000", "")
-        direction = sig["direction"]
-        score = sig["score"]
-        entry = sig["entry"]
-        sl = sig["sl"]
-        bep_val = sig.get("bep", "—")
-        tp1 = sig["tp1"]
-        tp2 = sig["tp2"]
-        tp3 = sig["tp3"]
-        live_price = sig.get("_live_price", sig.get("current_price", entry))
-        live_status = sig.get("_live_status", "SCANNING")
-        rsi_4h = sig.get("rsi_4h", 50)
-        rsi_1h = sig.get("rsi_1h", 50)
-        ker = sig.get("ker", 0.3)
-        rr = sig.get("rr", 1.5)
-        reasons = sig.get("reasons", [])
-        valid_wib = sig.get("valid_until_wib", "—")
-        gen_ts  = sig.get("generated_at", time.time())
-        gen_wib = datetime.fromtimestamp(gen_ts, WIB_TZ).strftime("%H:%M WIB")
-        vol_ratio = sig.get("vol_ratio", 1.0)
-
-        # Badge koin aktif di BingX (Presisi & Informatif)
-        active_bx_badge = ""
-        float_html = ""  # default kosong — diisi di blok badge atau posisi aktif di bawah
-        is_pos_bingx = sig.get("_is_real_pos", False) or sig.get("_in_bingx_pos", False)
-        acc_label = sig.get("_real_acc", "Akun 1")
-
-        if sig.get("_is_real_tp"):
-            inc_val = sig.get("_real_income", 0.0)
-            active_bx_badge = f'<span style="background:#ffd70022;color:#ffd700;border:1px solid #ffd700;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🏆 TP CUAN BINGX (+${inc_val:.4f} USD)</span>'
-            float_html = f'<span style="color:#00e676;font-size:13px;font-weight:700;margin-left:10px">🎯 REALIZED CUAN (+${inc_val:.4f})</span>'
-        elif sig.get("_is_real_sl"):
-            inc_val = sig.get("_real_income", 0.0)
-            active_bx_badge = f'<span style="background:#f4433622;color:#f44336;border:1px solid #f44336;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">❌ KENA SL BINGX (${inc_val:.4f} USD)</span>'
-            float_html = f'<span style="color:#f44336;font-size:13px;font-weight:700;margin-left:10px">❌ SL HIT (${inc_val:.4f})</span>'
-        elif is_pos_bingx:
-            active_bx_badge = f'<span style="background:#00e67622;color:#00e676;border:1px solid #00e676;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">🟢 LIVE POSISI BINGX ({acc_label})</span>'
-        elif sig.get("_in_bingx_order"):
-            active_bx_badge = f'<span style="background:#00bcd422;color:#00bcd4;border:1px solid #00bcd4;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">⏳ ANTRE LIMIT BINGX</span>'
-        else:
-            for acc_k, acc_lbl in [("akun_1", "Akun 1"), ("akun_2", "Akun 2"), ("akun_3", "Akun 3")]:
-                rec = bx_state.get(f"{acc_k}_{sym}")
-                if rec and rec.get("status") == "SUKSES_BINGX":
-                    active_bx_badge = f'<span style="background:#00bcd422;color:#00bcd4;border:1px solid #00bcd4;font-size:11px;font-weight:800;padding:2px 8px;border-radius:12px;margin-left:8px">⏳ ANTRE LIMIT BINGX ({acc_lbl})</span>'
-                    break
-            if not active_bx_badge:
-                active_bx_badge = f'<span style="background:#ffd70011;color:#ffd700;border:1px solid #ffd70044;font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;margin-left:8px">⚡ SIAP LIMIT (BELUM DI BURSA)</span>' 
-
-        # Floating ROE (hanya muncul saat posisi aktif)
-        if is_pos_bingx and "_real_roe" in sig:
-            float_pct = sig["_real_roe"]
-            float_usd = sig.get("_real_pnl", 0.0)
-        else:
-            if direction == "LONG":
-                float_pct = ((live_price - entry) / (entry + 1e-10)) * LEVERAGE_DISPLAY * 100
-            else:
-                float_pct = ((entry - live_price) / (entry + 1e-10)) * LEVERAGE_DISPLAY * 100
-            float_usd  = (abs(float_pct) / 100) * MARGIN_DISPLAY
-
-        float_sign = "+" if float_pct >= 0 else ""
-        float_color = "#00e676" if float_pct >= 0 else "#f44336"
-        float_icon  = "📈" if float_pct >= 0 else "📉"
-
-        if is_pos_bingx or live_status in ("AKTIF", "MENDEKATI", "TP1_HIT", "TP2_HIT", "TP3_HIT", "KENA_SL"):
-            float_html = (
-                f'<span style="color:{float_color};font-size:13px;font-weight:700;margin-left:10px">' +
-                f'{float_icon} {float_sign}{float_pct:.1f}% ROE&nbsp;' +
-                f'<span style="font-size:11px;opacity:.8">({float_sign}${float_usd:.2f})</span></span>'
-            )
-        else:
-            float_html = ""
-
-        # Score bar color
-        if score >= 90:
-            bar_color = "#ffd700"
-        elif score >= 80:
-            bar_color = "#00e676"
-        elif score >= 70:
-            bar_color = "#7ec8e3"
-        else:
-            bar_color = "#4e6b8a"
-
-        dir_class = "sig-dir-long" if direction == "LONG" else "sig-dir-short"
-        card_class = "sig-card-long" if direction == "LONG" else "sig-card-short"
-
-        if hasattr(sinyal_engine, "status_label"):
-            status_lbl, status_color = sinyal_engine.status_label(live_status)
-        else:
-            status_lbl, status_color = (live_status, "#7ec8e3")
-
-        if direction == "LONG":
-            dist_to_entry = ((live_price - entry) / (entry + 1e-10) * 100)
-        else:
-            dist_to_entry = ((entry - live_price) / (entry + 1e-10) * 100)
-
-        if live_status == "TELAT":
-            if direction == "LONG":
-                dist_str = f"🚀 Sudah tembus TP1 duluan (+{dist_to_entry:.1f}%), setup batal!"
-            else:
-                dist_str = f"📉 Sudah terjun ke TP1 duluan (-{dist_to_entry:.1f}%), setup batal!"
-        elif live_status == "EXPIRED":
-            dist_str = f"⌛ Waktu habis (s/d {valid_wib}), order tidak pernah tersentuh"
-        elif direction == "LONG":
-            dist_str = f"▲ {dist_to_entry:.2f}% di atas entry" if dist_to_entry > 0 else f"✅ Di entry limit"
-        else:
-            dist_str = f"▼ {dist_to_entry:.2f}% di bawah entry" if dist_to_entry > 0 else f"✅ Di entry limit" 
-
-        reasons_html = "".join(f'<div class="sig-reason-item">• {r}</div>' for r in reasons)
-
-        card_html = f"""
-<div class="sig-card {card_class}">
-  <div class="sig-top">
-    <div>
-      <span class="sig-sym">{coin}</span>{active_bx_badge}{float_html}
-      <span class="{dir_class}">{direction}</span>
-      <span class="sig-status" style="background:{status_color}22;color:{status_color};border:1px solid {status_color}55">{status_lbl}</span>
-    </div>
-    <div style="text-align:right">
-      <div style="color:{bar_color};font-size:22px;font-weight:800;line-height:1">{score}</div>
-      <div style="color:#3a5a7a;font-size:10px">SKOR</div>
-    </div>
-  </div>
-  <div class="sig-score-bar-wrap"><div class="sig-score-bar" style="width:{score}%;background:{bar_color}"></div></div>
-  <div class="sig-grid">
-    <div class="sig-cell">
-      <div class="sig-cell-label">💎 Entry Limit BingX</div>
-      <div class="sig-cell-val">{entry}</div>
-      <div style="color:#3a5a7a;font-size:10px">{dist_str}</div>
-      <div style="color:#00e676;font-size:10px;margin-top:4px;font-weight:600">💵 Margin Min: $0.20</div>
-    </div>
-    <div class="sig-cell">
-      <div class="sig-cell-label">❌ Stop Loss (Proteksi)</div>
-      <div class="sig-cell-val red">{sl}</div>
-      <div style="color:#3a5a7a;font-size:10px">Risk: 1.2 ATR</div>
-      <div style="color:#f44336;font-size:10px;margin-top:4px">Max Rugi: -$0.20</div>
-    </div>
-    <div class="sig-cell">
-      <div class="sig-cell-label">🎯 TP1 (Tutup 70%)</div>
-      <div class="sig-cell-val green">{tp1}</div>
-      <div style="color:#00e676;font-size:10px;margin-top:2px">Kunci Cuan: +$0.21</div>
-      <div class="sig-cell-val" style="color:#00bcd4;font-size:11px;margin-top:4px">🎯 TP2 (30%): {tp2}</div>
-    </div>
-    <div class="sig-cell">
-      <div class="sig-cell-label">🛡️ Level BEP (+0.8R)</div>
-      <div class="sig-cell-val" style="color:#00e5ff">{bep_val}</div>
-      <div style="color:#00e5ff;font-size:10px;margin-top:2px">Kunci SL ke Entry ($0 Rugi)</div>
-      <div style="color:#ffd700;font-size:11px;margin-top:4px">💰 TP3: {tp3}</div>
-    </div>
-  </div>
-  <div class="sig-reasons">
-    <div style="color:#3a5a7a;font-size:10px;margin-bottom:4px">KONFIRMASI ANALISA TEKNIS:</div>
-    {reasons_html}
-  </div>
-  <div class="sig-meta">
-    <div class="sig-meta-item">RSI 4H: <strong style="color:#7ec8e3">{rsi_4h}</strong></div>
-    <div class="sig-meta-item">RSI 1H: <strong style="color:#7ec8e3">{rsi_1h}</strong></div>
-    <div class="sig-meta-item">KER: <strong style="color:#7ec8e3">{ker}</strong></div>
-    <div class="sig-meta-item">Vol: <strong style="color:#7ec8e3">{vol_ratio}x</strong></div>
-    <div class="sig-valid">🕐 Aktif dari: {gen_wib} &nbsp;|&nbsp; ⏱ Valid s/d: {valid_wib}</div>
-  </div>
-</div>
-"""
-        st.markdown(card_html, unsafe_allow_html=True)
-
-        # ── 9. PANEL EKSEKUSI LIMIT ORDER BINGX ───────────────────────────
-        if sig.get("_is_real_tp"):
-            # Kartu riwayat Take Profit resmi bursa
-            st.markdown(
-                f"<div style='background:#ffd70011;border:1px solid #ffd70044;border-radius:8px;padding:8px 12px;margin-top:6px;font-size:12px;color:#ffd700'>"
-                f"🏆 <strong>RIWAYAT TAKE PROFIT SUKSES:</strong> Trade {coin} telah berhasil cair senilai <strong>+${sig.get('_real_income', 0.0):.4f} USDT</strong> di bursa BingX."
-                f"</div>",
-                unsafe_allow_html=True
-            )
-        elif sig.get("_is_real_sl"):
-            # Kartu riwayat Stop Loss resmi bursa
-            inc_val = sig.get("_real_income", 0.0)
-            st.markdown(
-                f"<div style='background:#f4433611;border:1px solid #f4433644;border-radius:8px;padding:8px 12px;margin-top:6px;font-size:12px;color:#f44336'>"
-                f"❌ <strong>RIWAYAT STOP LOSS:</strong> Trade {coin} ditutup oleh sistem proteksi SL · Rugi terealisasi: <strong>${inc_val:.4f} USDT</strong>. Posisi sudah aman tertutup di bursa BingX."
-                f"</div>",
-                unsafe_allow_html=True
-            )
-        elif live_status == "TELAT":
-            st.markdown(
-                f"<div style='background:#f4433611;border:1px solid #f4433644;border-radius:8px;padding:8px 12px;margin-top:6px;font-size:12px;color:#ff5252'>"
-                f"⚠️ <strong>TERBANG DULUAN:</strong> Harga {coin} sudah tembus target TP ({tp1}) sebelum jemput limit order kita. Eksekusi dibatalkan otomatis agar kamu tidak FOMO membeli di pucuk!"
-                f"</div>",
-                unsafe_allow_html=True
-            )
-        elif live_status == "EXPIRED":
-            st.markdown(
-                f"<div style='background:#75757511;border:1px solid #75757544;border-radius:8px;padding:8px 12px;margin-top:6px;font-size:12px;color:#9e9e9e'>"
-                f"⌛ <strong>EXPIRED:</strong> Masa berlaku setup {coin} sudah habis. Tunggu sinyal setup candle berikutnya."
-                f"</div>",
-                unsafe_allow_html=True
-            )
-        else:
-            exp_label = f"⚡ Eksekusi Langsung {coin} ke Bursa BingX (Limit + SL + TP Otomatis)"
-            with st.expander(exp_label, expanded=False):
-                col_b1, col_b2, col_b3 = st.columns([1.5, 1.2, 1.3])
-                
-                with col_b1:
-                    target_tp_choice = st.radio(
-                        f"Target TP {coin}",
-                        [f"TP1 ({tp1})", f"TP2 ({tp2})", f"TP3 ({tp3})"],
-                        horizontal=True,
-                        key=f"tp_choice_{card_uid}"
-                    )
-                    chosen_label = target_tp_choice.split(" ")[0]
-                    chosen_tp_val = tp1 if chosen_label == "TP1" else (tp2 if chosen_label == "TP2" else tp3)
-
-                with col_b2:
-                    target_account = st.selectbox(
-                        "Pilih Akun",
-                        ["Akun 1", "Akun 2", "Akun 3"],
-                        key=f"acc_choice_{card_uid}"
-                    )
-                    acc_key = target_account.lower().replace(" ", "_")
-
-                with col_b3:
-                    st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
-                    btn_order = st.button(
-                        f"🚀 Pasang di {target_account}", 
-                        key=f"btn_bx_{acc_key}_{card_uid}",
-                        type="primary",
-                        use_container_width=True
-                    )
-
-            order_record_key = f"{acc_key}_{sym}"
-            active_record = bx_state.get(order_record_key)
-
-            if active_record and active_record.get("status") == "SUKSES_BINGX":
-                st.success(
-                    f"✅ **SUKSES BINGX!** Terpasang di {target_account} (#{active_record.get('order_id', '')[-6:]}) "
-                    f"pada Entry {active_record.get('entry')} | SL: {active_record.get('sl')} | "
-                    f"{active_record.get('tp_choice')}: {active_record.get('tp')} · [{active_record.get('time_str')}]"
-                )
-
-            if btn_order:
-                with st.spinner(f"Mengirim Limit Order {coin} ke BingX ({target_account})..."):
-                    res = bingx_executor.place_bingx_sniper_order(
-                        account_key=acc_key,
-                        symbol_clean=sym,
-                        direction=direction,
-                        entry_price=float(entry),
-                        sl_price=float(sl),
-                        tp_price=float(chosen_tp_val),
-                        tp_choice_label=chosen_label,
-                        margin_usd=0.20,
-                        leverage=20
-                    )
-                    if res.get("success"):
-                        st.balloons()
-                        st.success(f"🎉 **{res.get('msg')}**")
-                        st.rerun()
+        display_sigs = signals
+
+    # 4. TAMPILAN KARTU SINYAL (2 KOLOM RESPONSIVE)
+    st.markdown('<div style="font-size:1.05rem;font-weight:900;color:#e8f0fe;margin:12px 0 8px;">📡 Papan Sinyal Eksekusi Manual (Real-Time 1H)</div>', unsafe_allow_html=True)
+
+    if not display_sigs:
+        st.info("Tidak ada koin yang sesuai dengan filter yang dipilih saat ini.")
+
+    for i in range(0, len(display_sigs), 2):
+        cols = st.columns(2)
+        for c_idx in range(2):
+            if i + c_idx < len(display_sigs):
+                sig = display_sigs[i + c_idx]
+                with cols[c_idx]:
+                    s_dir = sig.get('signal', 'NETRAL')
+                    s_type = sig.get('status_type', 'STANDBY')
+                    roe = sig.get('roe', 0.0)
+                    p_curr = sig.get('price', 0.0)
+                    p_entry = sig.get('entry', 0.0)
+                    p_tp1 = sig.get('tp1', 0.0)
+                    p_tp2 = sig.get('tp2', 0.0)
+                    p_sl = sig.get('sl', 0.0)
+                    p_bep = sig.get('bep', 0.0)
+                    fmt = ".4f" if p_curr < 1.0 else (".2f" if p_curr > 100 else ".3f")
+
+                    # Border & Direction Badge
+                    if s_dir == 'LONG':
+                        card_class = "anubis-card anubis-card-long"
+                        dir_badge = '<span class="anubis-badge-long">🟢 BUY / LONG REVERSAL</span>'
+                    elif s_dir == 'SHORT':
+                        card_class = "anubis-card anubis-card-short"
+                        dir_badge = '<span class="anubis-badge-short">🔴 SHORT REVERSAL</span>'
                     else:
-                        st.error(f"❌ {res.get('msg')}")
+                        card_class = "anubis-card anubis-card-neutral"
+                        dir_badge = '<span class="anubis-badge-standby">⚪ STANDBY</span>'
 
-    st.markdown(
-        f"<div style='color:#2a4060;font-size:11px;text-align:center;padding:16px'>Sinyal limit order berbasis analisis teknikal multi-konfirmasi. "
-        f"Data dari BingX Futures API. Diperbarui: {now_wib.strftime('%H:%M:%S WIB')}</div>",
-        unsafe_allow_html=True
-    )
+                    # Status Banner
+                    if s_type == 'TP_MAX':
+                        status_html = f'''<div style="background: rgba(0, 230, 118, 0.15); border: 1px solid #00e676; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                          <span style="color: #00e676; font-weight: 900; font-size: 0.76rem;">👑 TP MAX TERCAPAI (CUAN PENUH)</span>
+                          <span style="color: #00e676; font-weight: 900; font-size: 0.88rem;">+{roe:+.1f}% ROE</span>
+                        </div>'''
+                    elif s_type == 'BEP_EXIT':
+                        status_html = f'''<div style="background: rgba(56, 189, 248, 0.15); border: 1px solid #38bdf8; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                          <span style="color: #38bdf8; font-weight: 900; font-size: 0.76rem;">🛡️ HIT BEP (Keluar Cuan Aman)</span>
+                          <span style="color: #38bdf8; font-weight: 900; font-size: 0.88rem;">+{roe:+.1f}% ROE</span>
+                        </div>'''
+                    elif s_type == 'RUNNING_BEP':
+                        status_html = f'''<div style="background: rgba(255, 215, 0, 0.15); border: 1px solid #ffd700; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                          <span style="color: #ffd700; font-weight: 900; font-size: 0.76rem;">🏃 RUNNING (BEP TERKUNCI - ZERO RISK)</span>
+                          <span style="color: #ffd700; font-weight: 900; font-size: 0.88rem;">+{roe:+.1f}% ROE</span>
+                        </div>'''
+                    elif s_type == 'RUNNING':
+                        status_html = f'''<div style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                          <span style="color: #38bdf8; font-weight: 900; font-size: 0.76rem;">🏃 RUNNING MENUJU TP1</span>
+                          <span style="color: {'#00e676' if roe >= 0 else '#f44336'}; font-weight: 900; font-size: 0.88rem;">{roe:+.1f}% ROE</span>
+                        </div>'''
+                    else:
+                        status_html = f'''<div style="background: rgba(13, 21, 32, 0.8); border: 1px dashed #1e2d3d; border-radius: 8px; padding: 6px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.74rem;">
+                          <span style="color: #5a7a9a;">🔍 Status:</span>
+                          <span style="color: #8da4c4; font-weight: 700;">Menunggu Titik Sinyal Baru</span>
+                        </div>'''
+
+                    st.markdown(f"""
+<div class="{card_class}">
+  <div class="anubis-card-header">
+    <div>
+      <span class="anubis-coin-name">{sig['coin']}-USDT</span>
+      <span style="color: #8da4c4; font-size: 0.72rem; margin-left: 6px;">{sig['name']} • {sig.get('tier', '')}</span>
+    </div>
+    <div>{dir_badge}</div>
+  </div>
+
+  {status_html}
+
+  <div style="display:flex; justify-content:space-between; align-items:center; background:#0d1520; border-radius:8px; padding:6px 10px; margin-bottom:8px; font-size:0.76rem;">
+    <span>Harga Live: <b style="color:#ffffff;">${p_curr:{fmt}}</b></span>
+    <div style="display:flex; gap:6px;">
+      <span style="color:#5a7a9a;">RSI: <b>{sig.get('rsi', 50.0):.1f}</b></span>
+      <span style="color:#c084fc; font-weight:800;">WR: {sig.get('wr', 88.0):.1f}%</span>
+    </div>
+  </div>
+
+  <div class="anubis-levels">
+    <div class="anubis-level-cell" style="border-color: rgba(56, 189, 248, 0.3);">
+      <div class="anubis-level-title" style="color:#38bdf8;">📍 ENTRY</div>
+      <div class="anubis-level-val" style="color:#38bdf8;">${p_entry:{fmt}}</div>
+    </div>
+    <div class="anubis-level-cell" style="border-color: rgba(6, 182, 212, 0.4);">
+      <div class="anubis-level-title" style="color:#22d3ee;">💧 TP1 (AQUA)</div>
+      <div class="anubis-level-val" style="color:#22d3ee;">${p_tp1:{fmt}}</div>
+    </div>
+    <div class="anubis-level-cell" style="border-color: rgba(0, 230, 118, 0.4);">
+      <div class="anubis-level-title" style="color:#00e676;">🎯 TP MAX</div>
+      <div class="anubis-level-val" style="color:#00e676;">${p_tp2:{fmt}}</div>
+    </div>
+    <div class="anubis-level-cell" style="border-color: rgba(244, 67, 54, 0.4);">
+      <div class="anubis-level-title" style="color:#f44336;">🛡️ SL AWAL</div>
+      <div class="anubis-level-val" style="color:#f44336;">${p_sl:{fmt}}</div>
+    </div>
+  </div>
+
+  <div class="anubis-bep-bar">
+    <span style="color:#ffd700; font-weight:700;">🛡️ Kunci BEP (Geser SL ke sini saat TP1 tersentuh):</span>
+    <span style="color:#ffffff; font-weight:900;">${p_bep:{fmt}}</span>
+  </div>
+
+  <div style="font-size:0.68rem; color:#5a7a9a; margin-top:8px; line-height:1.35;">
+    📌 <i>Buka BingX > Futures Isolated 10x > Pasang di <b>${p_entry:{fmt}}</b>. Set TP1 di <b>${p_tp1:{fmt}}</b>. Saat sentuh TP1, ubah SL ke <b>${p_bep:{fmt}}</b>.</i>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+    # 5. PANDUAN MANUAL TRADING BINGX (EXPANDER)
+    st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
+    with st.expander("📖 PANDUAN TRADING MANUAL BINGX (METODE KONSISTEN $50/BULAN - ANTI RUGI)", expanded=True):
+        st.markdown("""
+<div style="font-size:0.8rem; color:#8da4c4; line-height:1.6;">
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:12px; margin-top:4px;">
+    <div style="background:#0d1520; padding:12px 14px; border-radius:8px; border-left:3px solid #38bdf8;">
+      <b style="color:#38bdf8;">Langkah 1: Atur Posisi di BingX</b>
+      <br>Buka aplikasi BingX, pilih <b>Futures (Perpetual Swap)</b>.
+      <br>Wajib gunakan mode <b>Isolated (Bukan Cross)</b> dengan leverage <b>10x</b>.
+      <br>Modal per transaksi cukup <b>$1.00 s/d $2.00</b> (sangat aman).
+    </div>
+    <div style="background:#0d1520; padding:12px 14px; border-radius:8px; border-left:3px solid #22d3ee;">
+      <b style="color:#22d3ee;">Langkah 2: Ambil Posisi Sesuai Radar</b>
+      <br>Jika sinyal <b>🟢 BUY</b>, buka posisi Long di angka Entry.
+      <br>Jika sinyal <b>🔴 SHORT</b>, buka posisi Short di angka Entry.
+      <br>Langsung pasang <b>Take Profit di TP1 (Aqua)</b> dan <b>Stop Loss di SL Awal (Merah)</b>.
+    </div>
+    <div style="background:#0d1520; padding:12px 14px; border-radius:8px; border-left:3px solid #00e676;">
+      <b style="color:#00e676;">Langkah 3: Trik Rahasia Kunci BEP (Zero-Risk)</b>
+      <br>Begitu harga menyentuh <b>TP1 (Aqua)</b>, buka BingX lalu <b>ubah Stop Loss ke angka BEP</b>.
+      <br>Sekarang posisi Anda sudah <b>100% Bebas Risiko (Tidak bisa rugi lagi)</b>!
+      <br>Jika pasar balik arah, Anda tetap untung tipis. Jika lanjut tren, nikmati <b>TP MAX (+40% s/d +70% ROE)</b>!
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+
 def office():
     # Static authored HTML only; no credentials or exchange data enters JS.
     st.iframe(ROOT/'assets/office.html',height=367,tab_index=0,alt='Kantor Rakus 3D interaktif')
