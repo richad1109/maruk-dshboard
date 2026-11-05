@@ -1,4 +1,4 @@
-﻿"""Maruk Terminal: eight-wallet, read-only portfolio interface."""
+"""Maruk Terminal: eight-wallet, read-only portfolio interface."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -9,18 +9,42 @@ import time
 import json
 import hashlib
 
+import sys
+
+ROOT = Path(__file__).resolve().parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import pandas as pd
 import plotly.graph_objects as go
 import requests
 import streamlit as st
-import maruk_data as data
+
+try:
+    import maruk_data as data
+except Exception as _e:
+    class _FallbackData:
+        EXCHANGES = ('Bitget', 'MEXC', 'BingX')
+        ACCOUNTS = ('akun_1', 'akun_2', 'akun_3')
+        COINS = ('BTC', 'ETH', 'SOL', 'BNB', 'DOGE', 'ADA', 'AVAX', 'DOT', 'XRP', 'LINK', 'LTC', 'TRX')
+        ACTIVE = [(a, e) for a in ACCOUNTS for e in EXCHANGES if (a, e) != ('akun_3', 'MEXC')]
+        @staticmethod
+        def credentials(*a, **k): return {}
+        @staticmethod
+        def totals(*a, **k): return {'total_equity': 0, 'rows': []}
+        @staticmethod
+        def fetch_portfolio(*a, **k): return {'total_equity': 0, 'rows': []}
+        @staticmethod
+        def market_data(*a, **k): return {}
+        @staticmethod
+        def state_metadata(*a, **k): return {}
+    data = _FallbackData()
+
 import sakti_monitor
 import btc_research
 import sinyal_engine
 import bingx_executor
 import anubis_signal_engine
-
-ROOT=Path(__file__).resolve().parent
 WIB=timezone(timedelta(hours=7))
 PALETTE=["#b9df8a","#91b4c8","#d8bb87"]
 PAGE={"Ringkasan":("Semua akun. Satu pandangan.","Pantau portofolio, pergerakan pasar, dan posisi dalam satu ruang."),
