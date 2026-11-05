@@ -470,14 +470,12 @@ def sinyal_page(summary=None):
 
     # Filter tampilan (Binance USDT.P TradingView Standard)
     if "BUY / LONG" in f_choice:
-        display_sigs = [s for s in signals if s.get('signal') == 'LONG']
+        display_sigs = [s for s in signals if s.get('signal') == 'LONG' or (s.get('trade_dir') == 'LONG' and s.get('status_type') in ['RUNNING', 'RUNNING_BEP', 'TP_MAX', 'BEP_EXIT'])]
     elif "SHORT" in f_choice:
-        display_sigs = [s for s in signals if s.get('signal') == 'SHORT']
+        display_sigs = [s for s in signals if s.get('signal') == 'SHORT' or (s.get('trade_dir') == 'SHORT' and s.get('status_type') in ['RUNNING', 'RUNNING_BEP', 'TP_MAX', 'BEP_EXIT'])]
     elif "Sedang Berjalan" in f_choice:
-        # Tampilkan yang sedang berjalan atau koin aktif terbaru agar layar tidak pernah kosong
-        display_sigs = [s for s in signals if s.get('status_type') in ['RUNNING', 'RUNNING_BEP'] or (s.get('signal') in ['LONG', 'SHORT'] and s.get('status_type') != 'STANDBY')]
-        if not display_sigs:
-            display_sigs = [s for s in signals if s.get('status_type') in ['PUMP_SURGE', 'TP_MAX', 'BEP_EXIT']]
+        # HANYA koin yang benar-benar aktif running, jika tidak ada biarkan kosong!
+        display_sigs = [s for s in signals if s.get('status_type') in ['RUNNING', 'RUNNING_BEP']]
     elif "TP MAX / BEP" in f_choice:
         display_sigs = [s for s in signals if s.get('status_type') in ['TP_MAX', 'BEP_EXIT']]
     else:
@@ -487,7 +485,14 @@ def sinyal_page(summary=None):
     st.markdown('<div style="font-size:1.05rem;font-weight:900;color:#e8f0fe;margin:12px 0 8px;">📡 Papan Sinyal Eksekusi Manual (Real-Time 1H)</div>', unsafe_allow_html=True)
 
     if not display_sigs:
-        st.info("Tidak ada koin yang sesuai dengan filter yang dipilih saat ini.")
+        if "Sedang Berjalan" in f_choice:
+            st.info("ℹ️ Tidak ada sinyal yang sedang berjalan saat ini. Semua koin sedang STANDBY atau telah sukses mencapai target.")
+        elif "BUY / LONG" in f_choice:
+            st.info("ℹ️ Tidak ada sinyal BUY / LONG saat ini.")
+        elif "SHORT" in f_choice:
+            st.info("ℹ️ Tidak ada sinyal SHORT saat ini.")
+        else:
+            st.info("Tidak ada koin yang sesuai dengan filter yang dipilih saat ini.")
 
     for i in range(0, len(display_sigs), 2):
         cols = st.columns(2)
@@ -506,18 +511,25 @@ def sinyal_page(summary=None):
                     p_bep = sig.get('bep', 0.0)
                     fmt = ".4f" if p_curr < 1.0 else (".2f" if p_curr > 100 else ".3f")
 
-                    # Border & Direction Badge
-                    if s_dir == 'LONG':
+                    s_type = sig.get('status_type', 'STANDBY')
+                    effective_dir = sig.get('trade_dir') or sig.get('signal', 'NETRAL')
+                    if s_type in ['TP_MAX', 'BEP_EXIT', 'SL']:
+                        effective_dir = sig.get('trade_dir', effective_dir)
+
+                    # Border & Direction Badge tegas
+                    if effective_dir == 'LONG':
                         card_class = "anubis-card anubis-card-long"
                         dir_badge = '<span class="anubis-badge-long">🟢 BUY / LONG REVERSAL</span>'
-                    elif s_dir == 'SHORT':
+                    elif effective_dir == 'SHORT':
                         card_class = "anubis-card anubis-card-short"
                         dir_badge = '<span class="anubis-badge-short">🔴 SHORT REVERSAL</span>'
                     else:
                         card_class = "anubis-card anubis-card-neutral"
                         dir_badge = '<span class="anubis-badge-standby">⚪ STANDBY</span>'
 
-                    # Status Banner dengan Waktu Jam Kejadian
+                    # Status Banner dengan Waktu Jam Kejadian & Arah Tegas
+                    actual_dir = sig.get('trade_dir') or sig.get('signal', '')
+                    dir_str = f" {actual_dir}" if actual_dir in ['LONG', 'SHORT'] else ""
                     t_event = sig.get('status_time') or sig.get('sig_time', '')
                     t_tp1 = sig.get('tp1_time')
                     t_tp2 = sig.get('tp2_time')
@@ -538,23 +550,28 @@ def sinyal_page(summary=None):
                         </div>'''
                     elif s_type == 'TP_MAX':
                         status_html = f'''<div style="background: rgba(0, 230, 118, 0.15); border: 1px solid #00e676; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                          <span style="color: #00e676; font-weight: 900; font-size: 0.76rem;">👑 TP MAX TERCAPAI (CUAN PENUH) • 🕐 {t_tp2 or t_event}</span>
+                          <span style="color: #00e676; font-weight: 900; font-size: 0.76rem;">👑 TP MAX{dir_str} (CUAN PENUH) • 🕐 {t_tp2 or t_event}</span>
                           <span style="color: #00e676; font-weight: 900; font-size: 0.88rem;">+{roe:+.1f}% ROE</span>
                         </div>'''
                     elif s_type == 'BEP_EXIT':
                         status_html = f'''<div style="background: rgba(56, 189, 248, 0.15); border: 1px solid #38bdf8; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                          <span style="color: #38bdf8; font-weight: 900; font-size: 0.76rem;">🛡️ HIT BEP (Keluar Cuan Aman) • 🕐 {t_bep or t_event}</span>
+                          <span style="color: #38bdf8; font-weight: 900; font-size: 0.76rem;">🛡️ HIT BEP{dir_str} (Keluar Cuan Aman) • 🕐 {t_bep or t_event}</span>
                           <span style="color: #38bdf8; font-weight: 900; font-size: 0.88rem;">+{roe:+.1f}% ROE</span>
                         </div>'''
                     elif s_type == 'RUNNING_BEP':
                         status_html = f'''<div style="background: rgba(255, 215, 0, 0.15); border: 1px solid #ffd700; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                          <span style="color: #ffd700; font-weight: 900; font-size: 0.76rem;">🏃 RUNNING (BEP TERKUNCI • RISIKO 0) • 🕐 Kunci Sejak {t_tp1 or t_event}</span>
+                          <span style="color: #ffd700; font-weight: 900; font-size: 0.76rem;">🏃 RUNNING{dir_str} (BEP TERKUNCI • RISIKO 0) • 🕐 Kunci Sejak {t_tp1 or t_event}</span>
                           <span style="color: #ffd700; font-weight: 900; font-size: 0.88rem;">+{roe:+.1f}% ROE</span>
                         </div>'''
                     elif s_type == 'RUNNING':
                         status_html = f'''<div style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                          <span style="color: #38bdf8; font-weight: 900; font-size: 0.76rem;">🏃 RUNNING MENUJU TP1 • 🕐 Sinyal {t_sig}</span>
+                          <span style="color: #38bdf8; font-weight: 900; font-size: 0.76rem;">🏃 RUNNING{dir_str} MENUJU TP1 • 🕐 Sinyal {t_sig}</span>
                           <span style="color: {'#00e676' if roe >= 0 else '#f44336'}; font-weight: 900; font-size: 0.88rem;">{roe:+.1f}% ROE</span>
+                        </div>'''
+                    elif s_type == 'SL':
+                        status_html = f'''<div style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                          <span style="color: #f87171; font-weight: 900; font-size: 0.76rem;">❌ STOP LOSS{dir_str} KENA • 🕐 Selesai {t_event}</span>
+                          <span style="color: #f87171; font-weight: 900; font-size: 0.88rem;">{roe:+.1f}% ROE</span>
                         </div>'''
                     else:
                         status_html = f'''<div style="background: rgba(13, 21, 32, 0.8); border: 1px dashed #1e2d3d; border-radius: 8px; padding: 6px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.74rem;">

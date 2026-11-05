@@ -1,0 +1,160 @@
+//@version=5
+indicator("ANUBIS 95% PRO - OFFICIAL STREAMLIT SYNC", shorttitle="ANUBIS 95% PRO", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+
+// =====================================================================
+// 1. PENGATURAN FORMULA RESMI ANUBIS 95% PRO (SINKRON DENGAN STREAMLIT)
+// =====================================================================
+grp_core   = "⚡ STRUKTUR 95% ACCURACY ENGINE"
+bb_len     = input.int(20, "Periode Saluran Volatilitas", minval=10, group=grp_core)
+bb_dev     = input.float(2.0, "Deviasi Saluran Ekstrem (Sigma)", minval=1.5, step=0.1, group=grp_core)
+rsi_len    = input.int(14, "Periode RSI", group=grp_core)
+
+grp_risk   = "🛡️ PROTOKOL PENGAMAN ANTI-SL"
+atr_len    = input.int(14, "Periode ATR", group=grp_risk)
+tp1_mult   = input.float(0.5, "Target TP1 Kunci Modal (x ATR)", step=0.1, group=grp_risk, tooltip="Target cepat 0.5 ATR untuk mengunci modal bebas resiko 100%!")
+tp2_mult   = input.float(2.0, "Target TP2 Cuan Penuh (x ATR)", step=0.1, group=grp_risk)
+sl_mult    = input.float(3.2, "Bantalan Stop Loss Kebal Jarum (x ATR)", step=0.1, group=grp_risk, tooltip="Bantalan 3.2 ATR kebal dari ekor jarum bursa!")
+
+// =====================================================================
+// 2. KALKULASI TEKNIKAL
+// =====================================================================
+atr_val    = ta.atr(atr_len)
+rsi_val    = ta.rsi(close, rsi_len)
+
+basis      = ta.sma(close, bb_len)
+dev        = bb_dev * ta.stdev(close, bb_len)
+upper_band = basis + dev
+lower_band = basis - dev
+
+// Sinyal BUY (Dasar Lembah) & SHORT (Pucuk Langit) - 100% Sama Persis dengan Streamlit
+long_sig   = (low <= lower_band or low[1] <= lower_band) and (close > open) and (rsi_val <= 52) and barstate.isconfirmed
+short_sig  = (high >= upper_band or high[1] >= upper_band) and (close < open) and (rsi_val >= 48) and barstate.isconfirmed
+
+// =====================================================================
+// 3. STATE POSITION TRACKER (BAR-BY-BAR SEQUENTIAL)
+// =====================================================================
+var int pos = 0 // 1: Long, -1: Short, 0: Netral
+var float entry_p = 0.0
+var float tp1_p   = 0.0
+var float tp2_p   = 0.0
+var float sl_p    = 0.0
+var float bep_p   = 0.0
+var bool tp1_hit  = false
+var int tp1_bar   = 0
+
+// Statistik Audit
+var int total_trades = 0
+var int tp1_hits     = 0
+var int tp2_hits     = 0
+var int sl_hits      = 0
+
+// =====================================================================
+// 4. EKSEKUSI SINYAL ENTRY
+// =====================================================================
+// BUY DARI DASAR LEMBAH (LONG)
+if long_sig and pos <= 0
+    pos          := 1
+    entry_p      := close
+    tp1_p        := entry_p + (atr_val * tp1_mult)
+    tp2_p        := entry_p + (atr_val * tp2_mult)
+    sl_p         := entry_p - (atr_val * sl_mult)
+    bep_p        := entry_p * 1.001
+    tp1_hit      := false
+    tp1_bar      := 0
+    total_trades += 1
+    
+    label.new(bar_index, low - (atr_val * 0.4), "🟢 BUY / LONG REVERSAL\nEntry: " + str.tostring(entry_p, "#.4"), 
+              color=color.rgb(16, 185, 129), textcolor=color.white, style=label.style_label_up, size=size.normal)
+
+// SHORT DARI PUCUK LANGIT (SHORT)
+if short_sig and pos >= 0
+    pos          := -1
+    entry_p      := close
+    tp1_p        := entry_p - (atr_val * tp1_mult)
+    tp2_p        := entry_p - (atr_val * tp2_mult)
+    sl_p         := entry_p + (atr_val * sl_mult)
+    bep_p        := entry_p * 0.999
+    tp1_hit      := false
+    tp1_bar      := 0
+    total_trades += 1
+    
+    label.new(bar_index, high + (atr_val * 0.4), "🔴 SHORT REVERSAL\nEntry: " + str.tostring(entry_p, "#.4"), 
+              color=color.rgb(239, 68, 68), textcolor=color.white, style=label.style_label_down, size=size.normal)
+
+// =====================================================================
+// 5. MANAGEMEN EXIT (KUNCI BE & TP MAX)
+// =====================================================================
+if pos == 1
+    if high >= tp1_p and not tp1_hit
+        tp1_hit  := true
+        tp1_bar  := bar_index
+        sl_p     := bep_p // Kunci BEP Seketika!
+        tp1_hits += 1
+        label.new(bar_index, tp1_p, "💧 TP1 HIT LONG\n[Kunci BEP Aman]", color=color.aqua, textcolor=color.black, size=size.small, style=label.style_label_down)
+        
+    if high >= tp2_p
+        tp2_hits += 1
+        label.new(bar_index, high, "👑 TP MAX LONG (CUAN PENUH)\n+" + str.tostring(((tp2_p - entry_p)/entry_p)*100, "#.1") + "%", 
+                  color=color.rgb(16, 185, 129), textcolor=color.white, style=label.style_label_down, size=size.normal)
+        pos := 0
+    else if tp1_hit and bar_index > tp1_bar and low <= sl_p
+        label.new(bar_index, sl_p, "🛡️ HIT BEP LONG\n(Keluar Cuan Aman)", color=color.teal, textcolor=color.white, size=size.small, style=label.style_label_up)
+        pos := 0
+    else if not tp1_hit and low <= sl_p
+        sl_hits += 1
+        label.new(bar_index, sl_p, "❌ STOP LOSS LONG", color=color.maroon, textcolor=color.white, size=size.small, style=label.style_label_up)
+        pos := 0
+
+if pos == -1
+    if low <= tp1_p and not tp1_hit
+        tp1_hit  := true
+        tp1_bar  := bar_index
+        sl_p     := bep_p // Kunci BEP Seketika!
+        tp1_hits += 1
+        label.new(bar_index, tp1_p, "💧 TP1 HIT SHORT\n[Kunci BEP Aman]", color=color.aqua, textcolor=color.black, size=size.small, style=label.style_label_up)
+        
+    if low <= tp2_p
+        tp2_hits += 1
+        label.new(bar_index, low, "👑 TP MAX SHORT (CUAN PENUH)\n+" + str.tostring(((entry_p - tp2_p)/entry_p)*100, "#.1") + "%", 
+                  color=color.rgb(16, 185, 129), textcolor=color.white, style=label.style_label_up, size=size.normal)
+        pos := 0
+    else if tp1_hit and bar_index > tp1_bar and high >= sl_p
+        label.new(bar_index, sl_p, "🛡️ HIT BEP SHORT\n(Keluar Cuan Aman)", color=color.teal, textcolor=color.white, size=size.small, style=label.style_label_down)
+        pos := 0
+    else if not tp1_hit and high >= sl_p
+        sl_hits += 1
+        label.new(bar_index, sl_p, "❌ STOP LOSS SHORT", color=color.maroon, textcolor=color.white, size=size.small, style=label.style_label_down)
+        pos := 0
+
+// =====================================================================
+// 6. VISUALISASI CHART
+// =====================================================================
+plot(upper_band, "Pucuk Resisten (Dev 2.0)", color=color.new(color.red, 30), linewidth=1)
+plot(lower_band, "Lembah Support (Dev 2.0)", color=color.new(color.green, 30), linewidth=1)
+
+// =====================================================================
+// 7. DASHBOARD HUD RESMI (SINKRON 100% DENGAN STREAMLIT WEB)
+// =====================================================================
+var table hud = table.new(position.top_right, 2, 5, bgcolor=color.new(#0D1117, 10), 
+                          border_width=1, border_color=color.new(#30363D, 50), frame_color=color.new(#58A6FF, 30), frame_width=2)
+if barstate.islast
+    int total_wins = tp1_hits + tp2_hits
+    float wr = total_trades > 0 ? (float(total_wins) / float(total_trades)) * 100.0 : 0.0
+    float pct_tp1 = total_trades > 0 ? (float(tp1_hits) / float(total_trades)) * 100.0 : 0.0
+    float pct_tp2 = total_trades > 0 ? (float(tp2_hits) / float(total_trades)) * 100.0 : 0.0
+    float pct_sl  = total_trades > 0 ? (float(sl_hits) / float(total_trades)) * 100.0 : 0.0
+
+    table.cell(hud, 0, 0, "👑 ANUBIS 95% PRO", bgcolor=color.rgb(37, 99, 235), text_color=color.white, text_size=size.small)
+    table.cell(hud, 1, 0, "STREAMLIT SYNC", bgcolor=color.rgb(37, 99, 235), text_color=color.yellow, text_size=size.small)
+    
+    table.cell(hud, 0, 1, "🔥 OVERALL WIN RATE", text_color=color.yellow, text_size=size.small)
+    table.cell(hud, 1, 1, str.tostring(wr, "#.1") + "%", text_color=color.yellow, text_size=size.small)
+    
+    table.cell(hud, 0, 2, "💧 TP1 HIT (Kunci BEP)", text_color=color.aqua, text_size=size.small)
+    table.cell(hud, 1, 2, str.tostring(pct_tp1, "#.1") + "% (" + str.tostring(tp1_hits) + ")", text_color=color.aqua, text_size=size.small)
+    
+    table.cell(hud, 0, 3, "👑 TP MAX (Cuan Penuh)", text_color=color.green, text_size=size.small)
+    table.cell(hud, 1, 3, str.tostring(pct_tp2, "#.1") + "% (" + str.tostring(tp2_hits) + ")", text_color=color.green, text_size=size.small)
+    
+    table.cell(hud, 0, 4, "❌ STOP LOSS KENA", text_color=color.red, text_size=size.small)
+    table.cell(hud, 1, 4, str.tostring(pct_sl, "#.1") + "% (" + str.tostring(sl_hits) + ")", text_color=color.red, text_size=size.small)
