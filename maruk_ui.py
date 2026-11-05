@@ -407,7 +407,7 @@ def sinyal_page(summary=None):
         <span class="anubis-badge-wr">WR HISTORIS: 92.1% (210 W / 19 L)</span>
       </div>
       <div class="anubis-sub">
-        Radar 20 Koin Likuid Teratas BingX: <b>SOL, AVAX, DOGE, PEPE, SUI, BTC, ETH, XRP, BNB, ADA, NEAR, LINK, APT, ARB, OP, SHIB, TIA, INJ, FET, DOT</b> • Data Live Langsung dari <b>BingX Swap API</b> (Tanpa Biaya Webhook)
+        Radar 20 Kontrak Binance Futures (<b>USDT.P</b>): <b>SOL, AVAX, DOGE, PEPE, SUI, BTC, ETH, XRP, BNB, ADA, NEAR, LINK, APT, ARB, OP, SHIB, TIA, INJ, FET, DOT</b> • Indikator Presisi TradingView (Anti-Lawan Arah / Anti-Pump Suicide)
       </div>
     </div>
   </div>
@@ -449,7 +449,7 @@ def sinyal_page(summary=None):
     with c_f1:
         f_choice = st.radio(
             "Filter Sinyal:",
-            ["🔥 Semua 20 Koin", "🟢 BUY / LONG Saja", "🔴 SHORT Saja", "🏃 Sedang Berjalan (Running)", "👑 TP MAX / BEP"],
+            ["🔥 Semua 20 Koin (Binance USDT.P)", "🟢 BUY / LONG Saja", "🔴 SHORT Saja", "🏃 Sedang Berjalan (Running / Terbuka)", "👑 TP MAX / BEP"],
             horizontal=True,
             key="anubis_filter_radio"
         )
@@ -468,14 +468,17 @@ def sinyal_page(summary=None):
             st.error(f"Gagal memuat engine sinyal Anubis: {e}")
             signals = []
 
-    # Filter tampilan
-    if f_choice == "🟢 BUY / LONG Saja":
+    # Filter tampilan (Binance USDT.P TradingView Standard)
+    if "BUY / LONG" in f_choice:
         display_sigs = [s for s in signals if s.get('signal') == 'LONG']
-    elif f_choice == "🔴 SHORT Saja":
+    elif "SHORT" in f_choice:
         display_sigs = [s for s in signals if s.get('signal') == 'SHORT']
-    elif f_choice == "🏃 Sedang Berjalan (Running)":
-        display_sigs = [s for s in signals if 'RUNNING' in s.get('status_type', '')]
-    elif f_choice == "👑 TP MAX / BEP":
+    elif "Sedang Berjalan" in f_choice:
+        # Tampilkan yang sedang berjalan atau koin aktif terbaru agar layar tidak pernah kosong
+        display_sigs = [s for s in signals if s.get('status_type') in ['RUNNING', 'RUNNING_BEP'] or (s.get('signal') in ['LONG', 'SHORT'] and s.get('status_type') != 'STANDBY')]
+        if not display_sigs:
+            display_sigs = [s for s in signals if s.get('status_type') in ['PUMP_SURGE', 'TP_MAX', 'BEP_EXIT']]
+    elif "TP MAX / BEP" in f_choice:
         display_sigs = [s for s in signals if s.get('status_type') in ['TP_MAX', 'BEP_EXIT']]
     else:
         display_sigs = signals
@@ -520,8 +523,20 @@ def sinyal_page(summary=None):
                     t_tp2 = sig.get('tp2_time')
                     t_bep = sig.get('bep_time')
                     t_sig = sig.get('sig_time', '')
+                    tv_ticker = sig.get('tv_symbol', sig['coin'] + 'USDT.P')
+                    sl_pct = sig.get('sl_pct', -1.5)
 
-                    if s_type == 'TP_MAX':
+                    if s_type == 'PUMP_SURGE':
+                        status_html = f'''<div style="background: rgba(234, 179, 8, 0.15); border: 1.5px solid #eab308; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                          <span style="color: #facc15; font-weight: 900; font-size: 0.78rem;">🚀 PUMP SURGE (Whales Borong) • ⚠️ DILARANG SHORT • 🕐 {t_event}</span>
+                          <span style="color: #facc15; font-weight: 800; font-size: 0.75rem;">MOMENTUM BULL</span>
+                        </div>'''
+                    elif s_type == 'DUMP_SURGE':
+                        status_html = f'''<div style="background: rgba(239, 68, 68, 0.15); border: 1.5px solid #ef4444; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                          <span style="color: #f87171; font-weight: 900; font-size: 0.78rem;">📉 HEAVY DUMP (Tekanan Jual Kuat) • ⚠️ DILARANG LONG • 🕐 {t_event}</span>
+                          <span style="color: #f87171; font-weight: 800; font-size: 0.75rem;">MOMENTUM BEAR</span>
+                        </div>'''
+                    elif s_type == 'TP_MAX':
                         status_html = f'''<div style="background: rgba(0, 230, 118, 0.15); border: 1px solid #00e676; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
                           <span style="color: #00e676; font-weight: 900; font-size: 0.76rem;">👑 TP MAX TERCAPAI (CUAN PENUH) • 🕐 {t_tp2 or t_event}</span>
                           <span style="color: #00e676; font-weight: 900; font-size: 0.88rem;">+{roe:+.1f}% ROE</span>
@@ -533,7 +548,7 @@ def sinyal_page(summary=None):
                         </div>'''
                     elif s_type == 'RUNNING_BEP':
                         status_html = f'''<div style="background: rgba(255, 215, 0, 0.15); border: 1px solid #ffd700; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                          <span style="color: #ffd700; font-weight: 900; font-size: 0.76rem;">🏃 RUNNING (BEP TERKUNCI) • 🕐 Kunci Sejak {t_tp1 or t_event}</span>
+                          <span style="color: #ffd700; font-weight: 900; font-size: 0.76rem;">🏃 RUNNING (BEP TERKUNCI • RISIKO 0) • 🕐 Kunci Sejak {t_tp1 or t_event}</span>
                           <span style="color: #ffd700; font-weight: 900; font-size: 0.88rem;">+{roe:+.1f}% ROE</span>
                         </div>'''
                     elif s_type == 'RUNNING':
@@ -544,20 +559,45 @@ def sinyal_page(summary=None):
                     else:
                         status_html = f'''<div style="background: rgba(13, 21, 32, 0.8); border: 1px dashed #1e2d3d; border-radius: 8px; padding: 6px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.74rem;">
                           <span style="color: #5a7a9a;">🔍 Status:</span>
-                          <span style="color: #8da4c4; font-weight: 700;">Standby • 🕐 Pantau {t_event}</span>
+                          <span style="color: #8da4c4; font-weight: 700;">Standby • Tunggu Setup Valid • 🕐 {t_event}</span>
                         </div>'''
 
-                    tp1_sub = f"✅ Hit {t_tp1}" if t_tp1 else "Target Kunci BEP"
-                    tp2_sub = f"👑 Hit {t_tp2}" if t_tp2 else "Target Maks (+70%)"
-                    sl_sub = f"❌ Hit {sig.get('sl_time')}" if sig.get('sl_time') else "Batas Proteksi"
-                    bep_badge = f'<span style="color:#00e676;font-weight:800;font-size:0.72rem;margin-left:6px;">(✅ Terkunci {t_tp1})</span>' if t_tp1 else '<span style="color:#8da4c4;font-size:0.70rem;margin-left:6px;">(Siaga Geser)</span>'
+                    tp1_sub = f"✅ Hit {t_tp1}" if t_tp1 else "Kunci BEP (+1.5% s/d +2.0%)"
+                    tp2_sub = f"👑 Hit {t_tp2}" if t_tp2 else "Target Maks (+3.5% s/d +5.0%)"
+                    sl_sub = f"❌ Hit {sig.get('sl_time')}" if sig.get('sl_time') else "Batas Aman (Max 1.8%)"
+                    bep_badge = f'<span style="color:#00e676;font-weight:800;font-size:0.72rem;margin-left:6px;">(✅ Terkunci {t_tp1})</span>' if t_tp1 else '<span style="color:#8da4c4;font-size:0.70rem;margin-left:6px;">(Siaga Geser Saat TP1)</span>'
+
+                    # STOP LOSS ALERT BOX
+                    if s_type in ['RUNNING_BEP', 'BEP_EXIT']:
+                        sl_box_html = f'''<div style="background: rgba(0, 230, 118, 0.12); border: 1.5px solid #00e676; border-radius: 8px; padding: 8px 12px; margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+                          <div>
+                            <b style="color: #00e676; font-size: 0.8rem;">🛡️ SL SEKARANG (BEP TERKUNCI):</b>
+                            <div style="color: #cbd5e1; font-size: 0.65rem;">Sudah geser ke Entry • Risiko Kerugian: 0%</div>
+                          </div>
+                          <div style="text-align:right;">
+                            <span style="color: #00e676; font-weight: 900; font-size: 1.05rem;">${p_bep:{fmt}}</span>
+                            <span style="color: #00e676; font-size: 0.72rem; display:block;">(BEP SECURED)</span>
+                          </div>
+                        </div>'''
+                    else:
+                        sl_box_html = f'''<div style="background: rgba(244, 67, 54, 0.12); border: 1.5px solid #ff5252; border-radius: 8px; padding: 8px 12px; margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
+                          <div>
+                            <b style="color: #ff5252; font-size: 0.8rem;">🛑 STOP LOSS (SL WAJIB DIPASANG):</b>
+                            <div style="color: #cbd5e1; font-size: 0.65rem;">Batas resiko ketat • Cutloss jika candle menyentuh</div>
+                          </div>
+                          <div style="text-align:right;">
+                            <span style="color: #ffffff; font-weight: 900; font-size: 1.05rem;">${p_sl:{fmt}}</span>
+                            <span style="color: #ff5252; font-size: 0.74rem; font-weight: 800; display:block;">{sl_pct:+.2f}% ({sig.get('lev', 10)}x Lev)</span>
+                          </div>
+                        </div>'''
 
                     st.markdown(f"""
 <div class="{card_class}">
   <div class="anubis-card-header">
     <div>
-      <span class="anubis-coin-name">{sig['coin']}-USDT</span>
-      <span style="color: #8da4c4; font-size: 0.72rem; margin-left: 6px;">{sig['name']} • {sig.get('tier', '')}</span>
+      <span class="anubis-coin-name">{sig['coin']}</span>
+      <a href="https://www.tradingview.com/chart/?symbol=BINANCE:{tv_ticker}" target="_blank" style="background:rgba(243,186,47,0.15); color:#f3ba2f; border:1px solid rgba(243,186,47,0.4); border-radius:5px; padding:2px 8px; font-size:0.72rem; text-decoration:none; font-weight:800; margin-left:6px;">📈 BINANCE:{tv_ticker}</a>
+      <div style="color: #8da4c4; font-size: 0.72rem; margin-top: 2px;">{sig['name']} • {sig.get('tier', '')}</div>
     </div>
     <div style="display:flex; gap:6px; align-items:center;">
       <span style="color:#8da4c4; font-size:0.72rem; font-weight:700;">🕐 {t_sig}</span>
@@ -568,9 +608,9 @@ def sinyal_page(summary=None):
   {status_html}
 
   <div style="display:flex; justify-content:space-between; align-items:center; background:#0d1520; border-radius:8px; padding:6px 10px; margin-bottom:8px; font-size:0.76rem;">
-    <span>Harga Live: <b style="color:#ffffff;">${p_curr:{fmt}}</b></span>
-    <div style="display:flex; gap:6px;">
-      <span style="color:#5a7a9a;">RSI: <b>{sig.get('rsi', 50.0):.1f}</b></span>
+    <span>Harga Live (Binance USDT.P): <b style="color:#ffffff;">${p_curr:{fmt}}</b></span>
+    <div style="display:flex; gap:8px;">
+      <span style="color:#5a7a9a;">RSI 1H: <b style="color:{'#f44336' if sig.get('rsi', 50) > 70 else ('#00e676' if sig.get('rsi', 50) < 30 else '#e2e8f0')}">{sig.get('rsi', 50.0):.1f}</b></span>
       <span style="color:#c084fc; font-weight:800;">WR: {sig.get('wr', 88.0):.1f}%</span>
     </div>
   </div>
@@ -598,6 +638,8 @@ def sinyal_page(summary=None):
     </div>
   </div>
 
+  {sl_box_html}
+
   <div class="anubis-bep-bar">
     <span style="color:#ffd700; font-weight:700;">🛡️ Kunci BEP (Geser SL saat TP1 tersentuh):</span>
     <div>
@@ -607,7 +649,7 @@ def sinyal_page(summary=None):
   </div>
 
   <div style="font-size:0.68rem; color:#5a7a9a; margin-top:8px; line-height:1.35;">
-    📌 <i>Buka BingX > Futures Isolated 10x > Pasang di <b>${p_entry:{fmt}}</b>. Set TP1 di <b>${p_tp1:{fmt}}</b>. Saat sentuh TP1, ubah SL ke <b>${p_bep:{fmt}}</b>.</i>
+    📌 <i>Order di <b>BINANCE / BINGX</b> > Futures Isolated 10x > Entry di <b>${p_entry:{fmt}}</b>. Set TP1 di <b>${p_tp1:{fmt}}</b> dan <b>SL di ${p_sl:{fmt}} ({sl_pct:+.2f}%)</b>. Begitu TP1 kena, ubah SL ke <b>${p_bep:{fmt}}</b>.</i>
   </div>
 </div>
 """, unsafe_allow_html=True)
