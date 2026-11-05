@@ -502,32 +502,43 @@ def sinyal_page(summary=None):
                         card_class = "anubis-card anubis-card-neutral"
                         dir_badge = '<span class="anubis-badge-standby">⚪ STANDBY</span>'
 
-                    # Status Banner
+                    # Status Banner dengan Waktu Jam Kejadian
+                    t_event = sig.get('status_time') or sig.get('sig_time', '')
+                    t_tp1 = sig.get('tp1_time')
+                    t_tp2 = sig.get('tp2_time')
+                    t_bep = sig.get('bep_time')
+                    t_sig = sig.get('sig_time', '')
+
                     if s_type == 'TP_MAX':
                         status_html = f'''<div style="background: rgba(0, 230, 118, 0.15); border: 1px solid #00e676; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                          <span style="color: #00e676; font-weight: 900; font-size: 0.76rem;">👑 TP MAX TERCAPAI (CUAN PENUH)</span>
+                          <span style="color: #00e676; font-weight: 900; font-size: 0.76rem;">👑 TP MAX TERCAPAI (CUAN PENUH) • 🕐 {t_tp2 or t_event}</span>
                           <span style="color: #00e676; font-weight: 900; font-size: 0.88rem;">+{roe:+.1f}% ROE</span>
                         </div>'''
                     elif s_type == 'BEP_EXIT':
                         status_html = f'''<div style="background: rgba(56, 189, 248, 0.15); border: 1px solid #38bdf8; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                          <span style="color: #38bdf8; font-weight: 900; font-size: 0.76rem;">🛡️ HIT BEP (Keluar Cuan Aman)</span>
+                          <span style="color: #38bdf8; font-weight: 900; font-size: 0.76rem;">🛡️ HIT BEP (Keluar Cuan Aman) • 🕐 {t_bep or t_event}</span>
                           <span style="color: #38bdf8; font-weight: 900; font-size: 0.88rem;">+{roe:+.1f}% ROE</span>
                         </div>'''
                     elif s_type == 'RUNNING_BEP':
                         status_html = f'''<div style="background: rgba(255, 215, 0, 0.15); border: 1px solid #ffd700; border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                          <span style="color: #ffd700; font-weight: 900; font-size: 0.76rem;">🏃 RUNNING (BEP TERKUNCI - ZERO RISK)</span>
+                          <span style="color: #ffd700; font-weight: 900; font-size: 0.76rem;">🏃 RUNNING (BEP TERKUNCI) • 🕐 Kunci Sejak {t_tp1 or t_event}</span>
                           <span style="color: #ffd700; font-weight: 900; font-size: 0.88rem;">+{roe:+.1f}% ROE</span>
                         </div>'''
                     elif s_type == 'RUNNING':
                         status_html = f'''<div style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 8px; padding: 7px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                          <span style="color: #38bdf8; font-weight: 900; font-size: 0.76rem;">🏃 RUNNING MENUJU TP1</span>
+                          <span style="color: #38bdf8; font-weight: 900; font-size: 0.76rem;">🏃 RUNNING MENUJU TP1 • 🕐 Sinyal {t_sig}</span>
                           <span style="color: {'#00e676' if roe >= 0 else '#f44336'}; font-weight: 900; font-size: 0.88rem;">{roe:+.1f}% ROE</span>
                         </div>'''
                     else:
                         status_html = f'''<div style="background: rgba(13, 21, 32, 0.8); border: 1px dashed #1e2d3d; border-radius: 8px; padding: 6px 12px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; font-size: 0.74rem;">
                           <span style="color: #5a7a9a;">🔍 Status:</span>
-                          <span style="color: #8da4c4; font-weight: 700;">Menunggu Titik Sinyal Baru</span>
+                          <span style="color: #8da4c4; font-weight: 700;">Standby • 🕐 Pantau {t_event}</span>
                         </div>'''
+
+                    tp1_sub = f"✅ Hit {t_tp1}" if t_tp1 else "Target Kunci BEP"
+                    tp2_sub = f"👑 Hit {t_tp2}" if t_tp2 else "Target Maks (+70%)"
+                    sl_sub = f"❌ Hit {sig.get('sl_time')}" if sig.get('sl_time') else "Batas Proteksi"
+                    bep_badge = f'<span style="color:#00e676;font-weight:800;font-size:0.72rem;margin-left:6px;">(✅ Terkunci {t_tp1})</span>' if t_tp1 else '<span style="color:#8da4c4;font-size:0.70rem;margin-left:6px;">(Siaga Geser)</span>'
 
                     st.markdown(f"""
 <div class="{card_class}">
@@ -536,7 +547,10 @@ def sinyal_page(summary=None):
       <span class="anubis-coin-name">{sig['coin']}-USDT</span>
       <span style="color: #8da4c4; font-size: 0.72rem; margin-left: 6px;">{sig['name']} • {sig.get('tier', '')}</span>
     </div>
-    <div>{dir_badge}</div>
+    <div style="display:flex; gap:6px; align-items:center;">
+      <span style="color:#8da4c4; font-size:0.72rem; font-weight:700;">🕐 {t_sig}</span>
+      {dir_badge}
+    </div>
   </div>
 
   {status_html}
@@ -553,24 +567,31 @@ def sinyal_page(summary=None):
     <div class="anubis-level-cell" style="border-color: rgba(56, 189, 248, 0.3);">
       <div class="anubis-level-title" style="color:#38bdf8;">📍 ENTRY</div>
       <div class="anubis-level-val" style="color:#38bdf8;">${p_entry:{fmt}}</div>
+      <div style="color:#8da4c4; font-size:0.62rem; margin-top:2px;">🕐 {t_sig}</div>
     </div>
     <div class="anubis-level-cell" style="border-color: rgba(6, 182, 212, 0.4);">
       <div class="anubis-level-title" style="color:#22d3ee;">💧 TP1 (AQUA)</div>
       <div class="anubis-level-val" style="color:#22d3ee;">${p_tp1:{fmt}}</div>
+      <div style="color:#22d3ee; font-size:0.62rem; margin-top:2px;">{tp1_sub}</div>
     </div>
     <div class="anubis-level-cell" style="border-color: rgba(0, 230, 118, 0.4);">
       <div class="anubis-level-title" style="color:#00e676;">🎯 TP MAX</div>
       <div class="anubis-level-val" style="color:#00e676;">${p_tp2:{fmt}}</div>
+      <div style="color:#00e676; font-size:0.62rem; margin-top:2px;">{tp2_sub}</div>
     </div>
     <div class="anubis-level-cell" style="border-color: rgba(244, 67, 54, 0.4);">
       <div class="anubis-level-title" style="color:#f44336;">🛡️ SL AWAL</div>
       <div class="anubis-level-val" style="color:#f44336;">${p_sl:{fmt}}</div>
+      <div style="color:#f44336; font-size:0.62rem; margin-top:2px;">{sl_sub}</div>
     </div>
   </div>
 
   <div class="anubis-bep-bar">
-    <span style="color:#ffd700; font-weight:700;">🛡️ Kunci BEP (Geser SL ke sini saat TP1 tersentuh):</span>
-    <span style="color:#ffffff; font-weight:900;">${p_bep:{fmt}}</span>
+    <span style="color:#ffd700; font-weight:700;">🛡️ Kunci BEP (Geser SL saat TP1 tersentuh):</span>
+    <div>
+      <span style="color:#ffffff; font-weight:900;">${p_bep:{fmt}}</span>
+      {bep_badge}
+    </div>
   </div>
 
   <div style="font-size:0.68rem; color:#5a7a9a; margin-top:8px; line-height:1.35;">

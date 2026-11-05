@@ -1,4 +1,7 @@
 import urllib.request, json, time, math
+from datetime import datetime, timezone, timedelta
+
+WIB = timezone(timedelta(hours=7))
 
 COINS = [
     {"symbol": "SOL-USDT", "coin": "SOL", "name": "Solana", "tier": "Top 1 Profit", "lev": 10},
@@ -12,6 +15,8 @@ COINS = [
 
 def scan_anubis_signals():
     results = []
+    now_wib = datetime.now(WIB).strftime('%H:%M WIB')
+
     for c in COINS:
         sym = c["symbol"]
         url = f"https://open-api.bingx.com/openApi/swap/v2/quote/klines?symbol={sym}&interval=1h&limit=150"
@@ -27,7 +32,6 @@ def scan_anubis_signals():
             continue
 
         # Sort chronologically (oldest to newest)
-        # BingX data format: {'open': '..', 'close': '..', 'high': '..', 'low': '..', 'volume': '..', 'time': ms}
         data.sort(key=lambda x: int(x['time']))
 
         closes = [float(x['close']) for x in data]
@@ -35,6 +39,7 @@ def scan_anubis_signals():
         lows = [float(x['low']) for x in data]
         opens = [float(x['open']) for x in data]
         n = len(closes)
+        candle_times = [datetime.fromtimestamp(int(x['time']) / 1000, tz=WIB) for x in data]
 
         # ATR 14
         tr = [0.0]*n
@@ -119,55 +124,75 @@ def scan_anubis_signals():
                     'bep': closes[i] - 0.25 * atr[i]
                 }
 
-        # Status tracking
+        # Status tracking with exact candle timestamps
         if active_sig:
             sig_dir = active_sig['dir']
+            sig_bar = active_sig['bar_idx']
             entry = active_sig['entry']
             tp1 = active_sig['tp1']
             tp2 = active_sig['tp2']
             sl = active_sig['sl']
             bep = active_sig['bep']
-            bars_ago = (n - 1) - active_sig['bar_idx']
-            
-            high_since = max(highs[active_sig['bar_idx']:])
-            low_since = min(lows[active_sig['bar_idx']:])
-            
+            bars_ago = (n - 1) - sig_bar
+            sig_time_str = candle_times[sig_bar].strftime('%H:%M WIB')
+
+            tp1_bar = None
+            tp2_bar = None
+            bep_bar = None
+            sl_bar = None
+
+            for b in range(sig_bar, n):
+                if sig_dir == 'LONG':
+                    if tp1_bar is None and highs[b] >= tp1:
+                        tp1_bar = b
+                    if tp2_bar is None and highs[b] >= tp2:
+                        tp2_bar = b
+                    if tp1_bar is not None and bep_bar is None and lows[b] <= bep:
+                        bep_bar = b
+                    if tp1_bar is None and sl_bar is None and lows[b] <= sl:
+                        sl_bar = b
+                else:
+                    if tp1_bar is None and lows[b] <= tp1:
+                        tp1_bar = b
+                    if tp2_bar is None and lows[b] <= tp2:
+                        tp2_bar = b
+                    if tp1_bar is not None and bep_bar is None and highs[b] >= bep:
+                        bep_bar = b
+                    if tp1_bar is None and sl_bar is None and highs[b] >= sl:
+                        sl_bar = b
+
+            tp1_time_str = candle_times[tp1_bar].strftime('%H:%M WIB') if tp1_bar is not None else None
+            tp2_time_str = candle_times[tp2_bar].strftime('%H:%M WIB') if tp2_bar is not None else None
+            bep_time_str = candle_times[bep_bar].strftime('%H:%M WIB') if bep_bar is not None else None
+            sl_time_str = candle_times[sl_bar].strftime('%H:%M WIB') if sl_bar is not None else None
+
             if sig_dir == 'LONG':
                 roe = ((curr_p - entry) / entry) * c['lev'] * 100
-                if high_since >= tp2:
-                    status = '👑 TP MAX HIT (+40% s/d +70% ROE)'
-                    status_type = 'TP_MAX'
-                elif high_since >= tp1:
-                    if curr_p <= bep:
-                        status = '🛡️ HIT BEP (Keluar Cuan Aman)'
-                        status_type = 'BEP_EXIT'
-                    else:
-                        status = '🏃 RUNNING (BEP TERKUNCI - CUAN AMAN)'
-                        status_type = 'RUNNING_BEP'
-                elif curr_p <= sl:
-                    status = '🔴 SL HIT'
-                    status_type = 'SL'
-                else:
-                    status = f'🏃 RUNNING MENUJU TP1 ({bars_ago} Jam Lalu)'
-                    status_type = 'RUNNING'
             else:
                 roe = ((entry - curr_p) / entry) * c['lev'] * 100
-                if low_since <= tp2:
-                    status = '👑 TP MAX HIT (+40% s/d +70% ROE)'
-                    status_type = 'TP_MAX'
-                elif low_since <= tp1:
-                    if curr_p >= bep:
-                        status = '🛡️ HIT BEP (Keluar Cuan Aman)'
-                        status_type = 'BEP_EXIT'
-                    else:
-                        status = '🏃 RUNNING (BEP TERKUNCI - CUAN AMAN)'
-                        status_type = 'RUNNING_BEP'
-                elif curr_p >= sl:
-                    status = '🔴 SL HIT'
-                    status_type = 'SL'
-                else:
-                    status = f'🏃 RUNNING MENUJU TP1 ({bars_ago} Jam Lalu)'
-                    status_type = 'RUNNING'
+
+            if tp2_bar is not None:
+                status = f"👑 TP MAX HIT (+40% s/d +70% ROE) • 🕐 {tp2_time_str}"
+                status_type = "TP_MAX"
+                status_time = tp2_time_str
+            elif bep_bar is not None or (tp1_bar is not None and ((sig_dir == 'LONG' and curr_p <= bep) or (sig_dir == 'SHORT' and curr_p >= bep))):
+                event_t = bep_time_str or tp1_time_str
+                status = f"🛡️ HIT BEP (Keluar Cuan Aman) • 🕐 {event_t}"
+                status_type = "BEP_EXIT"
+                status_time = event_t
+            elif tp1_bar is not None:
+                status = f"🏃 RUNNING (BEP TERKUNCI) • 🕐 Kunci Sejak {tp1_time_str}"
+                status_type = "RUNNING_BEP"
+                status_time = tp1_time_str
+            elif sl_bar is not None or ((sig_dir == 'LONG' and curr_p <= sl) or (sig_dir == 'SHORT' and curr_p >= sl)):
+                event_sl = sl_time_str or sig_time_str
+                status = f"🔴 SL HIT • 🕐 {event_sl}"
+                status_type = "SL"
+                status_time = event_sl
+            else:
+                status = f"🏃 RUNNING MENUJU TP1 • 🕐 Sinyal Masuk {sig_time_str}"
+                status_type = "RUNNING"
+                status_time = sig_time_str
         else:
             sig_dir = 'NETRAL'
             entry = curr_p
@@ -176,9 +201,15 @@ def scan_anubis_signals():
             sl = curr_p * 0.965
             bep = curr_p
             roe = 0.0
-            status = '🔍 STANDBY (Menunggu Titik Pucuk/Lembah)'
+            status = f"🔍 STANDBY • 🕐 Pantau {now_wib}"
             status_type = 'STANDBY'
+            status_time = now_wib
             bars_ago = 0
+            sig_time_str = now_wib
+            tp1_time_str = None
+            tp2_time_str = None
+            bep_time_str = None
+            sl_time_str = None
 
         # Win Rate Historis Koin (Data Empiris)
         wr_map = {'AVAX': 91.0, 'BTC': 91.8, 'ETH': 88.6, 'SOL': 86.6, 'PEPE': 85.4, 'DOGE': 83.2, 'SUI': 85.0}
@@ -200,6 +231,12 @@ def scan_anubis_signals():
             'roe': roe,
             'status': status,
             'status_type': status_type,
+            'status_time': status_time,
+            'sig_time': sig_time_str,
+            'tp1_time': tp1_time_str,
+            'tp2_time': tp2_time_str,
+            'bep_time': bep_time_str,
+            'sl_time': sl_time_str,
             'bars_ago': bars_ago,
             'rsi': curr_rsi,
             'atr': curr_atr,
@@ -211,4 +248,4 @@ if __name__ == '__main__':
     res = scan_anubis_signals()
     for r in res:
         clean_status = r['status'].encode('ascii', 'ignore').decode()
-        print(f"[{r['coin']}] {r['signal']:<5} | Price: ${r['price']:.4f} | Entry: ${r['entry']:.4f} | TP1: ${r['tp1']:.4f} | TP2: ${r['tp2']:.4f} | Status: {clean_status}")
+        print(f"[{r['coin']}] {r['signal']:<5} | Entry: {r['sig_time']} | TP1: {r['tp1_time']} | TP2: {r['tp2_time']} | BEP: {r['bep_time']} | Status: {clean_status}")
