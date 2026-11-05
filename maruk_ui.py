@@ -413,21 +413,33 @@ def sinyal_page(summary=None):
   </div>
   <div class="anubis-grid">
     <div class="anubis-stat-box">
-      <span>Target Konsisten</span>
-      <b style="color: #ffd700;">Min. $50 / Bulan</b>
+      <span>Target Mingguan / Bulanan</span>
+      <b style="color: #ffd700;">$10 / Mgg ($50 / Bln)</b>
     </div>
     <div class="anubis-stat-box">
-      <span>Rekomendasi Modal</span>
-      <b style="color: #00e676;">$1.00 - $2.00 / Koin</b>
+      <span>Timeframe & Akurasi</span>
+      <b style="color: #00e676;">1 Jam (1H) • WR 91.7%</b>
     </div>
     <div class="anubis-stat-box">
-      <span>Leverage & Mode</span>
-      <b style="color: #38bdf8;">10x Isolated</b>
+      <span>Margin & Leverage</span>
+      <b style="color: #38bdf8;">$2.00 • 10x-15x Isolated</b>
     </div>
     <div class="anubis-stat-box">
-      <span>Protokol Proteksi</span>
-      <b style="color: #c084fc;">Kunci BEP di TP1 (Zero Risk)</b>
+      <span>Maksimal Posisi Terbuka</span>
+      <b style="color: #c084fc;">Maks. 1 - 2 Koin Saja</b>
     </div>
+  </div>
+</div>
+
+<div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; font-size: 0.8rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+  <div>
+    <b style="color: #00e676;">🛡️ PROTOKOL SLOT POSISI MODAL $10 (ANTI-MC):</b> 
+    <span style="color: #cbd5e1;">Buka <b>Slot 1</b> (Margin $2) &rarr; Tunggu profit & geser SL ke BEP &rarr; Baru boleh buka <b>Slot 2</b> (Margin $2). Saldo cadangan $6 wajib standby menahan guncangan pasar.</span>
+  </div>
+  <div style="display: flex; gap: 6px;">
+    <span style="background: rgba(0, 230, 118, 0.2); color: #00e676; border: 1px solid #00e676; padding: 3px 8px; border-radius: 5px; font-weight: 800; font-size: 0.72rem;">SLOT 1: UTAMA</span>
+    <span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid #38bdf8; padding: 3px 8px; border-radius: 5px; font-weight: 800; font-size: 0.72rem;">SLOT 2: SAAT BEP</span>
+    <span style="background: rgba(244, 67, 54, 0.2); color: #ff5252; border: 1px solid #ff5252; padding: 3px 8px; border-radius: 5px; font-weight: 800; font-size: 0.72rem;">SLOT 3+: DILARANG</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
