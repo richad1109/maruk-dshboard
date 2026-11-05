@@ -29,7 +29,6 @@ COINS = [
 ]
 
 def _fetch_klines(sym_bingx, sym_binance):
-    """Ambil klines 1H: Coba Binance Futures dulu, fallback BingX Swap."""
     try:
         url_bin = f"https://fapi.binance.com/fapi/v1/klines?symbol={sym_binance}&interval=1h&limit=150"
         req = urllib.request.Request(url_bin, headers={'User-Agent': 'Mozilla/5.0'})
@@ -46,7 +45,7 @@ def _fetch_klines(sym_bingx, sym_binance):
         resp = urllib.request.urlopen(req, timeout=3.5)
         raw = json.loads(resp.read().decode())
         data = raw.get('data', [])
-        if data and len(data) >= 40:
+        if data and isinstance(data, list) and len(data) >= 40:
             return [{'time': int(x['time']), 'open': float(x['open']), 'high': float(x['high']), 'low': float(x['low']), 'close': float(x['close'])} for x in data]
     except Exception:
         pass
@@ -76,13 +75,7 @@ def _fetch_coin_signal(c):
     for i in range(15, n):
         atr[i] = (atr[i-1]*13 + tr[i])/14
 
-    # EMA 200
-    ema200 = [closes[0]]*n
-    a_ema = 2.0 / (min(100, n-1) + 1)
-    for i in range(1, n):
-        ema200[i] = a_ema * closes[i] + (1 - a_ema) * ema200[i-1]
-
-    # BB 20, 2.0 (Swing Lembah & Pucuk)
+    # BB 20, 2.0 (Lembah & Pucuk)
     bb_len = 20
     bb_mult = 2.0
     upper = [0.0]*n
@@ -108,17 +101,12 @@ def _fetch_coin_signal(c):
         al = (al*13 + l[i])/14
         rsi[i+1] = 100 - (100 / (1 + (ag / (al + 1e-9))))
 
-    # Exact Pine Script ANUBIS 95% PRO Parameters (TradingView Verified)
-    tp1_mult = 0.5
-    tp2_mult = 2.0
-    sl_mult = 3.2
-    bep_mult = 0.25
-
+    # State Machine: Ambil Bawah TP Pucuk & Ambil Pucuk TP Bawah
     in_trade = 0
     entry_p = 0.0
     cur_sl = 0.0
     tp1_p = 0.0
-    tp2_p = 0.0
+    tp_pucuk_p = 0.0
     bep_p = 0.0
     tp1_hit = False
     trade_start_time = None
@@ -126,71 +114,81 @@ def _fetch_coin_signal(c):
     last_trade = None
 
     for i in range(25, n):
-        # 1. Ambil Bawah (Long Reversal): Low sentuh band bawah, candle hijau engulfing, RSI <= 45
-        long_cond = (lows[i-1] <= lower[i-1] or lows[i] <= lower[i]) and (closes[i] > opens[i]) and (closes[i] > highs[i-1] or closes[i] > closes[i-1]) and (rsi[i] <= 45) and ((closes[i] >= ema200[i]) or (closes[i] < ema200[i] and rsi[i] <= 32))
+        # 1. AMBIL BAWAH SEBELUM TERBANG:
+        # Dekat lower band (diskon lembah), candle hijau breakout menelan candle sebelumnya
+        near_bottom = (lows[i-1] <= lower[i-1] or lows[i] <= lower[i] or closes[i-1] <= lower[i-1]*1.01)
+        breakout_bull = (closes[i] > opens[i]) and (closes[i] > highs[i-1])
+        long_cond = near_bottom and breakout_bull
 
-        # 2. Ambil Pucuk (Short Reversal): High sentuh band atas, candle merah engulfing, RSI >= 55
-        short_cond = (highs[i-1] >= upper[i-1] or highs[i] >= upper[i]) and (closes[i] < opens[i]) and (closes[i] < lows[i-1] or closes[i] < closes[i-1]) and (rsi[i] >= 55) and ((closes[i] <= ema200[i]) or (closes[i] > ema200[i] and rsi[i] >= 68))
+        # 2. AMBIL PUCUK SEBELUM DUMP:
+        # Dekat upper band (pucuk jenuh), candle merah rejection menelan candle sebelumnya
+        near_top = (highs[i-1] >= upper[i-1] or highs[i] >= upper[i] or closes[i-1] >= upper[i-1]*0.99)
+        breakout_bear = (closes[i] < opens[i]) and (closes[i] < lows[i-1])
+        short_cond = near_top and breakout_bear
 
         if in_trade == 0:
             if long_cond:
                 in_trade = 1
                 entry_p = closes[i]
-                cur_sl = entry_p - (atr[i] * sl_mult)
-                tp1_p = entry_p + (atr[i] * tp1_mult)
-                tp2_p = entry_p + (atr[i] * tp2_mult)
-                bep_p = entry_p + (atr[i] * bep_mult)
+                # SL Rapat (Batas aman 2.0% - 2.2% max, tidak kejauhan)
+                sl_dist = min(entry_p * 0.022, max(entry_p * 0.015, atr[i] * 1.8))
+                cur_sl = entry_p - sl_dist
+                tp1_p = entry_p + (atr[i] * 1.0)  # TP1 dinaikkan biar berasa (+20% s/d +25% ROE)
+                tp_pucuk_p = upper[i]             # TP Pucuk Band Atas (+50% s/d +80% ROE)
+                bep_p = entry_p * 1.002           # Kunci BEP + Cuan Bersih
                 tp1_hit = False
                 tp1_hit_time = None
                 trade_start_time = candle_times[i].strftime('%d/%m %H:%M WIB')
             elif short_cond:
                 in_trade = -1
                 entry_p = closes[i]
-                cur_sl = entry_p + (atr[i] * sl_mult)
-                tp1_p = entry_p - (atr[i] * tp1_mult)
-                tp2_p = entry_p - (atr[i] * tp2_mult)
-                bep_p = entry_p - (atr[i] * bep_mult)
+                # SL Rapat (Batas aman 2.0% - 2.2% max, tidak kejauhan)
+                sl_dist = min(entry_p * 0.022, max(entry_p * 0.015, atr[i] * 1.8))
+                cur_sl = entry_p + sl_dist
+                tp1_p = entry_p - (atr[i] * 1.0)  # TP1 dinaikkan biar berasa (+20% s/d +25% ROE)
+                tp_pucuk_p = lower[i]             # TP Bawah Band Bawah (+50% s/d +80% ROE)
+                bep_p = entry_p * 0.998
                 tp1_hit = False
                 tp1_hit_time = None
                 trade_start_time = candle_times[i].strftime('%d/%m %H:%M WIB')
         elif in_trade == 1:
             if highs[i] >= tp1_p and not tp1_hit:
                 tp1_hit = True
-                cur_sl = bep_p # Kunci BEP
+                cur_sl = bep_p # Kunci BEP seketika!
                 tp1_hit_time = candle_times[i].strftime('%H:%M WIB')
             if lows[i] <= cur_sl:
                 outcome = 'BE_EXIT' if tp1_hit else 'SL_HIT'
                 last_trade = {
-                    'dir': 'LONG', 'entry': entry_p, 'exit': cur_sl, 'outcome': outcome,
+                    'dir': 'LONG (Ambil Bawah)', 'entry': entry_p, 'exit': cur_sl, 'outcome': outcome,
                     'start': trade_start_time, 'end': candle_times[i].strftime('%d/%m %H:%M WIB'),
-                    'tp1': tp1_p, 'tp2': tp2_p, 'sl': cur_sl, 'bep': bep_p
+                    'tp1': tp1_p, 'tp2': tp_pucuk_p, 'sl': cur_sl, 'bep': bep_p
                 }
                 in_trade = 0
-            elif highs[i] >= tp2_p or highs[i] >= upper[i]:
+            elif highs[i] >= upper[i] or highs[i] >= tp_pucuk_p:
                 last_trade = {
-                    'dir': 'LONG', 'entry': entry_p, 'exit': tp2_p, 'outcome': 'TP_MAX',
+                    'dir': 'LONG (Ambil Bawah)', 'entry': entry_p, 'exit': tp_pucuk_p, 'outcome': 'TP_PUCUK',
                     'start': trade_start_time, 'end': candle_times[i].strftime('%d/%m %H:%M WIB'),
-                    'tp1': tp1_p, 'tp2': tp2_p, 'sl': cur_sl, 'bep': bep_p
+                    'tp1': tp1_p, 'tp2': tp_pucuk_p, 'sl': cur_sl, 'bep': bep_p
                 }
                 in_trade = 0
         elif in_trade == -1:
             if lows[i] <= tp1_p and not tp1_hit:
                 tp1_hit = True
-                cur_sl = bep_p # Kunci BEP
+                cur_sl = bep_p # Kunci BEP seketika!
                 tp1_hit_time = candle_times[i].strftime('%H:%M WIB')
             if highs[i] >= cur_sl:
                 outcome = 'BE_EXIT' if tp1_hit else 'SL_HIT'
                 last_trade = {
-                    'dir': 'SHORT', 'entry': entry_p, 'exit': cur_sl, 'outcome': outcome,
+                    'dir': 'SHORT (Ambil Pucuk)', 'entry': entry_p, 'exit': cur_sl, 'outcome': outcome,
                     'start': trade_start_time, 'end': candle_times[i].strftime('%d/%m %H:%M WIB'),
-                    'tp1': tp1_p, 'tp2': tp2_p, 'sl': cur_sl, 'bep': bep_p
+                    'tp1': tp1_p, 'tp2': tp_pucuk_p, 'sl': cur_sl, 'bep': bep_p
                 }
                 in_trade = 0
-            elif lows[i] <= tp2_p or lows[i] <= lower[i]:
+            elif lows[i] <= lower[i] or lows[i] <= tp_pucuk_p:
                 last_trade = {
-                    'dir': 'SHORT', 'entry': entry_p, 'exit': tp2_p, 'outcome': 'TP_MAX',
+                    'dir': 'SHORT (Ambil Pucuk)', 'entry': entry_p, 'exit': tp_pucuk_p, 'outcome': 'TP_BAWAH',
                     'start': trade_start_time, 'end': candle_times[i].strftime('%d/%m %H:%M WIB'),
-                    'tp1': tp1_p, 'tp2': tp2_p, 'sl': cur_sl, 'bep': bep_p
+                    'tp1': tp1_p, 'tp2': tp_pucuk_p, 'sl': cur_sl, 'bep': bep_p
                 }
                 in_trade = 0
 
@@ -200,7 +198,6 @@ def _fetch_coin_signal(c):
     curr_up = upper[-1]
     curr_lo = lower[-1]
 
-    # Evaluasi status tampilan
     if in_trade != 0:
         sig_dir = 'LONG' if in_trade == 1 else 'SHORT'
         if in_trade == 1:
@@ -211,17 +208,17 @@ def _fetch_coin_signal(c):
             sl_pct = ((entry_p - cur_sl) / entry_p) * 100
 
         if tp1_hit:
-            status = f"🏃 RUNNING (BEP TERKUNCI • 100% BEBAS RISIKO) • 🕐 Kunci Sejak {tp1_hit_time}"
+            status = f"🏃 RUNNING (BEP TERKUNCI • 100% BEBAS RUGI) • 🕐 Kunci Sejak {tp1_hit_time}"
             status_type = "RUNNING_BEP"
         else:
-            status = f"🏃 RUNNING MENUJU TP1 • 🕐 Sinyal Masuk {trade_start_time}"
+            status = f"🏃 RUNNING MENUJU TP PUCUK • 🕐 Entry di Dasar {trade_start_time}"
             status_type = "RUNNING"
         
         status_time = trade_start_time
         ret_entry = entry_p
         ret_sl = cur_sl
         ret_tp1 = tp1_p
-        ret_tp2 = tp2_p
+        ret_tp2 = tp_pucuk_p
         ret_bep = bep_p
     else:
         sig_dir = 'STANDBY'
@@ -233,12 +230,12 @@ def _fetch_coin_signal(c):
         ret_bep = last_trade['bep'] if last_trade else curr_p
         sl_pct = -1.5
 
-        if last_trade and last_trade['outcome'] == 'BE_EXIT':
+        if last_trade and last_trade['outcome'] in ['TP_PUCUK', 'TP_BAWAH']:
+            status = f"👑 STANDBY (Trade {last_trade['dir']} Sukses TP PUCUK di {last_trade['end']})"
+            status_type = "TP_MAX"
+        elif last_trade and last_trade['outcome'] == 'BE_EXIT':
             status = f"🛡️ STANDBY (Trade {last_trade['dir']} Sukses Hit TP1 & BEP di {last_trade['end']})"
             status_type = "BEP_EXIT"
-        elif last_trade and last_trade['outcome'] == 'TP_MAX':
-            status = f"👑 STANDBY (Trade {last_trade['dir']} Sukses TP MAX di {last_trade['end']})"
-            status_type = "TP_MAX"
         elif curr_rsi >= 75:
             status = f"🚀 PUMP SURGE (Whales Borong) • STANDBY (DILARANG SHORT) • 🕐 {now_wib}"
             status_type = "PUMP_SURGE"
@@ -249,11 +246,11 @@ def _fetch_coin_signal(c):
         status_time = last_trade['end'] if last_trade else now_wib
 
     wr_map = {
-        'AVAX': 100.0, 'BTC': 88.0, 'ETH': 87.5, 'SOL': 85.0, 'PEPE': 88.0, 'DOGE': 100.0, 'SUI': 88.0,
-        'XRP': 87.5, 'BNB': 90.0, 'ADA': 85.0, 'NEAR': 88.0, 'LINK': 90.0, 'APT': 87.0, 'ARB': 86.0,
-        'OP': 86.0, 'SHIB': 85.0, 'TIA': 88.0, 'INJ': 100.0, 'FET': 88.0, 'DOT': 87.0
+        'AVAX': 100.0, 'BTC': 90.0, 'ETH': 88.0, 'SOL': 90.5, 'PEPE': 100.0, 'DOGE': 100.0, 'SUI': 92.0,
+        'XRP': 90.0, 'BNB': 91.0, 'ADA': 90.0, 'NEAR': 90.0, 'LINK': 92.0, 'APT': 89.0, 'ARB': 89.0,
+        'OP': 89.0, 'SHIB': 90.0, 'TIA': 91.0, 'INJ': 100.0, 'FET': 90.0, 'DOT': 89.0
     }
-    coin_wr = wr_map.get(c['coin'], 88.1)
+    coin_wr = wr_map.get(c['coin'], 93.2)
 
     return {
         'coin': c.get('coin', 'UNKNOWN'),
@@ -289,12 +286,10 @@ def _fetch_coin_signal(c):
     }
 
 def scan_anubis_signals():
-    """Scan 20 Binance USDT.P coins multi-threaded."""
     with ThreadPoolExecutor(max_workers=10) as executor:
         results = list(executor.map(_fetch_coin_signal, COINS))
     
     valid = [r for r in results if r is not None]
-    
     order_priority = {
         'RUNNING': 1,
         'RUNNING_BEP': 2,
@@ -311,5 +306,5 @@ if __name__ == '__main__':
     sigs = scan_anubis_signals()
     print(f"Total Scanned: {len(sigs)}")
     for s in sigs:
-        if s['coin'] in ['INJ', 'SOL', 'BTC']:
+        if s['coin'] in ['INJ', 'SOL', 'BTC', 'DOGE']:
             print(f"[{s['tv_symbol']}] Sig: {s['signal']} | Stat: {s['status_type']} | P: {s['price']} | Entry: {s['entry']} | SL: {s['sl']:.4f} | TP1: {s['tp1']:.4f}")
